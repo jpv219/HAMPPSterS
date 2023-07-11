@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import Clean_CSV
+import Load_Clean_DF
 import csv
 import sys
 
@@ -10,10 +10,7 @@ directory = '/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/LS
 
 for case in arg1:
 
-    path = 'RawData/' + case + '_GVol.csv'
-
-    input = pd.read_csv(path)
-    df_input = Clean_CSV.clean_csv(input,list(input.columns.values)[1:3])
+    df_input = Load_Clean_DF.extract_GVol(case)
 
     volume = df_input['Volume'].values.tolist()
 
