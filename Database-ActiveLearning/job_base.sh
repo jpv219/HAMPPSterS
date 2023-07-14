@@ -2,7 +2,7 @@
 #PBS -N RUN_NAME
 #PBS -o RUN_NAME.out
 #PBS -j oe
-#PBS -l select=1:ncpus='n_cpus':mem='mem'gb
+#PBS -l select='n_nodes':ncpus='n_cpus':mem='mem'gb
 #PBS -l walltime=8:00:00
 set -vx
 cd $PBS_O_WORKDIR
@@ -16,7 +16,7 @@ cat > Blue.nml <<'EOF'
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Size of the domain
   !   box(1),    box(2)     box(3),    box(4)    box(5),     box(6)
-  box=0.0d0   'box2'd0   0.0d0  'box4'd0   0.0d0  'box6d0
+  box=0.0d0   'box2'd0   0.0d0  'box4'd0   0.0d0  'box6'd0
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
 &MPI_PROCESS_PROPERTIES
@@ -47,10 +47,10 @@ cat > Blue.nml <<'EOF'
 &TIME_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Number of time steps,                Real Time Limit (s),         run time limit in hours (if <0, run time limit has nolimit)
-  num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=-1.0d0
+  num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=47.9d0
 !
 ! Fixed time step,                     If fixed, set dt.
-  fixed_time_step=.FALSE.             dt=9.0D-4
+  fixed_time_step=.TRUE.             dt=1.0D-4
 !
 ! Time integeration scheme ("GEAR" order(2) or "CRANK-NICHOLSON" order(2) or "EULER" order(1) scheme).
   time_integration_scheme="GEAR"
@@ -62,7 +62,7 @@ cat > Blue.nml <<'EOF'
   cfl_time_step_factor    =0.4d0
   visc_time_step_factor   =50.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.5d0
+  int_time_step_factor    =0.08d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
   surf_time_step_factor   =2.0d0
@@ -80,7 +80,7 @@ cat > Blue.nml <<'EOF'
 &FLUID_DENSITY_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   density_phase_1                          =  1364.0d0     ! Density of phase_1  (kg/m3)
-  density_phase_2                          =  970.0d0     ! Density of phase_2  (kg/m3)
+  density_phase_2                          =  960.0d0     ! Density of phase_2  (kg/m3)
   !
   boussinesq                               = .FALSE.       ! Boussinesq approximation (on/off) => if true, set ENERGY_TRANSPORT=.true.
   expan_phase_1                            = 1.0d-4        ! Expansion coeff. phase_1 (1/K)
@@ -90,8 +90,8 @@ cat > Blue.nml <<'EOF'
 /
 &FLUID_VISCOSITY_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
-  viscosity_phase_1                        = 0.556d0        ! Default absolute viscosity of phase_1 (kg/m/s).
-  viscosity_phase_2                        = 0.49d0        ! Default absolute viscosity of phase_2 (kg/m/s).
+  viscosity_phase_1                        = 0.615d0        ! Default absolute viscosity of phase_1 (kg/m/s).
+  viscosity_phase_2                        = 0.0984d0        ! Default absolute viscosity of phase_2 (kg/m/s).
   harmonic_viscosity                       = .FALSE.       ! if true, compute harmonic approximation of the viscosity for multiphase flow.
   !
   Non_Newtonian                            = .FALSE.       ! if true, Non-Newtonian vicosity model is assumed instead of Newtonian above (default).
@@ -162,7 +162,7 @@ cat > Blue.nml <<'EOF'
   !
   ! DEFAULT BOUNDARY CONDITIONS
   !                                            u,         v,        w
-  velocity_bctype                          = "DNDDDD", "DNDDDD", "DNDDDD"
+  velocity_bctype                          = "NDDDDD", "NDDDDD", "NDDDDD"
   adjust_velocity                          = .TRUE.        ! Adjust velocity on Neumann boundaries (true/false)
   ! Immersed solid boundary condition types
   !                                           u,   v,   w
@@ -182,15 +182,15 @@ cat > Blue.nml <<'EOF'
   !----------------------------
   ! SOLVER PARAMETERS
   ! Iterations.     Tolerance.        Relaxation.          Components (used by GMRES only).
-  u_max_iter=50     u_tol=1.D-10      u_relax=1.25D0       u_max_comp=10
-  v_max_iter=50     v_tol=1.D-10      v_relax=1.25D0       v_max_comp=10
-  w_max_iter=50     w_tol=1.D-10      w_relax=1.25D0       w_max_comp=10
+  u_max_iter=60     u_tol=1.D-12      u_relax=1.25D0       u_max_comp=10
+  v_max_iter=60     v_tol=1.D-12      v_relax=1.25D0       v_max_comp=10
+  w_max_iter=60     w_tol=1.D-12      w_relax=1.25D0       w_max_comp=10
 !--------------------------------------------------------------------------------------------------------------------------------
 /
 &PRESSURE_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   ! DEFAULT BOUNDARY CONDITIONS
-  pressure_bctype                          = "NDNNNN"      ! Default domain boundary conditions types
+  pressure_bctype                          = "DNNNNN"      ! Default domain boundary conditions types
   pressure_iso_bctype                      = "N"           ! Immersed solid boundary condition types
   ! Faces: West          East 
            Pwest=0.0d0   Peast=0.0d0                       ! Default Dirichlet West/East boundary conditions
@@ -201,7 +201,7 @@ cat > Blue.nml <<'EOF'
   !----------------------------
   ! SOLVER PARAMETERS
   ! Iterations.     Tolerance.          Relaxation.        components (used by GMRES only).
-  p_max_iter=100    p_tol=1.0D-8         p_relax=1.05D0     p_max_comp=30
+  p_max_iter=100    p_tol=1.0D-10         p_relax=1.05D0     p_max_comp=30
   !
   ! Nb grid.       relax_max_grid      Nn max cycles     Nb sweeps down.    Nb sweeps down (used by MG only)
   p_grids=5        p_relax_max=1.1d0  p_max_cycles=50   p_sweeps_down=20   p_sweeps_up=40
@@ -334,7 +334,7 @@ cat > Blue.nml <<'EOF'
   output_box_selection=.FALSE.       output_box_coordinates=0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0
 !
 ! If ParaView,               Format,                Loop Frequency,          Time interval (s),             Prefix.
-  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=1.0d-2   paraview_file_prefix="RUN_NAME"
+  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=5.0d-3   paraview_file_prefix="RUN_NAME"
 !
 ! If tecplot,                Loop Frequency,        Time interval (s),        Prefix.
   tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="RUN_NAME"
@@ -343,7 +343,7 @@ cat > Blue.nml <<'EOF'
   interface_output=.FALSE.    interface_format="stl"   interface_frequency=10   interface_time_interval=0.0d0    interface_file_prefix="RUN_NAME"
 !
 ! If history,         Loop Frequency,        Time interval (s),        Prefix.
-  history_output=.FALSE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="RUN_NAME"
+  history_output=.TRUE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="RUN_NAME"
                       !                       X,          Y,          Z
                       center_reference_point= 0.064d0,      0.008d0,      0.008d0        ! Center reference.
                       axis_reference_point  = 0.0d0,      0.0d0                    ! z-axis reference.
@@ -379,10 +379,10 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=2.5d-3     output_restart_file_prefix="RUN_NAME"
+  output_restart_frequency=0     output_restart_time_interval=1.0d-3     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
-  restart=.TRUE.              input_file_index=115       input_file_prefix="RUN_NAME"
+  restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
 EOF
@@ -395,7 +395,8 @@ cp $PROJECT.csv ~/../ephemeral/$PROJECT
 cd ~/../ephemeral/$PROJECT
 # Run the program.
 echo "... Run started @ $(date) ..."
-module load mpi/intel-2019.6.166 intel-suite/2019.4
+module load mpi/intel-2019.8.254 intel-suite/2019.4
+#module load  mpi/intel-2019 intel-suite/2019.4
 #pbsexec -grace 55 mpiexec ./$PROGRAM ; OK=$?
 #mpirun -np $NBPROC ./$PROGRAM ; OK=$?
 mpiexec ./$PROGRAM ; OK=$?
