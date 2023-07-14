@@ -1,13 +1,13 @@
 #!/bin/bash
-#PBS -N SMX_ML2
-#PBS -o SMX_ML2.out
+#PBS -N RUN_NAME
+#PBS -o RUN_NAME.out
 #PBS -j oe
-#PBS -l select=1:ncpus=216:mem=400gb
+#PBS -l select=1:ncpus='n_cpus':mem='mem'gb
 #PBS -l walltime=8:00:00
 set -vx
 cd $PBS_O_WORKDIR
 
-PROJECT="smx_ml2"
+PROJECT="RUN_NAME"
 PROGRAM=$PROJECT.x
 
 # Build input data in Blue.nml file
@@ -16,14 +16,14 @@ cat > Blue.nml <<'EOF'
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Size of the domain
   !   box(1),    box(2)     box(3),    box(4)    box(5),     box(6)
-  box=0.0d0   0.032d0   0.0d0  0.016d0   0.0d0  0.016d0
+  box=0.0d0   'box2'd0   0.0d0  'box4'd0   0.0d0  'box6d0
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
 &MPI_PROCESS_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   ! Process grid dimensions (MPI will do the job if profile=(0,0,0)).
   !         profile(1), profile(2), profile(3)
-  profile = 6,          6,          6
+  profile = 'x_subd',          'y_subd',          'z_subd'
   !
   ! Process grid Periodicity (true means periodic BCs.)
   !         periodic(1), periodic(2), periodic(3)
@@ -34,7 +34,7 @@ cat > Blue.nml <<'EOF'
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Eulerian mesh size per subdomain (must be in power of two).
   !    cell(1), cell(2), cell(3)
-  cell=128,      64,      64
+  cell='cell1',      'cell2',      'cell3'
 !
 ! Guardcell size (ENO needs at least one in each direction).
   !         guardcell(1), guardcell(2), guardcell(3)
@@ -334,16 +334,16 @@ cat > Blue.nml <<'EOF'
   output_box_selection=.FALSE.       output_box_coordinates=0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0
 !
 ! If ParaView,               Format,                Loop Frequency,          Time interval (s),             Prefix.
-  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=1.0d-2   paraview_file_prefix="smx_ml2"
+  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=1.0d-2   paraview_file_prefix="RUN_NAME"
 !
 ! If tecplot,                Loop Frequency,        Time interval (s),        Prefix.
-  tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="smx_ml2"
+  tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="RUN_NAME"
 !
 ! If interface,              Format (raw/stl)         Loop Frequency,        Time interval (s),        Prefix.
-  interface_output=.FALSE.    interface_format="stl"   interface_frequency=10   interface_time_interval=0.0d0    interface_file_prefix="smx_ml2"
+  interface_output=.FALSE.    interface_format="stl"   interface_frequency=10   interface_time_interval=0.0d0    interface_file_prefix="RUN_NAME"
 !
 ! If history,         Loop Frequency,        Time interval (s),        Prefix.
-  history_output=.FALSE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="smx_ml2"
+  history_output=.FALSE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="RUN_NAME"
                       !                       X,          Y,          Z
                       center_reference_point= 0.064d0,      0.008d0,      0.008d0        ! Center reference.
                       axis_reference_point  = 0.0d0,      0.0d0                    ! z-axis reference.
@@ -351,7 +351,7 @@ cat > Blue.nml <<'EOF'
                       axis_segment          = -0.025d0,      0.01d0                   ! z-segment reference.
 !
 ! If signal,          Number of points,      Loop Frequency,      Time interval (s),     Prefix,
-  signal_output=.FALSE.     num_signal_points=1   signal_frequency=1  signal_time_interval=0.0d0 signal_file_prefix="smx_ml2"
+  signal_output=.FALSE.     num_signal_points=1   signal_frequency=1  signal_time_interval=0.0d0 signal_file_prefix="RUN_NAME"
                                    !   X,       Y,       Z
                       signal_points=0.000D0, 0.000D0, 0.000D0,
                                     0.000D0, 0.000D0, 0.000D0,
@@ -365,7 +365,7 @@ cat > Blue.nml <<'EOF'
                                     0.000D0, 0.000D0, 0.000D0
 !
 ! If shape,           Number of points,      Frequency,             Prefix,
-  shape_output=.FALSE.      num_shape_points=1    shape_frequency=1  shape_time_interval=0.0d0   shape_file_prefix="smx_ml2"
+  shape_output=.FALSE.      num_shape_points=1    shape_frequency=1  shape_time_interval=0.0d0   shape_file_prefix="RUN_NAME"
                                   !   X,       Y,       Z
                       shape_points=0.000D0, 0.000D0, 0.000D0,
                                    0.000D0, 0.000D0, 0.000D0,
@@ -379,10 +379,10 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=2.5d-3     output_restart_file_prefix="smx_ml2"
+  output_restart_frequency=0     output_restart_time_interval=2.5d-3     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
-  restart=.TRUE.              input_file_index=115       input_file_prefix="smx_ml2"
+  restart=.TRUE.              input_file_index=115       input_file_prefix="RUN_NAME"
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
 EOF
