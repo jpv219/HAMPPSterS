@@ -1,4 +1,5 @@
-### Juan Pablo Valdes, SMX_Automation_simulation_run
+### SMX_Automation_simulation_run, tailored for BLUE
+### Author: Juan Pablo Valdes,
 ### First init: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -16,6 +17,7 @@ import csv
 import math
 import datetime
 import subprocess
+import re
 
 class SimScheduling:
 
@@ -96,11 +98,9 @@ class SimScheduling:
         os.system('make clean')
         os.chdir('..')
 
-    def setjobsh(self):
+    ### modifying .sh instance accordingly
 
-        ## Create run_ID directory
-        self.run_name = "run_"+str(self.run_ID)
-        self.path = os.path.join(self.run_path, self.run_name)
+    def setjobsh(self):
         
         ## rename job with current run
         os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
@@ -185,7 +185,9 @@ class SimScheduling:
         os.system(f'sed -i \"s/\'cell1\'/{cell1}/\" {self.path}/{self.run_name}.sh')
         os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/{self.run_name}.sh')
         os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/{self.run_name}.sh')
-        
+
+    ### checking job status and sending exceptions as fitting
+
     def job_wait(self, job_id, proc, job_name, queue):
         running = True
         while running:
@@ -220,14 +222,46 @@ class SimScheduling:
             except ValueError as e:
                 print(f"Error: {e}")
                 raise ValueError('Existing job but doesnt belong to this account')
-            
+
+
     def job_restart(self):
 
-        self.run_name = "run_"+str(self.run_ID)
-        self.path = os.path.join(self.run_path, self.run_name)
         ephemeral_path = os.path.join('$EPHEMERAL',self.run_name)
-        
+
         os.chdir(ephemeral_path)
+        ## Checking location of the interface in the x direction -- stopping criterion
+        ptxEast_f = pd.read_csv(str(self.run_name)).iloc[:,63].iloc[-1]
+        domain_x = math.ceil(4*self.pipe_radius*1000)/1000
+        min_lim = 0.95*domain_x
+
+        if ptxEast_f < min_lim:
+            os.chdir(self.path)
+            line_with_pattern = None
+
+            ### Checking last restart file instance in output file
+            with open(f"{self.run_name}.out", 'r') as file:
+                lines = file.readlines()
+                pattern = 'restart_file'
+                for line in reversed(lines):
+                    if pattern in line:
+                        line_with_pattern = line.strip()
+                        break
+
+            ### Modifying .sh file accordingly
+            if line_with_pattern is not None:
+                match = re.search(r"\b\d+\b", line_with_pattern)
+                restart_num = int(match.group())
+                with open(f"job_{self.run_name}.sh", 'r') as file:
+                    lines = file.readlines()
+                    restart_line = lines[384]
+                    modified_restart = re.sub('FALSE', 'TRUE', restart_line)
+                    modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', restart_num), modified_restart)
+
+
+            else:
+                print("Pattern not found in the file.")
+                raise ValueError('Restart file pattern in .out not found or does not exist')
+
 
 
 
@@ -236,6 +270,8 @@ class SimScheduling:
         
         self.makef90()
         self.setjobsh()
+        queue = Queue()
+        proc = []
 
 
 
