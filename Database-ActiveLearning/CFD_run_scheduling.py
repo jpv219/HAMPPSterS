@@ -1,3 +1,7 @@
+### Juan Pablo Valdes, SMX_Automation_simulation_run
+### First init: July, 2023
+### Department of Chemical Engineering, Imperial College London
+
 import numpy as np
 import os
 from subprocess import Popen, PIPE
@@ -10,6 +14,8 @@ import glob
 import random
 import csv
 import math
+import datetime
+import subprocess
 
 class SimScheduling:
 
@@ -111,7 +117,11 @@ class SimScheduling:
         os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/{self.run_name}.sh')
 
         d_pipe = 2*self.pipe_radius
-        min_res = 16000
+        min_res = 18000
+
+        if min_res*(2*self.max_diameter)/128 > 14:
+            raise ValueError("Max p_diameter doesn't comply with min. res.")
+        
         ## first cut for 64 cells per subdomain considering the max nodes can only be 10
         ## x-subdomain is 2 times the pipe's diameter
         first_d_cut = (64*10/(2*min_res))/self.max_diameter
@@ -176,6 +186,57 @@ class SimScheduling:
         os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/{self.run_name}.sh')
         os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/{self.run_name}.sh')
         
+    def job_wait(self, job_id, proc, job_name, queue):
+        running = True
+        while running:
+            try:
+                p = Popen(['qstat', '-a',f"{job_id}"],stdout=PIPE, stderr=PIPE)
+                output, error = p.communicate()
+            
+                if p.returncode != 0:
+                    raise subprocess.CalledProcessError(p.returncode, p.args)
+                
+                ## formatted to Imperial HPC 
+                jobstatus = str(output,'utf-8').split()[-3:]
+
+                if not jobstatus:
+                    raise ValueError('Job exists but belongs to another account')
+        
+                if jobstatus[1] == 'Q' or jobstatus[1] == 'H':
+                    sleep(1200)
+                elif jobstatus[1] == 'R':
+                    time_format = '%H:%M'
+                    wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
+                    elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
+                    delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
+                    remaining = delta.total_seconds()+120
+                    sleep(remaining)
+
+            except subprocess.CalledProcessError as e:
+                queue.put((job_name, '0'))
+                running = False
+                raise RuntimeError("Job exists but belongs to another account")
+            
+            except ValueError as e:
+                print(f"Error: {e}")
+                raise ValueError('Existing job but doesnt belong to this account')
+            
+    def job_restart(self):
+
+        self.run_name = "run_"+str(self.run_ID)
+        self.path = os.path.join(self.run_path, self.run_name)
+        ephemeral_path = os.path.join('$EPHEMERAL',self.run_name)
+        
+        os.chdir(ephemeral_path)
+
+
+
+
+    def submit_job(self):
+        
+        self.makef90()
+        self.setjobsh()
+
 
 
 
