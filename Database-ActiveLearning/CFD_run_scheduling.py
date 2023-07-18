@@ -102,25 +102,25 @@ class SimScheduling:
 
     def setjobsh(self):
         
-        ## rename job with current run
-        os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
-
-        ## Assign values to placeholders
-        os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/{self.run_name}.sh')
-
-        box_2 = math.ceil(4*self.pipe_radius*1000)/1000
-        box_4 = math.ceil(2*self.pipe_radius*1000)/1000
-        box_6 = math.ceil(2*self.pipe_radius*1000)/1000
-
-        os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/{self.run_name}.sh')
-
         d_pipe = 2*self.pipe_radius
         min_res = 18000
 
         if min_res*(2*self.max_diameter)/128 > 14:
             raise ValueError("Max p_diameter doesn't comply with min. res.")
+
+        ## rename job with current run
+        os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
+
+        ## Assign values to placeholders
+        os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
+
+        box_2 = math.ceil(4*self.pipe_radius*1000)/1000
+        box_4 = math.ceil(2*self.pipe_radius*1000)/1000
+        box_6 = math.ceil(2*self.pipe_radius*1000)/1000
+
+        os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
         
         ## first cut for 64 cells per subdomain considering the max nodes can only be 10
         ## x-subdomain is 2 times the pipe's diameter
@@ -175,16 +175,16 @@ class SimScheduling:
            cell1= 128
            cell2 = cell3 = 64
 
-        os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'y_subd\'/{ysub}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'z_subd\'/{zsub}/\" {self.path}/{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'y_subd\'/{ysub}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'z_subd\'/{zsub}/\" {self.path}/job_{self.run_name}.sh')
 
-        os.system(f'sed -i \"s/\'n_cpus\'/{ncpus}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'n_nodes\'/{n_nodes}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'mem\'/{mem}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'cell1\'/{cell1}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'n_cpus\'/{ncpus}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'n_nodes\'/{n_nodes}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'mem\'/{mem}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'cell1\'/{cell1}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/job_{self.run_name}.sh')
+        os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
 
     ### checking job status and sending exceptions as fitting
 
@@ -226,44 +226,49 @@ class SimScheduling:
 
     def job_restart(self):
 
-        ephemeral_path = os.path.join('$EPHEMERAL',self.run_name)
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
         os.chdir(ephemeral_path)
         ## Checking location of the interface in the x direction -- stopping criterion
-        ptxEast_f = pd.read_csv(str(self.run_name)).iloc[:,63].iloc[-1]
+        ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
         domain_x = math.ceil(4*self.pipe_radius*1000)/1000
         min_lim = 0.95*domain_x
 
-        if ptxEast_f < min_lim:
+        if ptxEast_f > min_lim:
             os.chdir(self.path)
             line_with_pattern = None
 
             ### Checking last restart file instance in output file
             with open(f"{self.run_name}.out", 'r') as file:
                 lines = file.readlines()
-                pattern = 'restart_file'
+                pattern = 'writing restart file'
                 for line in reversed(lines):
                     if pattern in line:
                         line_with_pattern = line.strip()
                         break
-
-            ### Modifying .sh file accordingly
+            ### Extracting restart number from line
             if line_with_pattern is not None:
+                ### searching with re a sequence of 1 or more digits '\d+' in between two word boundaries '\b'
                 match = re.search(r"\b\d+\b", line_with_pattern)
-                restart_num = int(match.group())
-                with open(f"job_{self.run_name}.sh", 'r') as file:
+                if match is not None:
+                    restart_num = int(match.group())
+                else:
+                    print('No restart number match found')
+                    raise ValueError('No restart number match found')
+                ### Modifying .sh file accordingly
+                with open(f"job_{self.run_name}.sh", 'r+') as file:
                     lines = file.readlines()
                     restart_line = lines[384]
                     modified_restart = re.sub('FALSE', 'TRUE', restart_line)
+                    ### modifying the restart number by searching dynamically with f-strings. 
                     modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', restart_num), modified_restart)
-
-
+                    lines[384] = modified_restart
+                    file.seek(0)
+                    file.writelines(lines)
+                    file.truncate()
             else:
                 print("Pattern not found in the file.")
                 raise ValueError('Restart file pattern in .out not found or does not exist')
-
-
-
 
 
     def submit_job(self):
