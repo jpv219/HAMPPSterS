@@ -12,7 +12,6 @@ from time import sleep
 import pandas as pd
 import shutil
 import glob
-import random
 import csv
 import math
 import datetime
@@ -49,7 +48,7 @@ class SimScheduling:
 
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
         
-        self.init_wait_time = np.random.RandomState().randint(0,300)
+        self.init_wait_time = np.random.RandomState().randint(200,400)
         sleep(self.init_wait_time)  #each process waits a random amount of time after being created to stagger jobs and avoid launching thousands together
 
         self.submit_job()
@@ -267,12 +266,15 @@ class SimScheduling:
                     file.seek(0)
                     file.writelines(lines)
                     file.truncate()
+                    os.chdir('..')
                     return True
             else:
                 print("Pattern not found in the file.")
                 raise ValueError('Restart file pattern in .out not found or does not exist')
             
         else:
+            os.chdir(self.path)
+            os.chdir('..')
             return False
 
     ### Converting vtk to vtr
@@ -281,16 +283,35 @@ class SimScheduling:
 
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
         os.chdir(ephemeral_path)
-        os.mkdir('VTK_SAVE')
+        convert_path = '/rds/general/user/jpv219/home/F_CONVERT'
+        try:
+            os.mkdir('VTK_SAVE')
+        except:
+            pass
 
+        convert_files = glob.glob(os.path.join(convert_path, '*'))
 
+        proc = []
+
+        for file in convert_files:
+            shutil.copy2(file, '.')
 
         ISO_file_list = glob.glob('ISO_*.vtk')
         VAR_file_list = glob.glob('VAR_*_*.vtk')
+        
+        last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
+        VAR_toconvert_list = glob.glob(f'VAR_*_{last_vtk}.vtk')
 
+        file_count = len(ISO_file_list) + len(VAR_toconvert_list)
 
+        os.system(f'sed -i \"s/\'FILECOUNT\'/{file_count}/\" Multithread_pool.py')
+        
+        proc.append(Popen(['qsub', 'job_convert.sh'], stdout=PIPE))
 
-        num_files = subprocess.check_output('ls -1 *vtk | wc -l')
+        jobid = int(str(proc[-1].stdout.read(), 'utf-8').split()[2])
+
+        os.chdir(self.path)
+        os.chdir('..')
 
     def submit_job(self):
         
