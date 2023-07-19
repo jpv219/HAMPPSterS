@@ -15,9 +15,9 @@ os.chdir(ephemeral_path)
 
 ptxEast_f = pd.read_csv(f'{run_name}.csv').iloc[:,63].iloc[-1]
 domain_x = math.ceil(4*pipe_radius*1000)/1000
-min_lim = 0.001*domain_x
+min_lim = 0.95*domain_x
 
-if ptxEast_f > min_lim:
+if ptxEast_f < min_lim:
     os.chdir(run_path)
     line_with_pattern = None
 

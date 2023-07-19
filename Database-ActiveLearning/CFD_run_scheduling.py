@@ -223,6 +223,7 @@ class SimScheduling:
                 print(f"Error: {e}")
                 raise ValueError('Existing job but doesnt belong to this account')
 
+    ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
 
     def job_restart(self):
 
@@ -234,7 +235,7 @@ class SimScheduling:
         domain_x = math.ceil(4*self.pipe_radius*1000)/1000
         min_lim = 0.95*domain_x
 
-        if ptxEast_f > min_lim:
+        if ptxEast_f < min_lim:
             os.chdir(self.path)
             line_with_pattern = None
 
@@ -266,10 +267,30 @@ class SimScheduling:
                     file.seek(0)
                     file.writelines(lines)
                     file.truncate()
+                    return True
             else:
                 print("Pattern not found in the file.")
                 raise ValueError('Restart file pattern in .out not found or does not exist')
+            
+        else:
+            return False
 
+    ### Converting vtk to vtr
+
+    def vtk_convert(self):
+
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        os.chdir(ephemeral_path)
+        os.mkdir('VTK_SAVE')
+
+
+
+        ISO_file_list = glob.glob('ISO_*.vtk')
+        VAR_file_list = glob.glob('VAR_*_*.vtk')
+
+
+
+        num_files = subprocess.check_output('ls -1 *vtk | wc -l')
 
     def submit_job(self):
         
