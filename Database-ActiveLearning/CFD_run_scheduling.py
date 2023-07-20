@@ -1,6 +1,6 @@
 ### SMX_Automation_simulation_run, tailored for BLUE
 ### Author: Juan Pablo Valdes,
-### First init: July, 2023
+### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
 import numpy as np
@@ -281,37 +281,56 @@ class SimScheduling:
 
     def vtk_convert(self):
 
-        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
-        os.chdir(ephemeral_path)
-        convert_path = '/rds/general/user/jpv219/home/F_CONVERT'
-        try:
-            os.mkdir('VTK_SAVE')
-        except:
-            pass
-
-        convert_files = glob.glob(os.path.join(convert_path, '*'))
-
         proc = []
 
-        for file in convert_files:
-            shutil.copy2(file, '.')
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        convert_path = '/rds/general/user/jpv219/home/F_CONVERT'
+
+        os.chdir(ephemeral_path)
+
+        try:
+            os.mkdir('RESULTS')
+        except:
+            pass
 
         ISO_file_list = glob.glob('ISO_*.vtk')
         VAR_file_list = glob.glob('VAR_*_*.vtk')
         
         last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
+        
         VAR_toconvert_list = glob.glob(f'VAR_*_{last_vtk}.vtk')
 
-        file_count = len(ISO_file_list) + len(VAR_toconvert_list)
+        files_to_convert = ISO_file_list + VAR_toconvert_list
+
+        file_count = len(files_to_convert)
+
+        for file in files_to_convert:
+            shutil.move(file,'RESULTS')
+
+        os.chdir('RESULTS')
+
+        try:
+            os.mkdir('VTK_SAVE')
+        except:
+            pass
+
+        convert_scripts = glob.glob(os.path.join(convert_path, '*'))
+
+        for file in convert_scripts:
+            shutil.copy2(file, '.')
 
         os.system(f'sed -i \"s/\'FILECOUNT\'/{file_count}/\" Multithread_pool.py')
         
-        proc.append(Popen(['qsub', 'job_convert.sh'], stdout=PIPE))
+        proc = Popen(['qsub', 'job_convert.sh'], stdout=PIPE)
 
-        jobid = int(str(proc[-1].stdout.read(), 'utf-8').split()[2])
+        output = proc.communicate()[0].decode('utf-8').split()
+
+        jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
         os.chdir(self.path)
         os.chdir('..')
+
+        return jobid
 
     def submit_job(self):
         
