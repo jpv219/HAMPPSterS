@@ -32,6 +32,8 @@ file_count = len(files_to_convert)
 for file in files_to_convert:
     shutil.move(file,'RESULTS')
 
+shutil.move(f'VAR_{run_name}.pvd','RESULTS')
+
 os.chdir('RESULTS')
 
 try:

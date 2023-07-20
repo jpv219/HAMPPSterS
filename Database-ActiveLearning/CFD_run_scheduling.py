@@ -307,6 +307,11 @@ class SimScheduling:
         for file in files_to_convert:
             shutil.move(file,'RESULTS')
 
+        shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
+
+        os.system('rm *vtk')
+        os.system('rm *rst')
+
         os.chdir('RESULTS')
 
         try:
@@ -331,6 +336,12 @@ class SimScheduling:
         os.chdir('..')
 
         return jobid
+
+    def post_process(self):
+        
+        script_path = '/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
+
+
 
     def submit_job(self):
         
