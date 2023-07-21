@@ -1,4 +1,4 @@
-### SMX_Automation_simulation_run, tailored for BLUE
+### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
@@ -10,7 +10,6 @@ from time import sleep
 import pandas as pd
 import shutil
 import glob
-import csv
 import math
 import datetime
 import subprocess
@@ -338,11 +337,25 @@ class SimScheduling:
 
         return jobid
 
+    ### Downloading data, calling pvpython function and subsequent post-process
+
     def post_process(self):
-        
+
         script_path = '/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
 
+        try:
+            output = subprocess.run(['pvpython', script_path, self.run_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+            captured_stdout = output.stdout.decode('utf-8')
+            
+            df_DSD = pd.read_json(captured_stdout, orient='split', dtype=float, precise_float=True)
+
+            return df_DSD
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing the script with pvpython: {e}")
+        except FileNotFoundError:
+            print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
 
     def submit_job(self):
         

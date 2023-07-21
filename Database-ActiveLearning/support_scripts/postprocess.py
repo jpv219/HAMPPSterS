@@ -1,16 +1,19 @@
 import csv
 import subprocess
-import pickle
+import pandas as pd
 
 
 script_path = '/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
 
 case_name = 'smx_ml'
 
-try:
-    output_bytes = subprocess.check_output(['pvpython', script_path, case_name])
 
-    df_DSD = pickle.loads(output_bytes)
+try:
+    output = subprocess.run(['pvpython', script_path, case_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    captured_stdout = output.stdout.decode('utf-8')
+    
+    df_DSD = pd.read_json(captured_stdout, orient='split', dtype=float, precise_float=True)
 
     print(df_DSD)
 
