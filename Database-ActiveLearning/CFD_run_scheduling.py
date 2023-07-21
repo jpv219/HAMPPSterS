@@ -28,8 +28,11 @@ class SimScheduling:
         self.pset_dict = pset_dict
         self.run_path = pset_dict['run_path']
         self.base_path = pset_dict['base_path']
+        self.convert_path = pset_dict['convert_path']
         self.case_type = pset_dict['case']
         self.run_ID = pset_dict['_pset_ID']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
 
         self.bar_width = pset_dict['bar_width']
         self.bar_thickness = pset_dict['bar_thickness']
@@ -284,7 +287,6 @@ class SimScheduling:
         proc = []
 
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
-        convert_path = '/rds/general/user/jpv219/home/F_CONVERT'
 
         os.chdir(ephemeral_path)
 
@@ -319,7 +321,7 @@ class SimScheduling:
         except:
             pass
 
-        convert_scripts = glob.glob(os.path.join(convert_path, '*'))
+        convert_scripts = glob.glob(os.path.join(self.convert_path, '*'))
 
         for file in convert_scripts:
             shutil.copy2(file, '.')
@@ -337,14 +339,20 @@ class SimScheduling:
 
         return jobid
 
-    ### Downloading data, calling pvpython function and subsequent post-process
-
+    ### Downloading data from ephemeral to local machine
+     
+    def save_vtr(self):
+      
+      ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+  
+    ### Calling pvpython function, returning df with drop sizes
+    
     def post_process(self):
 
-        script_path = '/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
+        script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.run_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8')
             

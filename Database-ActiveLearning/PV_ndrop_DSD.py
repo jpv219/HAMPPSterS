@@ -5,9 +5,7 @@ import pandas as pd
 import sys
 
 
-def pvdropDSD(case_name):
-
-    HDpath = '/Volumes/ML/Runs'
+def pvdropDSD(HDpath,case_name):
 
     path = os.path.join(HDpath,case_name,'RESULTS')
     
@@ -99,9 +97,11 @@ def pvdropDSD(case_name):
 
 if __name__ == "__main__":
 
-    case_name = sys.argv[1]
+    HDpath = sys.argv[1]
+    
+    case_name = sys.argv[2]
 
-    df_bytes = pvdropDSD(case_name)
+    df_bytes = pvdropDSD(HDpath,case_name)
 
     print(df_bytes)
 
