@@ -14,6 +14,7 @@ import math
 import datetime
 import subprocess
 import re
+import paramiko
 
 class SimScheduling:
 
@@ -53,7 +54,7 @@ class SimScheduling:
 
         self.submit_job()
 
-        return {}
+        return {"ndrops": self.ndrops, "DSD":self.DSD, "dP": self.dP}
     
     ### creating f90 instance and executable
 
@@ -361,9 +362,20 @@ class SimScheduling:
 
     def submit_job(self):
         
-        self.makef90()
-        self.setjobsh()
-        proc = []
+        ssh = paramiko.SSHClient()
+
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        with open('keys.txt', 'r') as file:
+            lines = file.readlines()
+            user = lines[2].strip()
+            key = lines[3].strip()
+            
+        try:
+            ssh.connect('login.hpc.ic.ac.uk', username=user, password=key)
+        finally:
+            ssh.close()
+
 
 
 
