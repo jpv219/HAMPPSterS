@@ -339,14 +339,8 @@ class SimScheduling:
 
         return jobid
 
-    ### Downloading data from ephemeral to local machine
-     
-    def save_vtr(self):
-      
-      ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
-  
     ### Calling pvpython function, returning df with drop sizes
-    
+
     def post_process(self):
 
         script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
