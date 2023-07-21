@@ -6,8 +6,6 @@
 import numpy as np
 import os
 from subprocess import Popen, PIPE
-from _thread import start_new_thread
-from queue import Queue
 from time import sleep
 import pandas as pd
 import shutil
@@ -187,12 +185,12 @@ class SimScheduling:
 
     ### checking job status and sending exceptions as fitting
 
-    def job_wait(self, job_id, proc, job_name, queue):
+    def job_wait(self, job_id):
         running = True
         while running:
             try:
                 p = Popen(['qstat', '-a',f"{job_id}"],stdout=PIPE, stderr=PIPE)
-                output, error = p.communicate()
+                output = p.communicate()[0]
             
                 if p.returncode != 0:
                     raise subprocess.CalledProcessError(p.returncode, p.args)
@@ -212,15 +210,18 @@ class SimScheduling:
                     delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
                     remaining = delta.total_seconds()+120
                     sleep(remaining)
-
+                else:
+                    running = False
+                    
             except subprocess.CalledProcessError as e:
-                queue.put((job_name, '0'))
                 running = False
-                raise RuntimeError("Job exists but belongs to another account")
+                raise RuntimeError("Job finished")
             
             except ValueError as e:
                 print(f"Error: {e}")
                 raise ValueError('Existing job but doesnt belong to this account')
+            
+        return running
 
     ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
 
@@ -347,7 +348,6 @@ class SimScheduling:
         
         self.makef90()
         self.setjobsh()
-        queue = Queue()
         proc = []
 
 
