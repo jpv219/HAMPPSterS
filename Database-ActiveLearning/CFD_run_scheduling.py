@@ -14,7 +14,6 @@ import math
 import datetime
 import subprocess
 import re
-import paramiko
 
 class SimScheduling:
 
@@ -361,28 +360,8 @@ class SimScheduling:
             print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
 
     def submit_job(self):
-        
-        ssh = paramiko.SSHClient()
 
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        with open('keys.txt', 'r') as file:
-            lines = file.readlines()
-            user = lines[2].strip()
-            key = lines[3].strip()
-            
-        try:
-            ssh.connect('login.hpc.ic.ac.uk', username=user, password=key)
-        finally:
-            ssh.close()
-
-
-
-
-
-
-        
-
-
+        proc = []
+        proc = Popen(['qsub', 'job_convert.sh'], stdout=PIPE)
 
 
