@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 run_ID = 54
 run_path = '/rds/general/user/jpv219/home/BLUE-12.5.1/project/TRIALS'
@@ -45,7 +46,9 @@ os.system(f'sed -i s/file/{run_name}_SMX/g {path}/Makefile')
 #compile the f90 into an executable
 
 os.chdir(path)
-os.system('make')
+make_proc = subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
+output = make_proc.stdout
+print(output)
 os.system(f'mv {run_name}_SMX.x {run_name}.x')
-os.system('make cleanall')
+subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
 os.chdir('..')

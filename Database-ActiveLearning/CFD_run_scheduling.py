@@ -3,7 +3,6 @@
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
-import numpy as np
 import os
 from subprocess import Popen, PIPE
 from time import sleep
@@ -25,35 +24,54 @@ class SimScheduling:
     ### assigning input parametric values as attributes of the SimScheduling class and submitting jobs
 
     def run(self,pset_dict):
+        ###Path and running attributes
         self.pset_dict = pset_dict
         self.run_path = pset_dict['run_path']
         self.base_path = pset_dict['base_path']
         self.convert_path = pset_dict['convert_path']
         self.case_type = pset_dict['case']
-        self.run_ID = pset_dict['_pset_ID']
+        self.run_ID = pset_dict['run_ID']
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
 
-        self.bar_width = pset_dict['bar_width']
-        self.bar_thickness = pset_dict['bar_thickness']
-        self.bar_angle = pset_dict['bar_angle']
-        self.pipe_radius = pset_dict['pipe_radius']
-        self.max_diameter = pset_dict['max_diameter']
-        self.n_bars = pset_dict['n_bars']
-        self.flowrate = pset_dict['flowrate']
-        self.d_per_level = pset_dict['d_per_level']
-        self.n_levels = pset_dict['n_levels']
-        self.d_radius = pset_dict['d_radius']
-        self.smx_pos = pset_dict['smx_pos']
+        if self.case_type == 'Geom':
+
+            ### Geometry features
+            self.bar_width = pset_dict['bar_width']
+            self.bar_thickness = pset_dict['bar_thickness']
+            self.bar_angle = pset_dict['bar_angle']
+            self.pipe_radius = pset_dict['pipe_radius']
+            self.max_diameter = pset_dict['max_diameter']
+            self.n_bars = pset_dict['n_bars']
+            self.flowrate = pset_dict['flowrate']
+            self.d_per_level = pset_dict['d_per_level']
+            self.n_levels = pset_dict['n_levels']
+            self.d_radius = pset_dict['d_radius']
+            self.smx_pos = pset_dict['smx_pos']
+
+        else:
+
+            ### Surfactant features
+            self.diff1 = pset_dict['D_d']
+            self.diff2 = pset_dict['D_b']
+            self.ka = pset_dict['ka']
+            self.kd = pset_dict['kd']
+            self.ginf = pset_dict['ginf']
+            self.gini = pset_dict['gini']
+            self.diffs = pset_dict['D_s']
+            self.beta = pset_dict['beta']
 
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
         
-        self.init_wait_time = np.random.RandomState().randint(200,400)
-        sleep(self.init_wait_time)  #each process waits a random amount of time after being created to stagger jobs and avoid launching thousands together
+        self.makef90()
 
-        self.submit_job()
-
-        return {"ndrops": self.ndrops, "DSD":self.DSD, "dP": self.dP}
+        if self.case_type == 'Geom':
+            try:
+                self.setjobsh()
+            except ValueError as e:
+                print(f'Case ID {self.run_ID} failed due to: {e}')
+                
+        #return {"ndrops": self.ndrops, "DSD":self.DSD, "dP": self.dP}
     
     ### creating f90 instance and executable
 
@@ -67,23 +85,27 @@ class SimScheduling:
         ## Copy base files and rename to current run accordingly
         os.system(f'cp -r {self.base_case_dir}/* {self.path}')
         os.system(f'mv {self.path}/base_SMX.f90 {self.path}/{self.run_name}_SMX.f90')
+        print(f'Run directory {self.path} created and base files copied')
+
+        if self.case_type == 'Geom':
+
+            ## Assign values to placeholders
+            os.system(f'sed -i \"s/\'pipe_radius\'/{self.pipe_radius}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'smx_pos\'/{self.smx_pos}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'bar_width\'/{self.bar_width}/g\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'bar_thickness\'/{self.bar_thickness}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'bar_angle\'/{self.bar_angle}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'n_bars\'/{self.n_bars}/\" {self.path}/{self.run_name}_SMX.f90')
 
 
-        ## Assign values to placeholders
-        os.system(f'sed -i \"s/\'pipe_radius\'/{self.pipe_radius}/\" {self.path}/{self.run_name}_SMX.f90')
-        os.system(f'sed -i \"s/\'smx_pos\'/{self.smx_pos}/\" {self.path}/{self.run_name}_SMX.f90')
-        os.system(f'sed -i \"s/\'bar_width\'/{self.bar_width}/g\" {self.path}/{self.run_name}_SMX.f90')
-        os.system(f'sed -i \"s/\'bar_thickness\'/{self.bar_thickness}/\" {self.path}/{self.run_name}_SMX.f90')
-        os.system(f'sed -i \"s/\'bar_angle\'/{self.bar_angle}/\" {self.path}/{self.run_name}_SMX.f90')
-        os.system(f'sed -i \"s/\'n_bars\'/{self.n_bars}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'d_per_level\'/{self.d_per_level}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'n_levels\'/{self.n_levels}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'d_radius\'/{self.d_radius}/\" {self.path}/{self.run_name}_SMX.f90')
 
 
-        os.system(f'sed -i \"s/\'d_per_level\'/{self.d_per_level}/\" {self.path}/{self.run_name}_SMX.f90')
-        os.system(f'sed -i \"s/\'n_levels\'/{self.n_levels}/\" {self.path}/{self.run_name}_SMX.f90')
-        os.system(f'sed -i \"s/\'d_radius\'/{self.d_radius}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
 
-
-        os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
+            print(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
         
         #modify the Makefile
 
@@ -92,98 +114,117 @@ class SimScheduling:
         #compile the f90 into an executable
 
         os.chdir(self.path)
-        os.system('make')
+        make_proc = subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
+        output = make_proc.stdout
+        print(output)
         os.system(f'mv {self.run_name}_SMX.x {self.run_name}.x')
-        os.system('make clean')
+        subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
         os.chdir('..')
 
     ### modifying .sh instance accordingly
 
     def setjobsh(self):
         
-        d_pipe = 2*self.pipe_radius
-        min_res = 18000
-
-        if min_res*(2*self.max_diameter)/128 > 14:
-            raise ValueError("Max p_diameter doesn't comply with min. res.")
-
         ## rename job with current run
         os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
 
         ## Assign values to placeholders
         os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
 
-        box_2 = math.ceil(4*self.pipe_radius*1000)/1000
-        box_4 = math.ceil(2*self.pipe_radius*1000)/1000
-        box_6 = math.ceil(2*self.pipe_radius*1000)/1000
+        if self.case_type == 'Geom':
 
-        os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
+            d_pipe = 2*self.pipe_radius
+            min_res = 18000
+
+            if min_res*(2*self.max_diameter)/128 > 14:
+                raise ValueError("Max p_diameter doesn't comply with min. res.")
+
+            box_2 = math.ceil(4*self.pipe_radius*1000)/1000
+            box_4 = math.ceil(2*self.pipe_radius*1000)/1000
+            box_6 = math.ceil(2*self.pipe_radius*1000)/1000
+
+            os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
         
-        ## first cut for 64 cells per subdomain considering the max nodes can only be 10
-        ## x-subdomain is 2 times the pipe's diameter
-        first_d_cut = (64*10/(2*min_res))/self.max_diameter
-        ## taking only 6 and 128 for the x configuration
-        second_d_cut = ((6*64)/min_res)/self.max_diameter 
+            ## first cut for 64 cells per subdomain considering the max nodes can only be 10
+            ## x-subdomain is 2 times the pipe's diameter
+            first_d_cut = (64*10/(2*min_res))/self.max_diameter
+            ## taking only 6 and 128 for the x configuration
+            second_d_cut = ((6*64)/min_res)/self.max_diameter 
 
-        if d_pipe < first_d_cut*self.max_diameter:
-            cpus = min_res*(2*d_pipe)/64
-            xsub = math.ceil(cpus / 2) * 2
-            ysub = zsub = int(xsub/2)
-            mem = 200
-            cell1 = cell2 = cell3 = 64
-            ncpus = int(xsub*ysub*zsub)
-            n_nodes = 1
-        elif d_pipe > second_d_cut*self.max_diameter:
-            cpus = min_res*(2*d_pipe)/128
-            if cpus <= 10:
+            if d_pipe < first_d_cut*self.max_diameter:
+                cpus = min_res*(2*d_pipe)/64
                 xsub = math.ceil(cpus / 2) * 2
-                ysub = zsub = xsub/2
-                mem = 920
-                cell1 = cell2 = cell3 = 128
+                ysub = zsub = int(xsub/2)
+                mem = 200
+                cell1 = cell2 = cell3 = 64
                 ncpus = int(xsub*ysub*zsub)
                 n_nodes = 1
-            elif cpus >10 and cpus <= 12:
-                xsub = 12
-                ysub = zsub = int(xsub/2)
-                cell1 = cell2 = cell3 = 128
-                ncpus = int(xsub*ysub*zsub)
-                mem = 200
-                n_nodes = 4
-            elif cpus >12 and cpus <= 14:
-                xsub = 14
-                ysub = zsub = int(xsub/2)
-                cell1 = cell2 = cell3 = 128
-                ncpus = int(xsub*ysub*zsub)
-                mem = 200
-                n_nodes = 6
-            elif cpus > 14 and cpus <=16:
-                xsub = 16
-                ysub = zsub = int(xsub/2)
-                cell1 = cell2 = cell3 = 128
-                ncpus = int(xsub*ysub*zsub)
-                mem = 200
-                n_nodes = 8
+            elif d_pipe > second_d_cut*self.max_diameter:
+                cpus = min_res*(2*d_pipe)/128
+                if cpus <= 10:
+                    xsub = math.ceil(cpus / 2) * 2
+                    ysub = zsub = xsub/2
+                    mem = 920
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+                elif cpus >10 and cpus <= 12:
+                    xsub = 12
+                    ysub = zsub = int(xsub/2)
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    mem = 200
+                    n_nodes = 4
+                elif cpus >12 and cpus <= 14:
+                    xsub = 14
+                    ysub = zsub = int(xsub/2)
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    mem = 200
+                    n_nodes = 6
+                elif cpus > 14 and cpus <=16:
+                    xsub = 16
+                    ysub = zsub = int(xsub/2)
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    mem = 200
+                    n_nodes = 8
 
-        else:
-           xsub = ysub = zsub = 6
-           mem = 800
-           ncpus = int(xsub*ysub*zsub)
-           n_nodes=1
-           cell1= 128
-           cell2 = cell3 = 64
+            else:
+                xsub = ysub = zsub = 6
+                mem = 800
+                ncpus = int(xsub*ysub*zsub)
+                n_nodes=1
+                cell1= 128
+                cell2 = cell3 = 64
 
-        os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'y_subd\'/{ysub}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'z_subd\'/{zsub}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'y_subd\'/{ysub}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'z_subd\'/{zsub}/\" {self.path}/job_{self.run_name}.sh')
 
-        os.system(f'sed -i \"s/\'n_cpus\'/{ncpus}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'n_nodes\'/{n_nodes}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'mem\'/{mem}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'cell1\'/{cell1}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/job_{self.run_name}.sh')
-        os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'n_cpus\'/{ncpus}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'n_nodes\'/{n_nodes}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'mem\'/{mem}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'cell1\'/{cell1}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
+
+            print(f'Placeholders replaced succesfully for case:{self.case_type}')
+
+        elif self.case_type == 'Surf':
+
+            os.system(f'sed -i \"s/\'diff1\'/{self.diff1}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diff2\'/{self.diff2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ka\'/{self.ka}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'kd\'/{self.kd}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ginf\'/{self.ginf}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'gini\'/{self.gini}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diffs\'/{self.diffs}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
+
+            print(f'Placeholders replaced succesfully for case:{self.case_type}')
 
     ### checking job status and sending exceptions as fitting
 
@@ -359,9 +400,20 @@ class SimScheduling:
         except FileNotFoundError:
             print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
 
+    ### submitting the SMX job and recording job_id
+
     def submit_job(self):
 
         proc = []
-        proc = Popen(['qsub', 'job_convert.sh'], stdout=PIPE)
+        proc = Popen(['qsub', f"{self.path}/job_{self.run_name}.sh"], stdout=PIPE)
+
+        output = proc.communicate()[0].decode('utf-8').split()
+
+        jobid = int(re.search(r'\b\d+\b',output[0]).group())
+
+        os.chdir(self.path)
+        os.chdir('..')
+
+        return jobid
 
 

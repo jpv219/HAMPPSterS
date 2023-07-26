@@ -4,8 +4,6 @@ import sys
 
 ## Function applying restrictions
 
-arg1 = sys.argv[1]
-
 def apply_restrictions(DOE):
     #Loading features
     for i in range(DOE.shape[0]):
@@ -36,20 +34,22 @@ def apply_restrictions(DOE):
 
     return DOE
 
-## Parameters to vary in the sample space
-SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,30],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-3],'Angle':[20,80]}
-
-## Initial LHS with no restrictions
-
-LHS_DOE = build.space_filling_lhs(SMX_dict,num_samples = int(arg1))
-
-print(LHS_DOE)
-
-modifiedLHS = apply_restrictions(LHS_DOE)
-
 def calcRe(row):
     return 1364*(4*row['Flowrate (m3/s)']/((math.pi*2*(row['Radius (mm)']/1000))**2))*(2*row['Radius (mm)']/1000)/0.615
 
-modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcRe(row), axis = 1 )
+def calcPos(row):
+    return row['Radius (mm)']
 
-print(modifiedLHS)
+
+def runDOE(SMX_dict,numsamples):
+
+    ## Initial LHS with no restrictions
+    LHS_DOE = build.space_filling_lhs(SMX_dict,num_samples = numsamples) 
+
+    modifiedLHS = apply_restrictions(LHS_DOE)
+
+    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcRe(row), axis = 1)
+    modifiedLHS['SMX_pos (mm)'] = modifiedLHS.apply(lambda row: calcPos(row), axis = 1)
+    
+    return modifiedLHS
+
