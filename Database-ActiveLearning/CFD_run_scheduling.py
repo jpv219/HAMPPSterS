@@ -13,6 +13,7 @@ import math
 import datetime
 import subprocess
 import re
+from logger import log
 
 class SimScheduling:
 
@@ -85,7 +86,8 @@ class SimScheduling:
         ## Copy base files and rename to current run accordingly
         os.system(f'cp -r {self.base_case_dir}/* {self.path}')
         os.system(f'mv {self.path}/base_SMX.f90 {self.path}/{self.run_name}_SMX.f90')
-        print(f'Run directory {self.path} created and base files copied')
+        log.info('-' * 100)
+        log.info(f'Run directory {self.path} created and base files copied')
 
         if self.case_type == 'Geom':
 
@@ -104,8 +106,8 @@ class SimScheduling:
 
 
             os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
-
-            print(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
+            log.info('-' * 100)
+            log.info(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
         
         #modify the Makefile
 
@@ -116,7 +118,8 @@ class SimScheduling:
         os.chdir(self.path)
         make_proc = subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
         output = make_proc.stdout
-        print(output)
+        log.info('-' * 100)
+        log.info(output)
         os.system(f'mv {self.run_name}_SMX.x {self.run_name}.x')
         subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
         os.chdir('..')
@@ -133,15 +136,17 @@ class SimScheduling:
 
         if self.case_type == 'Geom':
 
-            d_pipe = 2*self.pipe_radius
+            radius = float(self.pipe_radius)
+            max_diameter = float(self.max_diameter)
+            d_pipe = 2*radius
             min_res = 18000
 
-            if min_res*(2*self.max_diameter)/128 > 14:
+            if min_res*(2*self.max_diameter)/128 > 16:
                 raise ValueError("Max p_diameter doesn't comply with min. res.")
 
-            box_2 = math.ceil(4*self.pipe_radius*1000)/1000
-            box_4 = math.ceil(2*self.pipe_radius*1000)/1000
-            box_6 = math.ceil(2*self.pipe_radius*1000)/1000
+            box_2 = math.ceil(4*radius*1000)/1000
+            box_4 = math.ceil(2*radius*1000)/1000
+            box_6 = math.ceil(2*radius*1000)/1000
 
             os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
@@ -149,11 +154,11 @@ class SimScheduling:
         
             ## first cut for 64 cells per subdomain considering the max nodes can only be 10
             ## x-subdomain is 2 times the pipe's diameter
-            first_d_cut = (64*10/(2*min_res))/self.max_diameter
+            first_d_cut = (64*10/(2*min_res))/max_diameter
             ## taking only 6 and 128 for the x configuration
-            second_d_cut = ((6*64)/min_res)/self.max_diameter 
+            second_d_cut = ((6*64)/min_res)/max_diameter 
 
-            if d_pipe < first_d_cut*self.max_diameter:
+            if d_pipe < first_d_cut*max_diameter:
                 cpus = min_res*(2*d_pipe)/64
                 xsub = math.ceil(cpus / 2) * 2
                 ysub = zsub = int(xsub/2)
@@ -161,7 +166,7 @@ class SimScheduling:
                 cell1 = cell2 = cell3 = 64
                 ncpus = int(xsub*ysub*zsub)
                 n_nodes = 1
-            elif d_pipe > second_d_cut*self.max_diameter:
+            elif d_pipe > second_d_cut*max_diameter:
                 cpus = min_res*(2*d_pipe)/128
                 if cpus <= 10:
                     xsub = math.ceil(cpus / 2) * 2
@@ -174,23 +179,23 @@ class SimScheduling:
                     xsub = 12
                     ysub = zsub = int(xsub/2)
                     cell1 = cell2 = cell3 = 128
-                    ncpus = int(xsub*ysub*zsub)
-                    mem = 200
                     n_nodes = 4
+                    ncpus = int(xsub*ysub*zsub/n_nodes)
+                    mem = 200
                 elif cpus >12 and cpus <= 14:
                     xsub = 14
                     ysub = zsub = int(xsub/2)
                     cell1 = cell2 = cell3 = 128
-                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 7
+                    ncpus = int(xsub*ysub*zsub/n_nodes)
                     mem = 200
-                    n_nodes = 6
                 elif cpus > 14 and cpus <=16:
                     xsub = 16
                     ysub = zsub = int(xsub/2)
                     cell1 = cell2 = cell3 = 128
-                    ncpus = int(xsub*ysub*zsub)
-                    mem = 200
                     n_nodes = 8
+                    ncpus = int(xsub*ysub*zsub/n_nodes)
+                    mem = 200
 
             else:
                 xsub = ysub = zsub = 6
@@ -211,7 +216,8 @@ class SimScheduling:
             os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
 
-            print(f'Placeholders replaced succesfully for case:{self.case_type}')
+            log.info('-' * 100)
+            log.info(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
 
         elif self.case_type == 'Surf':
 
@@ -224,7 +230,8 @@ class SimScheduling:
             os.system(f'sed -i \"s/\'diffs\'/{self.diffs}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
 
-            print(f'Placeholders replaced succesfully for case:{self.case_type}')
+            log.info('-' * 100)
+            log.info(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
 
     ### checking job status and sending exceptions as fitting
 
