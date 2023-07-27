@@ -71,6 +71,12 @@ class SimScheduling:
                 self.setjobsh()
             except ValueError as e:
                 print(f'Case ID {self.run_ID} failed due to: {e}')
+
+        job_IDS = self.submit_job()
+
+        print(job_IDS)
+        
+        return {}
                 
         #return {"ndrops": self.ndrops, "DSD":self.DSD, "dP": self.dP}
     
@@ -418,8 +424,8 @@ class SimScheduling:
 
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
-        os.chdir(self.path)
-        os.chdir('..')
+        log.info('-' * 100)
+        log.info(f'job {self.run_ID} submitted succesfully with ID {jobid}')
 
         return jobid
 

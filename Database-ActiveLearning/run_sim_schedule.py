@@ -15,7 +15,7 @@ log.info('NEW RUN')
 log.info('-' * 100)
 
 case = "Geom"
-nruns = 4
+nruns = 2
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 log.info(f'Parametric study in case {case} with {nruns} runs')
 
@@ -30,7 +30,7 @@ local_path = ps.plist("local_path",["/Users/mfgmember/Documents/Juan_Static_Mixe
 save_path = ps.plist("save_path",["/Volumes/ML/Runs"])
 
 ## Parameters to vary in the sample space
-max_diameter = 0.05
+max_diameter = 0.03
 SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-3],'Angle':[20,80]}
 
 captured_output = io.StringIO()
