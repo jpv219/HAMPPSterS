@@ -14,9 +14,6 @@ import datetime
 import subprocess
 import re
 from logger import log
-import paramiko
-import configparser
-import warnings
 
 class SimScheduling:
 
@@ -66,30 +63,19 @@ class SimScheduling:
             self.beta = pset_dict['beta']
 
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
+        
+        self.makef90()
 
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        warnings.filterwarnings("ignore", category=ResourceWarning)
+        if self.case_type == 'Geom':
+            try:
+                self.setjobsh()
+            except ValueError as e:
+                print(f'Case ID {self.run_ID} failed due to: {e}')
 
-        config = configparser.ConfigParser()
-        config.read('configjp.ini')
-        #config.read('confignk.ini')
-        user = config.get('SSH', 'username')
-        key = config.get('SSH', 'password')
+        job_IDS = self.submit_job()
 
-        ssh.connect('login.hpc.ic.ac.uk', username=user, password=key)
-
-        stdin, stdout, stderr = ssh.exec_command('ls -l')
-
-        # Read the output (if any) from the remote command
-        output = stdout.read().decode('utf-8').strip()
-
-        ssh.close()
-
-        log.info(output)
-
-        log.info(self.flowrate)
-
+        print(job_IDS)
+        
         return {}
                 
         #return {"ndrops": self.ndrops, "DSD":self.DSD, "dP": self.dP}
