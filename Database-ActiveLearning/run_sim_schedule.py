@@ -1,4 +1,6 @@
 ### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
+### Main parametric running script
+### to be run locally
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
@@ -88,7 +90,6 @@ else:
 ######################################################################################################################################################################################
 log.info('-' * 100)
 
-print('here')
 
 simulator = SimScheduling()
 
