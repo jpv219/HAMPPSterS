@@ -15,7 +15,6 @@ import math
 import datetime
 import subprocess
 import re
-from logger import log
 import argparse
 import json
 
@@ -69,8 +68,20 @@ class SimScheduling:
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
         self.mainpath = os.path.join(self.run_path,'..')
 
-        print(f'hi I am in run: {self.run_ID}')
-    
+        self.makef90()
+
+        if self.case_type == 'Geom':
+            try:
+                self.setjobsh()
+            except ValueError as e:
+                print(f'Case ID {self.run_ID} failed due to: {e}')
+
+        job_IDS = self.submit_job()
+
+        print("==RETURN_VALUE==")
+
+        print(job_IDS)
+
     ### creating f90 instance and executable
 
     def makef90(self):
@@ -83,8 +94,8 @@ class SimScheduling:
         ## Copy base files and rename to current run accordingly
         os.system(f'cp -r {self.base_case_dir}/* {self.path}')
         os.system(f'mv {self.path}/base_SMX.f90 {self.path}/{self.run_name}_SMX.f90')
-        log.info('-' * 100)
-        log.info(f'Run directory {self.path} created and base files copied')
+        print('-' * 100)
+        print(f'Run directory {self.path} created and base files copied')
 
         if self.case_type == 'Geom':
 
@@ -103,8 +114,8 @@ class SimScheduling:
 
 
             os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
-            log.info('-' * 100)
-            log.info(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
+            print('-' * 100)
+            print(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
         
         #modify the Makefile
 
@@ -115,8 +126,8 @@ class SimScheduling:
         os.chdir(self.path)
         make_proc = subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
         output = make_proc.stdout
-        log.info('-' * 100)
-        log.info(output)
+        print('-' * 100)
+        print(output)
         os.system(f'mv {self.run_name}_SMX.x {self.run_name}.x')
         subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
         os.chdir('..')
@@ -167,7 +178,7 @@ class SimScheduling:
                 cpus = min_res*(2*d_pipe)/128
                 if cpus <= 10:
                     xsub = math.ceil(cpus / 2) * 2
-                    ysub = zsub = xsub/2
+                    ysub = zsub = int(xsub/2)
                     mem = 920
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
@@ -213,8 +224,8 @@ class SimScheduling:
             os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
 
-            log.info('-' * 100)
-            log.info(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
 
         elif self.case_type == 'Surf':
 
@@ -227,8 +238,8 @@ class SimScheduling:
             os.system(f'sed -i \"s/\'diffs\'/{self.diffs}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
 
-            log.info('-' * 100)
-            log.info(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
 
     ### checking job status and sending exceptions as fitting
 
@@ -384,26 +395,6 @@ class SimScheduling:
 
         return jobid
 
-    ### Calling pvpython function, returning df with drop sizes
-
-    def post_process(self):
-
-        script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
-
-        try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            captured_stdout = output.stdout.decode('utf-8')
-            
-            df_DSD = pd.read_json(captured_stdout, orient='split', dtype=float, precise_float=True)
-
-            return df_DSD
-
-        except subprocess.CalledProcessError as e:
-            print(f"Error executing the script with pvpython: {e}")
-        except FileNotFoundError:
-            print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
-
     ### submitting the SMX job and recording job_id
 
     def submit_job(self):
@@ -415,8 +406,8 @@ class SimScheduling:
 
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
-        log.info('-' * 100)
-        log.info(f'job {self.run_ID} submitted succesfully with ID {jobid}')
+        print('-' * 100)
+        print(f'job {self.run_ID} submitted succesfully with ID {jobid}')
 
         return jobid
     

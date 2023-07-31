@@ -17,7 +17,7 @@ log.info('NEW RUN')
 log.info('-' * 100)
 
 case = "Geom"
-nruns = 3
+nruns = 2
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 log.info(f'Parametric study in case {case} with {nruns} runs')
 
