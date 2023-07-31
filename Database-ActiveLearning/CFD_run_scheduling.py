@@ -14,6 +14,7 @@ import paramiko
 import configparser
 import warnings
 import json
+import numpy as np
 
 class SimScheduling:
 
@@ -26,6 +27,8 @@ class SimScheduling:
     def convert_to_json(obj):
         if isinstance(obj, pd.Timestamp):
             return obj.isoformat()
+        if isinstance(obj, np.int64):
+            return int(obj) 
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     ### assigning input parametric values as attributes of the SimScheduling class and submitting jobs
@@ -33,15 +36,13 @@ class SimScheduling:
     def run(self,pset_dict):
         ###Path and running attributes
         self.pset_dict = pset_dict
-        self.run_path = pset_dict['run_path']
-        self.base_path = pset_dict['base_path']
-        self.convert_path = pset_dict['convert_path']
         self.case_type = pset_dict['case']
         self.run_ID = pset_dict['run_ID']
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
+        self.run_path = pset_dict['run_path']
 
-        self.base_case_dir = os.path.join(self.base_path, self.case_type)
+        self.mainpath = os.path.join(self.run_path,'..')
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -61,8 +62,21 @@ class SimScheduling:
             command = f'python {self.mainpath}/{HPC_script} trial --pdict \'{dict_str}\''
 
             stdin, stdout, stderr = ssh.exec_command(command)
-            output = stdout.read().decode('utf-8').strip()
-            log.info(output)
+            out_lines = []
+            for line in stdout:
+                stripped_line = line.strip()
+                log.info(stripped_line)
+                out_lines.append(stripped_line)
+
+            return_value = False
+            ret = 1
+            for line in out_lines:
+                if not return_value:
+                    if line == "==RETURN_VALUE==":
+                        return_value = True
+                else:
+                    ret = line
+                    break
 
         finally:
             stdin.close()
@@ -71,8 +85,6 @@ class SimScheduling:
             ssh.close()
 
 
-        print(job_IDS)
-        
         return {}
     
     def post_process(self):
