@@ -22,6 +22,12 @@ class SimScheduling:
     def __init__(self) -> None:
         pass
 
+    @staticmethod
+    def convert_to_json(obj):
+        if isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
     ### assigning input parametric values as attributes of the SimScheduling class and submitting jobs
 
     def run(self,pset_dict):
@@ -46,8 +52,13 @@ class SimScheduling:
         #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
+        HPC_script = 'HPC_run_scheduling.py'
+        dict = {'1': 'value'}
+        dict_str = json.dumps(dict)
 
-        ssh.connect('login.hpc.ic.ac.uk', username=user, password=key)
+        try:
+            ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
+            command = f'python {self.mainpath}/{HPC_script} trial --pdict \'{dict_str}\''
 
             stdin, stdout, stderr = ssh.exec_command(command)
             output = stdout.read().decode('utf-8').strip()

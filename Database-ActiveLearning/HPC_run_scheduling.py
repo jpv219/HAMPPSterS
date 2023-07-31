@@ -420,15 +420,11 @@ class SimScheduling:
 
         return jobid
     
-    def trial(self,dict):
-        self.hi = dict['1']
-        print(f'{self.hi}')
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "function",
-        choices=["run","trial"], 
+        choices=["run"], 
     )
 
     parser.add_argument(
