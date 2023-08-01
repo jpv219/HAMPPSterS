@@ -94,6 +94,6 @@ log.info('-' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.run, params)   
+    df = ps.run_local(simulator.run, params,save=False)   
 
 

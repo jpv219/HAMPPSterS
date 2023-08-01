@@ -18,7 +18,7 @@ import re
 import argparse
 import json
 
-class SimScheduling:
+class HPCScheduling:
 
     ### Init function
      
@@ -78,9 +78,39 @@ class SimScheduling:
 
         job_IDS = self.submit_job()
 
-        print("==RETURN_VALUE==")
-
+        print("====JOB_IDS====")
         print(job_IDS)
+
+        #sleep(300)
+
+        t_jobwait, status = self.job_wait(job_IDS)
+
+        print("====JOB_STATUS====")
+        print(status)
+        print("====WAIT_TIME====")
+        print(t_jobwait)
+
+    ### checking jobstate and sleeping until completion or restart commands
+
+    def monitor(self,mdict):
+        self.mdict = mdict
+        self.jobID = mdict['jobID']
+        self.runID = mdict['runID']
+        self.run_path = mdict['run_path']
+        self.convert_path = mdict['convert_path']
+        self.pipe_radius = mdict['pipe_radius']
+
+
+        self.run_name = "run_"+str(self.run_ID)
+        self.path = os.path.join(self.run_path, self.run_name)
+
+        t_jobwait, status = self.job_wait(int(self.jobID))
+
+        print("====JOB_STATUS====")
+        print(status)
+        print("====WAIT_TIME====")
+        print(t_jobwait)
+
 
     ### creating f90 instance and executable
 
@@ -243,43 +273,42 @@ class SimScheduling:
 
     ### checking job status and sending exceptions as fitting
 
-    def job_wait(self, job_id):
-        running = True
-        while running:
-            try:
-                p = Popen(['qstat', '-a',f"{job_id}"],stdout=PIPE, stderr=PIPE)
-                output = p.communicate()[0]
-            
-                if p.returncode != 0:
-                    raise subprocess.CalledProcessError(p.returncode, p.args)
-                
-                ## formatted to Imperial HPC 
-                jobstatus = str(output,'utf-8').split()[-3:]
-
-                if not jobstatus:
-                    raise ValueError('Job exists but belongs to another account')
+    def job_wait(self,job_id):
+        try:
+            p = Popen(['qstat', '-a',f"{job_id}"],stdout=PIPE, stderr=PIPE)
+            output = p.communicate()[0]
         
-                if jobstatus[1] == 'Q' or jobstatus[1] == 'H':
-                    sleep(1200)
-                elif jobstatus[1] == 'R':
-                    time_format = '%H:%M'
-                    wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
-                    elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
-                    delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
-                    remaining = delta.total_seconds()+120
-                    sleep(remaining)
-                else:
-                    running = False
-                    
-            except subprocess.CalledProcessError as e:
-                running = False
-                raise RuntimeError("Job finished")
+            if p.returncode != 0:
+                raise subprocess.CalledProcessError(p.returncode, p.args)
             
-            except ValueError as e:
-                print(f"Error: {e}")
-                raise ValueError('Existing job but doesnt belong to this account')
+            ## formatted to Imperial HPC 
+            jobstatus = str(output,'utf-8').split()[-3:]
+            status = jobstatus[1]
+
+            if not jobstatus:
+                raise ValueError('Job exists but belongs to another account')
+    
+            if status == 'Q' or status == 'H':
+                t_wait = 1800
+            elif status == 'R':
+                time_format = '%H:%M'
+                wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
+                elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
+                delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
+                remaining = delta.total_seconds()+60
+                t_wait = remaining
+            else:
+                t_wait = 0
+                
+        except subprocess.CalledProcessError as e:
+            t_wait = 0
+            raise RuntimeError("Job finished")
+        
+        except ValueError as e:
+            print(f"Error: {e}")
+            raise ValueError('Existing job but doesnt belong to this account')
             
-        return running
+        return t_wait, status
 
     ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
 
@@ -415,7 +444,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "function",
-        choices=["run"], 
+        choices=["run","monitor"], 
     )
 
     parser.add_argument(
@@ -425,7 +454,7 @@ def main():
 
     args = parser.parse_args()
 
-    simulator = SimScheduling()
+    simulator = HPCScheduling()
 
     if hasattr(simulator, args.function):
         func = getattr(simulator, args.function)
