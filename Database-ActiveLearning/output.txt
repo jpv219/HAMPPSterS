@@ -1,0 +1,55 @@
+[01/08/ - 18:50:21] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:21] - NEW RUN
+[01/08/ - 18:50:21] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:21] - Parametric study in case Geom with 2 runs
+[01/08/ - 18:50:21] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:21] - Modifications to the DOE
+[01/08/ - 18:50:21] - W in row 0 modified from 20.0 to 10.0
+W in row 1 modified from 1.0 to 0.625
+Q in row 1 modified from 0.001 to 0.0005562506146141821
+
+[01/08/ - 18:50:21] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:21] - 
+   Bar_Width (mm)  Bar_Thickness (mm)  Radius (mm)  Nbars  Flowrate (m3/s)  Angle         Re  SMX_pos (mm)
+0          10.000                 1.0         15.0    3.0         0.000001   80.0   0.029963          15.0
+1           0.625                 5.0          5.0   16.0         0.000556   20.0  50.000000           5.0
+[01/08/ - 18:50:21] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:21] - Connected (version 2.0, client OpenSSH_8.0)
+[01/08/ - 18:50:22] - Authentication (password) successful!
+[01/08/ - 18:50:25] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:25] - Run directory /rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS/run_1 created and base files copied
+[01/08/ - 18:50:25] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:25] - Placeholders for geometry specs in run_1_SMX.f90 modified correctly
+[01/08/ - 18:50:25] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:25] - mpiifort  -O3 -unroll -finline -march=core-avx2 -I/rds/general/user/jpv219/home/BLUE-12.5.1/include -fpp -Wp,-DPARALLEL,-DUNPROTECTED -convert big_endian -shared-intel -diag-disable remark -I. -I/rds/general/user/jpv219/home/BLUE-12.5.1/include -c run_1_SMX.f90
+[01/08/ - 18:50:25] - mpiifort  -convert big_endian -diag-disable remark -o run_1_SMX.x run_1_SMX.o /rds/general/user/jpv219/home/BLUE-12.5.1/library/libblue.a
+[01/08/ - 18:50:25] - 
+[01/08/ - 18:50:25] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:25] - Placeholders replaced succesfully in job for run:1
+[01/08/ - 18:50:25] - ----------------------------------------------------------------------------------------------------
+[01/08/ - 18:50:25] - job 1 submitted succesfully with ID 8058406
+[01/08/ - 18:50:25] - ====JOB_IDS====
+[01/08/ - 18:50:25] - 8058406
+[01/08/ - 18:50:25] - ====JOB_STATUS====
+[01/08/ - 18:50:25] - Q
+[01/08/ - 18:50:25] - ====WAIT_TIME====
+[01/08/ - 18:50:25] - 1800
+[01/08/ - 18:50:25] - Sleeping for:1800
+[01/08/ - 18:50:55] - Connected (version 2.0, client OpenSSH_8.0)
+[01/08/ - 18:50:56] - Authentication (password) successful!
+[01/08/ - 18:50:58] - ====JOB_STATUS====
+[01/08/ - 18:50:58] - Q
+[01/08/ - 18:50:58] - ====WAIT_TIME====
+[01/08/ - 18:50:58] - 1800
+[01/08/ - 18:50:58] - updated sleeping time in job 1800 with status Q
+[01/08/ - 18:50:58] - Sleeping for:1800
+[01/08/ - 18:51:28] - Connected (version 2.0, client OpenSSH_8.0)
+[01/08/ - 18:51:29] - Authentication (password) successful!
+[01/08/ - 18:51:30] - ====JOB_STATUS====
+[01/08/ - 18:51:30] - Q
+[01/08/ - 18:51:30] - ====WAIT_TIME====
+[01/08/ - 18:51:30] - 1800
+[01/08/ - 18:51:30] - updated sleeping time in job 1800 with status Q
+[01/08/ - 18:51:30] - Sleeping for:1800
+[01/08/ - 18:52:00] - Connected (version 2.0, client OpenSSH_8.0)
+[01/08/ - 18:52:02] - Authentication (password) successful!

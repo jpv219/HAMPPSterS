@@ -51,7 +51,10 @@ class SimScheduling:
         HPC_script = 'HPC_run_scheduling.py'
         command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
 
-        jobid, t_wait, status = self.execute_remote_command(command=command,search=1)
+        try:
+            jobid, t_wait, status = self.execute_remote_command(command=command,search=1)
+        except:
+            pass
 
         ### calling monitoring function to check in on jobs
         mdict = pset_dict
@@ -64,11 +67,14 @@ class SimScheduling:
                 log.info(f'Sleeping for:{t_wait}')
                 sleep(t_wait-1770)
 
-                command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                try:
+                    command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                    _, t_wait, status = self.execute_remote_command(command=command,search=0)
+                    log.info(f'updated sleeping time in job {t_wait} with status {status}')
 
-                _, t_wait, status = self.execute_remote_command(command=command,search=0)
-
-                log.info(f'updated sleeping time in job {t_wait} with status {status}')
+                except RuntimeError as e:
+                    t_wait = 0
+                    status = 'F'
 
             else:
                 running = False
@@ -105,6 +111,9 @@ class SimScheduling:
             jobid = results.get("jobid", None)
             t_wait = int(results.get("t_wait", None))
             status = results.get("status", None)
+
+        except RuntimeError as e:
+            raise RuntimeError(f'Exited with message: {e}')
 
         ### closing HPC session
         finally:
