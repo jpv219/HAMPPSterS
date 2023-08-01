@@ -23,6 +23,8 @@ class SimScheduling:
     def __init__(self) -> None:
         pass
 
+    ### converting dictionary input from psweep run_local into readable JSON format
+
     @staticmethod
     def convert_to_json(obj):
         if isinstance(obj, pd.Timestamp):
@@ -42,8 +44,51 @@ class SimScheduling:
         self.save_path = pset_dict['save_path']
         self.run_path = pset_dict['run_path']
 
-        self.mainpath = os.path.join(self.run_path,'..')
+        self.main_path = os.path.join(self.run_path,'..')
 
+        dict_str = json.dumps(pset_dict, default=self.convert_to_json)
+
+        HPC_script = 'HPC_run_scheduling.py'
+        command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
+
+        jobid, t_wait, status = self.execute_remote_command(command=command, dict_str=dict_str,search=1)
+
+        ### calling monitoring function to check in on jobs
+        mdict = pset_dict
+        mdict['jobID'] = jobid
+        mdict_str = json.dumps(mdict, default=self.convert_to_json)
+
+        # running = True
+        # while running:
+        #     if t_wait>0:
+        #         log.info(f'Sleeping for:{t_wait}')
+        #         sleep(t_wait-1770)
+        #         try:
+        #             ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
+        #             command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+        #             stdin, stdout, stderr = ssh.exec_command(command)
+        #             out_lines = []
+        #             for line in stdout:
+        #                 stripped_line = line.strip()
+        #                 log.info(stripped_line)
+        #                 out_lines.append(stripped_line)
+
+        #             results = self.search(out_lines=out_lines,search=0)
+        #             t_wait = int(results.get("t_wait", None))
+        #             status = results.get("status",None)
+        #             log.info(f'updated sleeping time in job {t_wait} with status {status}')
+
+        #         finally:
+        #             stdin.close()
+        #             stdout.close()
+        #             stderr.close()
+        #             ssh.close()
+        #     else:
+        #         running = False
+
+        return {}
+    
+    def execute_remote_command(self,command,dict_str,search):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         warnings.filterwarnings("ignore", category=ResourceWarning)
@@ -54,12 +99,11 @@ class SimScheduling:
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         HPC_script = 'HPC_run_scheduling.py'
-        dict = {'1': 'value'}
-        dict_str = json.dumps(dict)
+        dict_str = json.dumps(pset_dict, default=self.convert_to_json)
 
         try:
             ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
-            command = f'python {self.mainpath}/{HPC_script} trial --pdict \'{dict_str}\''
+            command = f'python {self.mainpath}/{HPC_script} run --pdict \'{dict_str}\''
 
             stdin, stdout, stderr = ssh.exec_command(command)
             out_lines = []
@@ -67,25 +111,51 @@ class SimScheduling:
                 stripped_line = line.strip()
                 log.info(stripped_line)
                 out_lines.append(stripped_line)
+            
+            ### Extracting job id and wait time for job
+            results = self.search(out_lines=out_lines,search=search)
 
-            return_value = False
-            ret = 1
-            for line in out_lines:
-                if not return_value:
-                    if line == "==RETURN_VALUE==":
-                        return_value = True
-                else:
-                    ret = line
-                    break
+            jobid = results.get("jobid", None)
+            t_wait = int(results.get("t_wait", None))
+            status = results.get("status", None)
 
+        ### closing HPC session
         finally:
             stdin.close()
             stdout.close()
             stderr.close()
             ssh.close()
 
+        return jobid, t_wait, status
+ 
+    def search(self,out_lines,search):
+        if search >0:
+            markers = {
+                "====JOB_IDS====": "jobid",
+                "====WAIT_TIME====": "t_wait",
+                "====JOB_STATUS====": "status"
+                }
+            results = {}
+            current_variable = None
 
-        return {}
+            for idx, line in enumerate(out_lines):
+                if line in markers:
+                    current_variable = markers[line]
+                    results[current_variable] = out_lines[idx + 1]
+        else:
+            markers = {
+                "====WAIT_TIME====": "t_wait",
+                "====JOB_STATUS====": "status"
+                }
+            results = {}
+            current_variable = None
+
+            for idx, line in enumerate(out_lines):
+                if line in markers:
+                    current_variable = markers[line]
+                    results[current_variable] = out_lines[idx + 1]
+
+        return results
     
     def post_process(self):
 
