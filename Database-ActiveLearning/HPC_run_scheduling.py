@@ -95,7 +95,7 @@ class HPCScheduling:
     def monitor(self,mdict):
         self.mdict = mdict
         self.jobID = mdict['jobID']
-        self.runID = mdict['runID']
+        self.run_ID = mdict['run_ID']
         self.run_path = mdict['run_path']
         self.convert_path = mdict['convert_path']
         self.pipe_radius = mdict['pipe_radius']
@@ -110,7 +110,6 @@ class HPCScheduling:
         print(status)
         print("====WAIT_TIME====")
         print(t_jobwait)
-
 
     ### creating f90 instance and executable
 

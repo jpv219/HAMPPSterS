@@ -35,7 +35,7 @@ class SimScheduling:
 
     ### assigning input parametric values as attributes of the SimScheduling class and submitting jobs
 
-    def run(self,pset_dict):
+    def localrun(self,pset_dict):
         ###Path and running attributes
         self.pset_dict = pset_dict
         self.case_type = pset_dict['case']
@@ -51,44 +51,31 @@ class SimScheduling:
         HPC_script = 'HPC_run_scheduling.py'
         command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
 
-        jobid, t_wait, status = self.execute_remote_command(command=command, dict_str=dict_str,search=1)
+        jobid, t_wait, status = self.execute_remote_command(command=command,search=1)
 
         ### calling monitoring function to check in on jobs
         mdict = pset_dict
         mdict['jobID'] = jobid
-        mdict_str = json.dumps(mdict, default=self.convert_to_json)
+        mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
 
-        # running = True
-        # while running:
-        #     if t_wait>0:
-        #         log.info(f'Sleeping for:{t_wait}')
-        #         sleep(t_wait-1770)
-        #         try:
-        #             ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
-        #             command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-        #             stdin, stdout, stderr = ssh.exec_command(command)
-        #             out_lines = []
-        #             for line in stdout:
-        #                 stripped_line = line.strip()
-        #                 log.info(stripped_line)
-        #                 out_lines.append(stripped_line)
+        running = True
+        while running:
+            if t_wait>0:
+                log.info(f'Sleeping for:{t_wait}')
+                sleep(t_wait-1770)
 
-        #             results = self.search(out_lines=out_lines,search=0)
-        #             t_wait = int(results.get("t_wait", None))
-        #             status = results.get("status",None)
-        #             log.info(f'updated sleeping time in job {t_wait} with status {status}')
+                command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
 
-        #         finally:
-        #             stdin.close()
-        #             stdout.close()
-        #             stderr.close()
-        #             ssh.close()
-        #     else:
-        #         running = False
+                _, t_wait, status = self.execute_remote_command(command=command,search=0)
+
+                log.info(f'updated sleeping time in job {t_wait} with status {status}')
+
+            else:
+                running = False
 
         return {}
     
-    def execute_remote_command(self,command,dict_str,search):
+    def execute_remote_command(self,command,search):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         warnings.filterwarnings("ignore", category=ResourceWarning)
