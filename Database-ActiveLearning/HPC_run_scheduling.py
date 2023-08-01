@@ -97,20 +97,24 @@ class HPCScheduling:
         self.jobID = mdict['jobID']
         self.run_ID = mdict['run_ID']
         self.run_path = mdict['run_path']
-        self.convert_path = mdict['convert_path']
-        self.pipe_radius = mdict['pipe_radius']
 
 
         self.run_name = "run_"+str(self.run_ID)
         self.path = os.path.join(self.run_path, self.run_name)
 
-        t_jobwait, status = self.job_wait(int(self.jobID))
+        try:
+            t_jobwait, status = self.job_wait(int(self.jobID))
+            print("====JOB_STATUS====")
+            print(status)
+            print("====WAIT_TIME====")
+            print(t_jobwait)
 
-        print("====JOB_STATUS====")
-        print(status)
-        print("====WAIT_TIME====")
-        print(t_jobwait)
+        except RuntimeError as e:
+            print(f'Exited with message: {e}')
+        except ValueError as e:
+            print(f"Error: {e}")
 
+            
     ### creating f90 instance and executable
 
     def makef90(self):
@@ -300,7 +304,6 @@ class HPCScheduling:
                 t_wait = 0
                 
         except subprocess.CalledProcessError as e:
-            t_wait = 0
             raise RuntimeError("Job finished")
         
         except ValueError as e:
@@ -311,8 +314,12 @@ class HPCScheduling:
 
     ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
 
-    def job_restart(self):
+    def job_restart(self,pset_dict):
 
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = "run_"+str(self.run_ID)
+        self.convert_path = pset_dict['convert_path']
+        self.pipe_radius = pset_dict['pipe_radius']
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
         os.chdir(ephemeral_path)
@@ -443,7 +450,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "function",
-        choices=["run","monitor"], 
+        choices=["run","monitor","job_restart"], 
     )
 
     parser.add_argument(
