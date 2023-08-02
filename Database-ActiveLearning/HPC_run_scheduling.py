@@ -319,9 +319,11 @@ class HPCScheduling:
 
         self.run_ID = pset_dict['run_ID']
         self.run_name = "run_"+str(self.run_ID)
-        self.convert_path = pset_dict['convert_path']
-        self.pipe_radius = pset_dict['pipe_radius']
+        self.run_path = pset_dict['run_path']
+        self.path = os.path.join(self.run_path, self.run_name)
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+
+        self.pipe_radius = float(pset_dict['pipe_radius'])
 
         os.chdir(ephemeral_path)
         ## Checking location of the interface in the x direction -- stopping criterion
@@ -348,8 +350,12 @@ class HPCScheduling:
                 if match is not None:
                     restart_num = int(match.group())
                 else:
+                    print("====EXCEPTION====")
+                    print("ValueError")
                     print('No restart number match found')
-                    raise ValueError('No restart number match found')
+                    print("====RETURN_BOOL====")
+                    print("False")
+                    return False
                 ### Modifying .sh file accordingly
                 with open(f"job_{self.run_name}.sh", 'r+') as file:
                     lines = file.readlines()
@@ -361,15 +367,26 @@ class HPCScheduling:
                     file.seek(0)
                     file.writelines(lines)
                     file.truncate()
-                    os.chdir('..')
+                    ### submitting job with restart modification
+                    job_IDS = self.submit_job()
+                    print(f'Job {self.run_ID} re-submitted correctly with ID:')
+                    print("====JOB_IDS====")
+                    print(job_IDS)
+                    print("====RETURN_BOOL====")
+                    print("True")
                     return True
             else:
-                print("Pattern not found in the file.")
-                raise ValueError('Restart file pattern in .out not found or does not exist')
+                print("====EXCEPTION====")
+                print("ValueError")
+                print("Restart file pattern in .out not found or does not exist")
+                print("====RETURN_BOOL====")
+                print("False")
+                return False
             
         else:
-            os.chdir(self.path)
-            os.chdir('..')
+            print("Job reached completion, no restarts required")
+            print("====RETURN_BOOL====")
+            print("False")
             return False
 
     ### Converting vtk to vtr
