@@ -78,6 +78,9 @@ class HPCScheduling:
 
         job_IDS = self.submit_job()
 
+        print('-' * 100)
+        print(f'Job {self.run_ID} submitted succesfully with ID {job_IDS}')
+
         print("====JOB_IDS====")
         print(job_IDS)
 
@@ -367,14 +370,22 @@ class HPCScheduling:
                     file.seek(0)
                     file.writelines(lines)
                     file.truncate()
-                    ### submitting job with restart modification
-                    job_IDS = self.submit_job()
-                    print(f'Job {self.run_ID} re-submitted correctly with ID:')
-                    print("====JOB_IDS====")
-                    print(job_IDS)
-                    print("====RETURN_BOOL====")
-                    print("True")
-                    return True
+
+                ### submitting job with restart modification
+                job_IDS = self.submit_job()
+                print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
+                print("====JOB_IDS====")
+                print(job_IDS)
+                #sleep(300)
+                ### check status and waiting time for re-submitted job
+                t_jobwait, status = self.job_wait(job_IDS)
+                print("====JOB_STATUS====")
+                print(status)
+                print("====WAIT_TIME====")
+                print(t_jobwait)
+                print("====RETURN_BOOL====")
+                print("True")
+                return True
             else:
                 print("====EXCEPTION====")
                 print("ValueError")
@@ -458,9 +469,6 @@ class HPCScheduling:
         output = proc.communicate()[0].decode('utf-8').split()
 
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
-
-        print('-' * 100)
-        print(f'job {self.run_ID} submitted succesfully with ID {jobid}')
 
         return jobid
     
