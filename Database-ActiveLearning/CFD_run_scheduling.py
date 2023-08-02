@@ -46,13 +46,13 @@ class SimScheduling:
 
         self.main_path = os.path.join(self.run_path,'..')
 
-        dict_str = json.dumps(pset_dict, default=self.convert_to_json)
+        dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
 
         HPC_script = 'HPC_run_scheduling.py'
         command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
 
         try:
-            jobid, t_wait, status = self.execute_remote_command(command=command,search=1)
+            jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0)
         except:
             pass
 
@@ -66,13 +66,12 @@ class SimScheduling:
             if t_wait>0:
                 log.info(f'Sleeping for:{t_wait}')
                 sleep(t_wait-1770)
-
                 try:
                     command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    _, new_t_wait, new_status = self.execute_remote_command(command=command,search=0)
+                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
                     t_wait = new_t_wait
                     status = new_status
-                    log.info(f'updated sleeping time: {t_wait} with status {status}')
+                    log.info(f'Updated sleeping time: {t_wait} with status {status}')
                 except RuntimeError as e:
                     log.info(f'Exited with message: {e}')
                     t_wait = 0
@@ -85,7 +84,12 @@ class SimScheduling:
             else:
                 running = False
 
-        log.info(f'jobstatus {status}')
+        command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+        print(dict_str)
+        new_jobID, _, _, ret_bool = self.execute_remote_command(command=command,search=2)
+        jobid = new_jobID
+
+        log.info(jobid)
 
         return {}
     
@@ -119,13 +123,14 @@ class SimScheduling:
             jobid = results.get("jobid", None)
             t_wait = int(results.get("t_wait", 0))
             status = results.get("status", None)
+            ret_bool = results.get("ret_bool", None)
             exc = results.get("exception",None)
 
             if exc is not None:
                 if exc == "RuntimeError":
-                    raise RuntimeError(f'Job finished')
+                    raise RuntimeError('Job finished')
                 elif exc == "ValueError":
-                    raise ValueError('Existing job in another account') 
+                    raise ValueError('Exception raised from qstat in job_wait or attempting to search restart in job_restart') 
                 else:
                     raise NameError('Search for exception from log failed')
 
@@ -136,10 +141,13 @@ class SimScheduling:
             stderr.close()
             ssh.close()
         
-        return jobid, t_wait, status
+        return jobid, t_wait, status, ret_bool
  
     def search(self,out_lines,search):
-        if search >0:
+        ##### search = 0 : looks for JobID, status and wait time
+        ##### search = 1 : looks for wait time, status
+        ##### search = 2 : looks for boolean return values and jobID
+        if search == 0:
             markers = {
                 "====JOB_IDS====": "jobid",
                 "====WAIT_TIME====": "t_wait",
@@ -153,10 +161,23 @@ class SimScheduling:
                 if line in markers:
                     current_variable = markers[line]
                     results[current_variable] = out_lines[idx + 1]
-        else:
+        elif search == 1:
             markers = {
                 "====WAIT_TIME====": "t_wait",
                 "====JOB_STATUS====": "status",
+                "====EXCEPTION====" : "exception"
+                }
+            results = {}
+            current_variable = None
+
+            for idx, line in enumerate(out_lines):
+                if line in markers:
+                    current_variable = markers[line]
+                    results[current_variable] = out_lines[idx + 1]
+        elif search == 2:
+            markers = {
+                "====JOB_IDS====": "jobid",
+                "====RETURN_BOOL====": "ret_bool",
                 "====EXCEPTION====" : "exception"
                 }
             results = {}
