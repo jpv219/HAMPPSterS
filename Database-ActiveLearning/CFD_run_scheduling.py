@@ -54,43 +54,58 @@ class SimScheduling:
         try:
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0)
         except:
-            pass
+            raise Exception(f'There was an issue attempting to submit job from ID {self.run_ID}')
 
-        ### calling monitoring function to check in on jobs
-        mdict = pset_dict
-        mdict['jobID'] = jobid
-        mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
+        restart = True
+        while restart:
+            ### calling monitoring and restart function to check in on jobs
+            mdict = pset_dict
+            mdict['jobID'] = jobid
+            mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
 
-        running = True
-        while running:
-            if t_wait>0:
-                log.info(f'Sleeping for:{t_wait}')
-                sleep(t_wait-1770)
-                try:
-                    command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
-                    t_wait = new_t_wait
-                    status = new_status
-                    log.info(f'Updated sleeping time: {t_wait} with status {status}')
-                except RuntimeError as e:
-                    log.info(f'Exited with message: {e}')
-                    t_wait = 0
-                    status = 'F'
+            running = True
+            while running:
+                if t_wait>0:
+                    log.info('-' * 100)
+                    log.info(f'Sleeping for:{t_wait}')
+                    log.info('-' * 100)
+                    sleep(t_wait-1770)
+                    try:
+                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                        _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
+                        t_wait = new_t_wait
+                        status = new_status
+                        log.info('-' * 100)
+                        log.info(f'Updated sleeping time: {t_wait} with status {status}')
+                    except RuntimeError as e:
+                        log.info(f'Exited with message: {e}')
+                        t_wait = 0
+                        status = 'F'
+                        running = False
+                    except ValueError as e:
+                        log.info(f'Exited with message: {e}')
+                    except NameError as e:
+                        log.info(f'Exited with message: {e}')
+                else:
                     running = False
-                except ValueError as e:
-                    log.info(f'Exited with message: {e}')
-                except NameError as e:
-                    log.info(f'Exited with message: {e}')
-            else:
-                running = False
 
-        command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
-        print(dict_str)
-        new_jobID, _, _, ret_bool = self.execute_remote_command(command=command,search=2)
-        jobid = new_jobID
+            try:
+                log.info('-' * 100)
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(command=command,search=2)
+                log.info('-' * 100)
 
-        log.info(jobid)
+                ### updating
+                jobid = new_jobID
+                t_wait = new_t_wait
+                status = new_status
+                restart = eval(ret_bool)
 
+            except ValueError as e:
+                log.info(f'Exited with message: {e}')
+
+        log.info('im out')
+            
         return {}
     
     def execute_remote_command(self,command,search):
@@ -143,7 +158,7 @@ class SimScheduling:
     def search(self,out_lines,search):
         ##### search = 0 : looks for JobID, status and wait time
         ##### search = 1 : looks for wait time, status
-        ##### search = 2 : looks for boolean return values and jobID
+        ##### search = 2 : looks for JobID, status and wait time and boolean return values
         if search == 0:
             markers = {
                 "====JOB_IDS====": "jobid",
@@ -174,6 +189,8 @@ class SimScheduling:
         elif search == 2:
             markers = {
                 "====JOB_IDS====": "jobid",
+                "====WAIT_TIME====": "t_wait",
+                "====JOB_STATUS====": "status",
                 "====RETURN_BOOL====": "ret_bool",
                 "====EXCEPTION====" : "exception"
                 }
