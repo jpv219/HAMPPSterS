@@ -110,9 +110,11 @@ class HPCScheduling:
             print(t_jobwait)
 
         except RuntimeError as e:
-            print(f'Exited with message: {e}')
+            print("====EXCEPTION====")
+            print("RuntimeError")
         except ValueError as e:
-            print(f"Error: {e}")
+            print("====EXCEPTION====")
+            print("ValueError")
            
     ### creating f90 instance and executable
 
