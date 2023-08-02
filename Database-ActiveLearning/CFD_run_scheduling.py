@@ -69,15 +69,22 @@ class SimScheduling:
 
                 try:
                     command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    _, t_wait, status = self.execute_remote_command(command=command,search=0)
-                    log.info(f'updated sleeping time in job {t_wait} with status {status}')
-
+                    _, new_t_wait, new_status = self.execute_remote_command(command=command,search=0)
+                    t_wait = new_t_wait
+                    status = new_status
+                    log.info(f'updated sleeping time: {t_wait} with status {status}')
+                    log.info(running)
                 except RuntimeError as e:
+                    log.info(e)
+                    log.info(running)
                     t_wait = 0
                     status = 'F'
-
+                    running = False
+                    log.info(running)
             else:
                 running = False
+
+        log.info(f'jobstatus {status}')
 
         return {}
     
@@ -109,20 +116,22 @@ class SimScheduling:
             results = self.search(out_lines=out_lines,search=search)
 
             jobid = results.get("jobid", None)
-            t_wait = int(results.get("t_wait", None))
+            t_wait = int(results.get("t_wait", 0))
             status = results.get("status", None)
+
+            return jobid, t_wait, status
 
         except RuntimeError as e:
             raise RuntimeError(f'Exited with message: {e}')
 
         ### closing HPC session
         finally:
+            log.info('llegue')
             stdin.close()
             stdout.close()
             stderr.close()
             ssh.close()
-
-        return jobid, t_wait, status
+            log.info('y me fui')
  
     def search(self,out_lines,search):
         if search >0:
