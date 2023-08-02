@@ -73,14 +73,15 @@ class SimScheduling:
                     t_wait = new_t_wait
                     status = new_status
                     log.info(f'updated sleeping time: {t_wait} with status {status}')
-                    log.info(running)
                 except RuntimeError as e:
-                    log.info(e)
-                    log.info(running)
+                    log.info(f'Exited with message: {e}')
                     t_wait = 0
                     status = 'F'
                     running = False
-                    log.info(running)
+                except ValueError as e:
+                    log.info(f'Exited with message: {e}')
+                except NameError as e:
+                    log.info(f'Exited with message: {e}')
             else:
                 running = False
 
@@ -118,27 +119,32 @@ class SimScheduling:
             jobid = results.get("jobid", None)
             t_wait = int(results.get("t_wait", 0))
             status = results.get("status", None)
+            exc = results.get("exception",None)
 
-            return jobid, t_wait, status
-
-        except RuntimeError as e:
-            raise RuntimeError(f'Exited with message: {e}')
+            if exc is not None:
+                if exc == "RuntimeError":
+                    raise RuntimeError(f'Job finished')
+                elif exc == "ValueError":
+                    raise ValueError('Existing job in another account') 
+                else:
+                    raise NameError('Search for exception from log failed')
 
         ### closing HPC session
         finally:
-            log.info('llegue')
             stdin.close()
             stdout.close()
             stderr.close()
             ssh.close()
-            log.info('y me fui')
+        
+        return jobid, t_wait, status
  
     def search(self,out_lines,search):
         if search >0:
             markers = {
                 "====JOB_IDS====": "jobid",
                 "====WAIT_TIME====": "t_wait",
-                "====JOB_STATUS====": "status"
+                "====JOB_STATUS====": "status",
+                "====EXCEPTION====" : "exception"
                 }
             results = {}
             current_variable = None
@@ -150,7 +156,8 @@ class SimScheduling:
         else:
             markers = {
                 "====WAIT_TIME====": "t_wait",
-                "====JOB_STATUS====": "status"
+                "====JOB_STATUS====": "status",
+                "====EXCEPTION====" : "exception"
                 }
             results = {}
             current_variable = None
