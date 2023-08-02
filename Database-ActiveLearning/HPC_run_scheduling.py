@@ -113,8 +113,7 @@ class HPCScheduling:
             print(f'Exited with message: {e}')
         except ValueError as e:
             print(f"Error: {e}")
-
-            
+           
     ### creating f90 instance and executable
 
     def makef90(self):

@@ -1,6 +1,12 @@
+### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
+### LHS DOE Sample experiments generator
+### to be run locally in psweep script
+### Author: Juan Pablo Valdes,
+### First commit: July, 2023
+### Department of Chemical Engineering, Imperial College London
+
 from doepy import build
 import math
-import sys
 
 ## Function applying restrictions
 
