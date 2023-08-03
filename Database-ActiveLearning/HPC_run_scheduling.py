@@ -65,6 +65,8 @@ class HPCScheduling:
             self.diffs = pset_dict['D_s']
             self.beta = pset_dict['beta']
 
+        self.run_name = "run_"+str(self.run_ID)
+        self.path = os.path.join(self.run_path, self.run_name)
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
         self.mainpath = os.path.join(self.run_path,'..')
 
@@ -124,8 +126,6 @@ class HPCScheduling:
     def makef90(self):
 
         ## Create run_ID directory
-        self.run_name = "run_"+str(self.run_ID)
-        self.path = os.path.join(self.run_path, self.run_name)
         os.mkdir(self.path)
 
         ## Copy base files and rename to current run accordingly
@@ -402,7 +402,14 @@ class HPCScheduling:
 
     ### Converting vtk to vtr
 
-    def vtk_convert(self):
+    def vtk_convert(self,pset_dict):
+
+        self.pset_dict = pset_dict
+        self.run_path = pset_dict['run_path']
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = "run_"+str(self.run_ID)
+        self.convert_path = pset_dict['convert_path']
+        self.path = os.path.join(self.run_path, self.run_name)
 
         proc = []
 
@@ -430,6 +437,8 @@ class HPCScheduling:
             shutil.move(file,'RESULTS')
 
         shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
+        shutil.move(f'ISO_STATIC_1_{self.run_name}.pvd','RESULTS')
+        shutil.move(f'{self.run_name}.csv','RESULTS')
 
         os.system('rm *vtk')
         os.system('rm *rst')
@@ -454,10 +463,20 @@ class HPCScheduling:
 
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
+        print('-' * 100)
+        print(f'Job convert from run {self.run_ID} submitted succesfully with ID {jobid}')
+
+        print("====JOB_IDS====")
+        print(jobid)
+
+        t_jobwait, status = self.job_wait(jobid)
+        print("====JOB_STATUS====")
+        print(status)
+        print("====WAIT_TIME====")
+        print(t_jobwait)
+
         os.chdir(self.path)
         os.chdir('..')
-
-        return jobid
 
     ### submitting the SMX job and recording job_id
 
@@ -476,7 +495,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "function",
-        choices=["run","monitor","job_restart"], 
+        choices=["run","monitor","job_restart","vtk_convert"], 
     )
 
     parser.add_argument(
