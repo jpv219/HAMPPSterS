@@ -48,13 +48,17 @@ class SimScheduling:
 
         dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
 
+        ### First job creation and submission
+
         HPC_script = 'HPC_run_scheduling.py'
-        command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
 
         try:
+            command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0)
         except:
-            raise Exception(f'There was an issue attempting to submit job from ID {self.run_ID}')
+            raise Exception(f'There was an issue attempting to submit job from run ID: {self.run_ID}')
+        
+        ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
 
         restart = True
         while restart:
@@ -62,6 +66,8 @@ class SimScheduling:
             mdict = pset_dict
             mdict['jobID'] = jobid
             mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
+
+            ### monitoring loop
 
             running = True
             while running:
@@ -89,6 +95,8 @@ class SimScheduling:
                 else:
                     running = False
 
+            ### Job restart execution
+
             try:
                 log.info('-' * 100)
                 command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
@@ -104,7 +112,47 @@ class SimScheduling:
             except ValueError as e:
                 log.info(f'Exited with message: {e}')
 
-        log.info('im out')
+        ### vtk convert job creation and submission
+
+        try:
+            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
+            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(command=command,search=0)
+        except:
+            raise Exception(f'There was an issue attempting to submit job convert from run ID: {self.run_ID}')
+        
+        mdict['jobID'] = conv_jobid
+        mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
+
+        ### job convert monitoring loop
+
+        running = True
+        while running:
+            if conv_t_wait>0:
+                log.info('-' * 100)
+                log.info(f'Sleeping for:{conv_t_wait}')
+                log.info('-' * 100)
+                sleep(conv_t_wait-1770)
+                try:
+                    command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
+                    conv_t_wait = new_t_wait
+                    conv_status = new_status
+                    log.info('-' * 100)
+                    log.info(f'Updated sleeping time: {conv_t_wait} with status {conv_status}')
+                except RuntimeError as e:
+                    log.info(f'Exited with message: {e}, for Job convert')
+                    conv_t_wait = 0
+                    conv_status = 'F'
+                    running = False
+                except ValueError as e:
+                    log.info(f'Exited with message: {e}')
+                except NameError as e:
+                    log.info(f'Exited with message: {e}')
+            else:
+                running = False
+
+        log.info('imdone')
+        ### Downloading files and local Post-processing
             
         return {}
     
