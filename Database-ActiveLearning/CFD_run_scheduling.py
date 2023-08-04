@@ -15,6 +15,7 @@ import configparser
 import warnings
 import json
 import numpy as np
+import sys
 
 class SimScheduling:
 
@@ -43,6 +44,7 @@ class SimScheduling:
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
         self.run_path = pset_dict['run_path']
+        self.run_name = "run_"+str(self.run_ID)
 
         self.main_path = os.path.join(self.run_path,'..')
 
@@ -55,8 +57,14 @@ class SimScheduling:
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0)
-        except:
-            raise Exception(f'There was an issue attempting to submit job from run ID: {self.run_ID}')
+        except paramiko.AuthenticationException as e:
+            print(f"Authentication failed: {e}")
+            print(f'Error attempting to submit job with runID: {self.run_ID}')
+            sys.exit(1)
+        except paramiko.SSHException as e:
+            print(f"SSH connection failed: {e}")
+            print(f'Error attempting to submit job with runID: {self.run_ID}')
+            sys.exit(1)
         
         ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
 
@@ -92,6 +100,14 @@ class SimScheduling:
                         log.info(f'Exited with message: {e}')
                     except NameError as e:
                         log.info(f'Exited with message: {e}')
+                    except paramiko.AuthenticationException as e:
+                        print(f"Authentication failed: {e}")
+                        print(f'Error attempting to submit job with runID: {self.run_ID}')
+                        sys.exit(1)
+                    except paramiko.SSHException as e:
+                        print(f"SSH connection failed: {e}")
+                        print(f'Error attempting to submit job with runID: {self.run_ID}')
+                        sys.exit(1)
                 else:
                     running = False
 
@@ -111,14 +127,30 @@ class SimScheduling:
 
             except ValueError as e:
                 log.info(f'Exited with message: {e}')
+            except paramiko.AuthenticationException as e:
+                print(f"Authentication failed: {e}")
+                print(f'Error attempting to submit job with runID: {self.run_ID}')
+                sys.exit(1)
+            except paramiko.SSHException as e:
+                print(f"SSH connection failed: {e}")
+                print(f'Error attempting to submit job with runID: {self.run_ID}')
+                sys.exit(1)
 
         ### vtk convert job creation and submission
 
         try:
+            log.info('-' * 100)
             command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
             conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(command=command,search=0)
-        except:
-            raise Exception(f'There was an issue attempting to submit job convert from run ID: {self.run_ID}')
+            log.info('-' * 100)
+        except paramiko.AuthenticationException as e:
+            print(f"Authentication failed: {e}")
+            print(f'Error attempting to submit job with runID: {self.run_ID}')
+            sys.exit(1)
+        except paramiko.SSHException as e:
+            print(f"SSH connection failed: {e}")
+            print(f'Error attempting to submit job with runID: {self.run_ID}')
+            sys.exit(1)
         
         mdict['jobID'] = conv_jobid
         mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
@@ -148,11 +180,29 @@ class SimScheduling:
                     log.info(f'Exited with message: {e}')
                 except NameError as e:
                     log.info(f'Exited with message: {e}')
+                except paramiko.AuthenticationException as e:
+                    print(f"Authentication failed: {e}")
+                    print(f'Error attempting to submit job with runID: {self.run_ID}')
+                    sys.exit(1)
+                except paramiko.SSHException as e:
+                    print(f"SSH connection failed: {e}")
+                    print(f'Error attempting to submit job with runID: {self.run_ID}')
+                    sys.exit(1)
             else:
                 running = False
 
-        log.info('imdone')
         ### Downloading files and local Post-processing
+
+        try:
+            self.scp_download()
+        except paramiko.AuthenticationException as e:
+            print(f"Authentication failed: {e}")
+            print(f'Error attempting to submit job with runID: {self.run_ID}')
+            sys.exit(1)
+        except paramiko.SSHException as e:
+            print(f"SSH connection failed: {e}")
+            print(f'Error attempting to submit job with runID: {self.run_ID}')
+            sys.exit(1)
             
         return {}
     
@@ -254,7 +304,54 @@ class SimScheduling:
                     results[current_variable] = out_lines[idx + 1]
 
         return results
-    
+
+    def scp_download(self):
+
+        ###Create run local directory to store data
+        self.save_path_runID = os.path.join(self.save_path,self.run_name)
+        ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
+        #ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
+        try:
+            os.mkdir(self.save_path_runID)
+        except:
+            pass
+        
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        warnings.filterwarnings("ignore", category=ResourceWarning)
+
+        config = configparser.ConfigParser()
+        config.read('configjp.ini')
+        #config.read('confignk.ini')
+        user = config.get('SSH', 'username')
+        key = config.get('SSH', 'password')
+
+        try:
+            ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
+            transport = ssh.get_transport()
+            sftp = paramiko.SFTPClient.from_transport(transport)
+
+            remote_path = os.path.join(ephemeral_path,self.run_name,'RESULTS')
+
+            remote_files = sftp.listdir_attr(remote_path)
+
+            for file_attr in remote_files:
+                remote_file_path = os.path.join(remote_path, file_attr.filename)
+                local_file_path = os.path.join(self.save_path_runID, file_attr.filename)
+
+                # Check if it's a regular file before copying
+                if file_attr.st_mode & 0o100000:
+                    sftp.get(remote_file_path, local_file_path)
+                    log.info(f'Copied file {file_attr.filename}')
+            
+
+        ### closing HPC session
+        finally:
+            if 'sftp' in locals():
+                sftp.close()
+            if 'ssh' in locals():
+                ssh.close()
+
     def post_process(self):
 
         script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
