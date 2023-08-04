@@ -435,10 +435,15 @@ class HPCScheduling:
 
         for file in files_to_convert:
             shutil.move(file,'RESULTS')
+        print('Convert files copied')
 
-        shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
-        shutil.move(f'ISO_STATIC_1_{self.run_name}.pvd','RESULTS')
-        shutil.move(f'{self.run_name}.csv','RESULTS')
+        try:
+            shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
+            shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')
+            shutil.move(f'{self.run_name}.csv','RESULTS')
+            print('VAR, ISO and csv files moved to RESULTS')
+        except:
+            pass
 
         os.system('rm *vtk')
         os.system('rm *rst')
