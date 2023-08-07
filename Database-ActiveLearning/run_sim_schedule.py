@@ -13,13 +13,15 @@ import io
 import contextlib
 
 log.info('-' * 100)
-log.info('NEW RUN')
+log.info('-' * 100)
+log.info('Parametric study launch')
+log.info('-' * 100)
 log.info('-' * 100)
 
 case = "Geom"
 nruns = 2
 nruns_list = [str(i) for i in range(1, nruns + 1)]
-log.info(f'Parametric study in case {case} with {nruns} runs')
+log.info(f'Case {case} studied with {nruns} runs')
 
 run_path = ps.plist("run_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
@@ -89,6 +91,7 @@ else:
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
 log.info('-' * 100)
+log.info('' * 100)
 
 
 simulator = SimScheduling()

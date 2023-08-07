@@ -53,6 +53,12 @@ class SimScheduling:
         ### First job creation and submission
 
         HPC_script = 'HPC_run_scheduling.py'
+        
+        log.info('-' * 100)
+        log.info('-' * 100)
+        log.info('NEW RUN')
+        log.info('-' * 100)
+        log.info('-' * 100)
 
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
@@ -78,9 +84,17 @@ class SimScheduling:
 
             ### job monitoring loop
 
-            self.jobmonitor(mdict_str, t_wait, status, HPC_script)
+            log.info('-' * 100)
+            log.info('JOB MONITORING')
+            log.info('-' * 100)
+
+            self.jobmonitor(mdict_str, t_wait, status, self.run_ID, HPC_script)
 
             ### Job restart execution
+
+            log.info('-' * 100)
+            log.info('JOB RESTARTING')
+            log.info('-' * 100)
 
             try:
                 log.info('-' * 100)
@@ -107,6 +121,10 @@ class SimScheduling:
 
         ### vtk convert job creation and submission
 
+        log.info('-' * 100)
+        log.info('VTK CONVERTING')
+        log.info('-' * 100)
+
         try:
             log.info('-' * 100)
             command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
@@ -125,12 +143,21 @@ class SimScheduling:
 
         mdict['jobID'] = conv_jobid
         mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
+        convjob = 'Convert' + str(self.run_ID)
 
         ### job convert monitoring loop
 
-        self.jobmonitor(mdict_str,conv_t_wait,conv_status,HPC_script)
+        log.info('-' * 100)
+        log.info('JOB MONITORING')
+        log.info('-' * 100)
+
+        self.jobmonitor(mdict_str,conv_t_wait,conv_status,convjob,HPC_script)
 
         ### Downloading files and local Post-processing
+
+        log.info('-' * 100)
+        log.info('DOWNLOADING FILES FROM EPHEMERAL')
+        log.info('-' * 100)
 
         try:
             self.scp_download()
@@ -147,12 +174,12 @@ class SimScheduling:
     
     ### calling monitoring and restart function to check in on jobs
 
-    def jobmonitor(self, mdict_str, t_wait, status, HPC_script):
+    def jobmonitor(self, mdict_str, t_wait, status, job, HPC_script):
         running = True
         while running:
             if t_wait>0:
                 log.info('-' * 100)
-                log.info(f'Sleeping for:{t_wait/60} mins')
+                log.info(f'Job {job} has status {status}. Sleeping for:{t_wait/60} mins')
                 log.info('-' * 100)
                 sleep(t_wait-1770)
                 try:
@@ -161,9 +188,12 @@ class SimScheduling:
                     t_wait = new_t_wait
                     status = new_status
                     log.info('-' * 100)
-                    log.info(f'Updated sleeping time: {t_wait/60} mins with job status {status}')
+                    log.info(f'Job {job} status is {status}. Updated sleeping time: {t_wait/60} mins')
                 except RuntimeError as e:
+                    log.info('-' * 100)
                     log.info(f'Exited with message: {e}')
+                    log.info(f'JOB {job} FINISHED')
+                    log.info('-' * 100)
                     t_wait = 0
                     status = 'F'
                     running = False
@@ -173,11 +203,11 @@ class SimScheduling:
                     log.info(f'Exited with message: {e}')
                 except paramiko.AuthenticationException as e:
                     print(f"Authentication failed: {e}")
-                    print(f'Error attempting to submit job with runID: {self.run_ID}')
+                    print(f'Error attempting to submit job: {job}')
                     sys.exit(1)
                 except paramiko.SSHException as e:
                     print(f"SSH connection failed: {e}")
-                    print(f'Error attempting to submit job with runID: {self.run_ID}')
+                    print(f'Error attempting to submit job: {job}')
                     sys.exit(1)
             else:
                 running = False
@@ -269,7 +299,7 @@ class SimScheduling:
                 "====JOB_IDS====": "jobid",
                 "====WAIT_TIME====": "t_wait",
                 "====JOB_STATUS====": "status",
-                "====RETURN_BOOL====": "ret_bool",
+                "====RESTART====": "ret_bool",
                 "====EXCEPTION====" : "exception"
                 }
             results = {}
@@ -292,6 +322,7 @@ class SimScheduling:
         #ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
         try:
             os.mkdir(self.save_path_runID)
+            log.info(f'Saving folder created at {self.save_path}')
         except:
             pass
         
@@ -321,7 +352,8 @@ class SimScheduling:
                 # Check if it's a regular file before copying
                 if file_attr.st_mode & 0o100000:
                     sftp.get(remote_file_path, local_file_path)
-                    log.info(f'Copied file {file_attr.filename}')
+            log.info('-' * 100)
+            log.info(f'Files successfully copied at {self.save_path}')
             
 
         ### closing HPC session
@@ -330,6 +362,8 @@ class SimScheduling:
                 sftp.close()
             if 'ssh' in locals():
                 ssh.close()
+        log.info('-' * 100)
+        log.info('-' * 100)
 
     ### Post-processing function extracting relevant outputs from sim's final timestep.
 
