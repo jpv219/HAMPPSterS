@@ -1,2 +1,0 @@
-#!/bin/bash
-awk -F',' '{for(j=1;j<=NF;j++) print $j }' $1_dnum.csv >> $1_dnum_corr.csv
