@@ -70,13 +70,25 @@ class HPCScheduling:
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
         self.mainpath = os.path.join(self.run_path,'..')
 
+        print('-' * 100)
+        print('F90 CREATION')
+        print('-' * 100)
+
         self.makef90()
+
+        print('-' * 100)
+        print('JOB.SH CREATION')
+        print('-' * 100)
 
         if self.case_type == 'Geom':
             try:
                 self.setjobsh()
             except ValueError as e:
                 print(f'Case ID {self.run_ID} failed due to: {e}')
+
+        print('-' * 100)
+        print('JOB SUBMISSION')
+        print('-' * 100)
 
         job_IDS = self.submit_job()
 
@@ -161,10 +173,9 @@ class HPCScheduling:
         #compile the f90 into an executable
 
         os.chdir(self.path)
-        make_proc = subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
-        output = make_proc.stdout
+        subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
         print('-' * 100)
-        print(output)
+        print('Makefile created succesfully')
         os.system(f'mv {self.run_name}_SMX.x {self.run_name}.x')
         subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
         os.chdir('..')
@@ -262,7 +273,7 @@ class HPCScheduling:
             os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
 
             print('-' * 100)
-            print(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
 
         elif self.case_type == 'Surf':
 
@@ -276,7 +287,7 @@ class HPCScheduling:
             os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
 
             print('-' * 100)
-            print(f'Placeholders replaced succesfully in job for run:{self.run_ID}')
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
 
     ### checking job status and sending exceptions as fitting
 
@@ -373,6 +384,7 @@ class HPCScheduling:
 
                 ### submitting job with restart modification
                 job_IDS = self.submit_job()
+                print('-' * 100)
                 print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
                 print("====JOB_IDS====")
                 print(job_IDS)
@@ -383,20 +395,21 @@ class HPCScheduling:
                 print(status)
                 print("====WAIT_TIME====")
                 print(t_jobwait)
-                print("====RETURN_BOOL====")
+                print("====RESTART====")
                 print("True")
                 return True
             else:
                 print("====EXCEPTION====")
                 print("ValueError")
                 print("Restart file pattern in .out not found or does not exist")
-                print("====RETURN_BOOL====")
+                print("====RESTART====")
                 print("False")
                 return False
             
         else:
+            print('-' * 100)
             print("Job reached completion, no restarts required")
-            print("====RETURN_BOOL====")
+            print("====RESTART====")
             print("False")
             return False
 
@@ -419,6 +432,8 @@ class HPCScheduling:
 
         try:
             os.mkdir('RESULTS')
+            print('-' * 100)
+            print(f'RESULTS folder created in {ephemeral_path}')
         except:
             pass
 
@@ -435,12 +450,14 @@ class HPCScheduling:
 
         for file in files_to_convert:
             shutil.move(file,'RESULTS')
-        print('Convert files copied')
+        print('-' * 100)
+        print('Convert files copied to RESULTS')
 
         try:
             shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
             shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')
             shutil.move(f'{self.run_name}.csv','RESULTS')
+            print('-' * 100)
             print('VAR, ISO and csv files moved to RESULTS')
         except:
             pass
@@ -469,7 +486,7 @@ class HPCScheduling:
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
         print('-' * 100)
-        print(f'Job convert from run {self.run_ID} submitted succesfully with ID {jobid}')
+        print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
 
         print("====JOB_IDS====")
         print(jobid)
