@@ -224,12 +224,9 @@ class SimScheduling:
         #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
-        HPC_script = 'HPC_run_scheduling.py'
-        dict_str = json.dumps(pset_dict, default=self.convert_to_json)
-
+        
         try:
             ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
-            command = f'python {self.mainpath}/{HPC_script} run --pdict \'{dict_str}\''
 
             stdin, stdout, stderr = ssh.exec_command(command)
             out_lines = []
@@ -387,4 +384,3 @@ class SimScheduling:
             print(f"Error executing the script with pvpython: {e}")
         except FileNotFoundError:
             print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
-
