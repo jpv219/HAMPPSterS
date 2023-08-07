@@ -34,7 +34,7 @@ class SimScheduling:
             return int(obj) 
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-    ### assigning input parametric values as attributes of the SimScheduling class and submitting jobs
+    ### local run assigning parametric study to HPC handling script and performing overall BLUE workflow
 
     def localrun(self,pset_dict):
         ###Path and running attributes
@@ -70,46 +70,15 @@ class SimScheduling:
 
         restart = True
         while restart:
-            ### calling monitoring and restart function to check in on jobs
+
+            ### Setting updated dictionary with jobid from submitted job
             mdict = pset_dict
             mdict['jobID'] = jobid
             mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
 
-            ### monitoring loop
+            ### job monitoring loop
 
-            running = True
-            while running:
-                if t_wait>0:
-                    log.info('-' * 100)
-                    log.info(f'Sleeping for:{t_wait}')
-                    log.info('-' * 100)
-                    sleep(t_wait-1770)
-                    try:
-                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                        _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
-                        t_wait = new_t_wait
-                        status = new_status
-                        log.info('-' * 100)
-                        log.info(f'Updated sleeping time: {t_wait} with status {status}')
-                    except RuntimeError as e:
-                        log.info(f'Exited with message: {e}')
-                        t_wait = 0
-                        status = 'F'
-                        running = False
-                    except ValueError as e:
-                        log.info(f'Exited with message: {e}')
-                    except NameError as e:
-                        log.info(f'Exited with message: {e}')
-                    except paramiko.AuthenticationException as e:
-                        print(f"Authentication failed: {e}")
-                        print(f'Error attempting to submit job with runID: {self.run_ID}')
-                        sys.exit(1)
-                    except paramiko.SSHException as e:
-                        print(f"SSH connection failed: {e}")
-                        print(f'Error attempting to submit job with runID: {self.run_ID}')
-                        sys.exit(1)
-                else:
-                    running = False
+            self.jobmonitor(mdict_str, t_wait, status, HPC_script)
 
             ### Job restart execution
 
@@ -152,44 +121,14 @@ class SimScheduling:
             print(f'Error attempting to submit job with runID: {self.run_ID}')
             sys.exit(1)
         
+        ### Updating dictionary with job convertid
+
         mdict['jobID'] = conv_jobid
         mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
 
         ### job convert monitoring loop
 
-        running = True
-        while running:
-            if conv_t_wait>0:
-                log.info('-' * 100)
-                log.info(f'Sleeping for:{conv_t_wait}')
-                log.info('-' * 100)
-                sleep(conv_t_wait-1770)
-                try:
-                    command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
-                    conv_t_wait = new_t_wait
-                    conv_status = new_status
-                    log.info('-' * 100)
-                    log.info(f'Updated sleeping time: {conv_t_wait} with status {conv_status}')
-                except RuntimeError as e:
-                    log.info(f'Exited with message: {e}, for Job convert')
-                    conv_t_wait = 0
-                    conv_status = 'F'
-                    running = False
-                except ValueError as e:
-                    log.info(f'Exited with message: {e}')
-                except NameError as e:
-                    log.info(f'Exited with message: {e}')
-                except paramiko.AuthenticationException as e:
-                    print(f"Authentication failed: {e}")
-                    print(f'Error attempting to submit job with runID: {self.run_ID}')
-                    sys.exit(1)
-                except paramiko.SSHException as e:
-                    print(f"SSH connection failed: {e}")
-                    print(f'Error attempting to submit job with runID: {self.run_ID}')
-                    sys.exit(1)
-            else:
-                running = False
+        self.jobmonitor(mdict_str,conv_t_wait,conv_status,HPC_script)
 
         ### Downloading files and local Post-processing
 
@@ -206,6 +145,45 @@ class SimScheduling:
             
         return {}
     
+    ### calling monitoring and restart function to check in on jobs
+
+    def jobmonitor(self, mdict_str, t_wait, status, HPC_script):
+        running = True
+        while running:
+            if t_wait>0:
+                log.info('-' * 100)
+                log.info(f'Sleeping for:{t_wait/60} mins')
+                log.info('-' * 100)
+                sleep(t_wait-1770)
+                try:
+                    command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
+                    t_wait = new_t_wait
+                    status = new_status
+                    log.info('-' * 100)
+                    log.info(f'Updated sleeping time: {t_wait/60} mins with job status {status}')
+                except RuntimeError as e:
+                    log.info(f'Exited with message: {e}')
+                    t_wait = 0
+                    status = 'F'
+                    running = False
+                except ValueError as e:
+                    log.info(f'Exited with message: {e}')
+                except NameError as e:
+                    log.info(f'Exited with message: {e}')
+                except paramiko.AuthenticationException as e:
+                    print(f"Authentication failed: {e}")
+                    print(f'Error attempting to submit job with runID: {self.run_ID}')
+                    sys.exit(1)
+                except paramiko.SSHException as e:
+                    print(f"SSH connection failed: {e}")
+                    print(f'Error attempting to submit job with runID: {self.run_ID}')
+                    sys.exit(1)
+            else:
+                running = False
+
+    ### Executing HPC functions remotely via Paramiko SSH library.
+
     def execute_remote_command(self,command,search):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -253,6 +231,8 @@ class SimScheduling:
         
         return jobid, t_wait, status, ret_bool
  
+    ### Search and extract communications from the functions executed remotely on the HPC
+
     def search(self,out_lines,search):
         ##### search = 0 : looks for JobID, status and wait time
         ##### search = 1 : looks for wait time, status
@@ -302,6 +282,8 @@ class SimScheduling:
 
         return results
 
+    ### Download final converted data to local processing machine
+
     def scp_download(self):
 
         ###Create run local directory to store data
@@ -348,6 +330,8 @@ class SimScheduling:
                 sftp.close()
             if 'ssh' in locals():
                 ssh.close()
+
+    ### Post-processing function extracting relevant outputs from sim's final timestep.
 
     def post_process(self):
 

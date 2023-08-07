@@ -29,7 +29,7 @@ case_type = ps.plist("case",[case])
 run_ID = ps.plist("run_ID",nruns_list)
 
 local_path = ps.plist("local_path",["/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning"])
-save_path = ps.plist("save_path",["/Volumes/ML/Runs"])
+save_path = ps.plist("save_path",["/Users/mfgmember/Desktop"])
 
 ## Parameters to vary in the sample space
 max_diameter = 0.03
