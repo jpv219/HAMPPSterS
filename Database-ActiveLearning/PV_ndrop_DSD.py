@@ -7,32 +7,37 @@ import sys
 
 def pvdropDSD(HDpath,case_name):
 
-    path = os.path.join(HDpath,case_name,'RESULTS')
+    path = os.path.join(HDpath,case_name)
     
     os.chdir(path)
 
-    pvdfile = glob.glob('*.pvd')[0]
+    pvdfile = f'VAR_{case_name}_time=0.00000E+00.pvd'
 
     timestep = int(glob.glob('VAR_*_*.vtr')[0].split("_")[-1].split(".")[0])
+
+    old_suf = "_0.vtr"
+    new_suf = f"_{timestep}.vtr"
+
+    with open(pvdfile, "r") as input_file:
+        lines = input_file.readlines()
+
+    updated_lines = []
+    for line in lines:
+        if old_suf in line:
+            updated_line = line.replace(old_suf, new_suf)
+            updated_lines.append(updated_line)
+        else:
+            updated_lines.append(line)
+
+    with open(pvdfile, "w") as output_file:
+        output_file.writelines(updated_lines)
+
+    print('PVD file modified correctly')
 
     case_data = PVDReader(FileName=pvdfile)
     case_data.CellArrays = []
     case_data.PointArrays = ['Velocity', 'Interface', 'X_Velocity', 'Y_Velocity', 'Z_Velocity', 'Pressure']
     case_data.ColumnArrays = []
-
-    # get animation scene
-    animationScene1 = GetAnimationScene()
-
-    # update animation scene based on data timesteps
-    animationScene1.UpdateAnimationUsingDataTimeSteps()
-
-    # Properties modified on animationScene1
-    animationScene1.AnimationTime = timestep
-
-    # get the time-keeper
-    timeKeeper1 = GetTimeKeeper()
-
-    case_data.UpdatePipeline()
 
     mergeBlocks = MergeBlocks(Input=case_data)
     mergeBlocks.OutputDataSetType = 'Unstructured Grid'
@@ -57,14 +62,10 @@ def pvdropDSD(HDpath,case_name):
     threshold1 = Threshold(registrationName='Threshold1', Input=connectivity)
     threshold1.Scalars = ['POINTS', 'RegionId']
 
-    UpdatePipeline(time=timestep, proxy=case_data)
-
-    UpdatePipeline(time=timestep, proxy=connectivity)
-
-    UpdatePipeline(time=timestep, proxy=threshold1)
-
     # find lower and upper bound indices of droplet list
     region_range = connectivity.CellData.GetArray(0).GetRange()
+
+    print('Merge blocks, clip and connectivity perform correctly')
 
     lower_bound = int(region_range[0])
     upper_bound = int(region_range[1])
@@ -81,8 +82,6 @@ def pvdropDSD(HDpath,case_name):
         integrateVariables1 = IntegrateVariables(registrationName='IntegrateVariables1', Input=threshold1)
         integrateVariables1.DivideCellDataByVolume = 0
 
-        UpdatePipeline(time=timestep, proxy=integrateVariables1)
-
         volume_object = paraview.servermanager.Fetch(integrateVariables1)
         volume = volume_object.GetCellData().GetArray('Volume').GetValue(0)
         volume_list.append(volume)
@@ -90,6 +89,9 @@ def pvdropDSD(HDpath,case_name):
     volume_floats = [float(x) for x in volume_list]
 
     volume_df = pd.DataFrame(volume_floats, columns=['Volume'])
+
+    print('Volumes extracted correctly from integrate variables')
+
    
     df_json = volume_df.to_json(orient='split', double_precision=15)
 

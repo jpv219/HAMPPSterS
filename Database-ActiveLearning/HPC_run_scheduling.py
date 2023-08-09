@@ -439,6 +439,7 @@ class HPCScheduling:
 
         ISO_file_list = glob.glob('ISO_*.vtk')
         VAR_file_list = glob.glob('VAR_*_*.vtk')
+        pvd_0file = glob.glob(f'VAR_{self.run_name}_time=0.00000E+00.pvd')[0]
         
         last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
         
@@ -457,6 +458,7 @@ class HPCScheduling:
             shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
             shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')
             shutil.move(f'{self.run_name}.csv','RESULTS')
+            shutil.move(f'{pvd_0file}', 'RESULTS')
             print('-' * 100)
             print('VAR, ISO and csv files moved to RESULTS')
         except:

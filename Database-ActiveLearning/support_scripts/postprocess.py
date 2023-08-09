@@ -1,26 +1,43 @@
-import csv
 import subprocess
 import pandas as pd
 
 
-script_path = '/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
+def post_process():
+    script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
+    save_path = '/media/jpv219/ML/Runs/'
+    run_name = 'run_1'
 
-save_path = '/Volumes/ML/Runs/'
+    print('Executing pvpython script')
+    print('-'*100)
 
-case_name = 'smx_ml'
+    try:
+        output = subprocess.run(['pvpython', script_path, save_path , run_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+        captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
+        outlines= []
+        for i, line in enumerate(captured_stdout):
+            stripline = line.strip()
+            outlines.append(stripline)
+            if i < len(captured_stdout) - 1:
+                print(stripline)
+        
+        df_DSD = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
 
-try:
-    output = subprocess.run(['pvpython', script_path, save_path ,case_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return df_DSD
 
-    captured_stdout = output.stdout.decode('utf-8')
-    
-    df_DSD = pd.read_json(captured_stdout, orient='split', dtype=float, precise_float=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing the script with pvpython: {e}")
+    except FileNotFoundError:
+        print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
 
-    print(df_DSD)
+def main():
+        dfDSD = post_process()
+        Nd = dfDSD.size
 
+        print('-' * 100)
+        print('Post processing completed succesfully')
+        print(Nd)
+        print(dfDSD)
 
-except subprocess.CalledProcessError as e:
-    print(f"Error executing the script with pvpython: {e}")
-except FileNotFoundError:
-    print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+if __name__ == "__main__":
+    main()

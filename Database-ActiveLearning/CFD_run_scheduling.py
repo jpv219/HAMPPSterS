@@ -16,6 +16,7 @@ import json
 import numpy as np
 import sys
 import logging
+import psutil
 
 class SimScheduling:
 
@@ -42,6 +43,13 @@ class SimScheduling:
         logger.addHandler(file_handler)
 
         return logger  # Return the logger instance
+
+    @staticmethod
+    def is_pvpython_running():
+        for process in psutil.process_iter(['pid', 'name']):
+            if process.info['name'] == 'pvpython':
+                return True, process.info['pid']
+        return False, None
 
     ### converting dictionary input from psweep run_local into readable JSON format
 
@@ -192,8 +200,27 @@ class SimScheduling:
             print(f"SSH connection failed: {e}")
             print(f'Error attempting to submit job with runID: {self.run_ID}')
             sys.exit(1)
+
+        log.info('-' * 100)
+        log.info('PVPYTHON POSTPROCESSING')
+        log.info('-' * 100)
+
+        pvpyactive, pid = self.is_pvpython_running()
+
+        if pvpyactive:
+            sleep(600)
+            log.info(f'pvpython is active in process ID : {pid}')
+
+        dfDSD = self.post_process(log)
+        Nd = dfDSD.size
+
+        log.info('-' * 100)
+        log.info('Post processing completed succesfully')
+        log.info('-' * 100)
+        log.info(f'Number of drops in this run: {Nd}')
+        log.info(f'Drop size dist. {dfDSD}')
             
-        return {}
+        return {"Nd":Nd, "DSD":dfDSD}
     
     ### calling monitoring and restart function to check in on jobs
 
@@ -390,16 +417,25 @@ class SimScheduling:
 
     ### Post-processing function extracting relevant outputs from sim's final timestep.
 
-    def post_process(self):
+    def post_process(self,log):
 
         script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
+
+        log.info('Executing pvpython script')
+        log.info('-'*100)
 
         try:
             output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            captured_stdout = output.stdout.decode('utf-8')
+            captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
+            outlines= []
+            for i, line in enumerate(captured_stdout):
+                stripline = line.strip()
+                outlines.append(stripline)
+                if i < len(captured_stdout) - 1:
+                    log.info(stripline)
             
-            df_DSD = pd.read_json(captured_stdout, orient='split', dtype=float, precise_float=True)
+            df_DSD = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
 
             return df_DSD
 
