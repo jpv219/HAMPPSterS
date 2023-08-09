@@ -85,7 +85,7 @@ class SimScheduling:
 
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
-            jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0)
+            jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except paramiko.AuthenticationException as e:
             print(f"Authentication failed: {e}")
             print(f'Error attempting to submit job with runID: {self.run_ID}')
@@ -111,7 +111,7 @@ class SimScheduling:
             log.info('JOB MONITORING')
             log.info('-' * 100)
 
-            self.jobmonitor(mdict_str, t_wait, status, self.run_ID, HPC_script)
+            self.jobmonitor(mdict_str, t_wait, status, self.run_ID, HPC_script,log)
 
             ### Job restart execution
 
@@ -122,7 +122,7 @@ class SimScheduling:
             try:
                 log.info('-' * 100)
                 command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
-                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(command=command,search=2)
+                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(command=command,search=2,log=log)
                 log.info('-' * 100)
 
                 ### updating
@@ -151,7 +151,7 @@ class SimScheduling:
         try:
             log.info('-' * 100)
             command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
-            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(command=command,search=0)
+            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(command=command,search=0,log=log)
             log.info('-' * 100)
         except paramiko.AuthenticationException as e:
             print(f"Authentication failed: {e}")
@@ -174,7 +174,7 @@ class SimScheduling:
         log.info('JOB MONITORING')
         log.info('-' * 100)
 
-        self.jobmonitor(mdict_str,conv_t_wait,conv_status,convjob,HPC_script)
+        self.jobmonitor(mdict_str,conv_t_wait,conv_status,convjob,HPC_script,log=log)
 
         ### Downloading files and local Post-processing
 
@@ -183,7 +183,7 @@ class SimScheduling:
         log.info('-' * 100)
 
         try:
-            self.scp_download()
+            self.scp_download(log)
         except paramiko.AuthenticationException as e:
             print(f"Authentication failed: {e}")
             print(f'Error attempting to submit job with runID: {self.run_ID}')
@@ -197,7 +197,7 @@ class SimScheduling:
     
     ### calling monitoring and restart function to check in on jobs
 
-    def jobmonitor(self, mdict_str, t_wait, status, job, HPC_script):
+    def jobmonitor(self, mdict_str, t_wait, status, job, HPC_script,log):
         running = True
         while running:
             if t_wait>0:
@@ -237,7 +237,7 @@ class SimScheduling:
 
     ### Executing HPC functions remotely via Paramiko SSH library.
 
-    def execute_remote_command(self,command,search):
+    def execute_remote_command(self,command,search,log):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         warnings.filterwarnings("ignore", category=ResourceWarning)
@@ -337,7 +337,7 @@ class SimScheduling:
 
     ### Download final converted data to local processing machine
 
-    def scp_download(self):
+    def scp_download(self,log):
 
         ###Create run local directory to store data
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
