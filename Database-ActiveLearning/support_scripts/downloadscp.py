@@ -3,7 +3,7 @@ import configparser
 import warnings
 import os
 
-save_path = '/Volumes/ML/Runs'
+save_path = '/media/jpv219/ML/Runs'
 run_ID = 1
 run_name = "run_"+str(run_ID)
 
@@ -31,7 +31,7 @@ try:
     transport = ssh.get_transport()
     sftp = paramiko.SFTPClient.from_transport(transport)
 
-    remote_path = os.path.join(ephemeral_path,run_name,'RESULTS')
+    remote_path = os.path.join(ephemeral_path,run_name)
 
     remote_files = sftp.listdir_attr(remote_path)
 
