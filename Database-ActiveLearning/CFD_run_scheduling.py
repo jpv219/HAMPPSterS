@@ -207,7 +207,7 @@ class SimScheduling:
                 sleep(t_wait-1770)
                 try:
                     command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1)
+                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1,log=log)
                     t_wait = new_t_wait
                     status = new_status
                     log.info('-' * 100)
