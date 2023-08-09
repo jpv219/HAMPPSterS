@@ -9,13 +9,13 @@ import os
 from time import sleep
 import pandas as pd
 import subprocess
-from logger import log
 import paramiko
 import configparser
 import warnings
 import json
 import numpy as np
 import sys
+import logging
 
 class SimScheduling:
 
@@ -23,6 +23,25 @@ class SimScheduling:
      
     def __init__(self) -> None:
         pass
+
+    ### Defining individual logging files for each run.
+
+    def set_log(self, log_filename):
+        # Create a new logger instance for each process
+        logger = logging.getLogger(__name__)
+
+        # Clear existing handlers to avoid duplication
+        logger.handlers = []
+
+        # Create a new file handler and set its formatter
+        file_handler = logging.FileHandler(log_filename)
+        formatter = logging.Formatter(fmt="%(asctime)s - %(message)s", datefmt="[%d/%m/ - %H:%M:%S]")
+        file_handler.setFormatter(formatter)
+
+        # Add the file handler to the logger's handlers
+        logger.addHandler(file_handler)
+
+        return logger  # Return the logger instance
 
     ### converting dictionary input from psweep run_local into readable JSON format
 
@@ -47,6 +66,10 @@ class SimScheduling:
         self.run_name = "run_"+str(self.run_ID)
 
         self.main_path = os.path.join(self.run_path,'..')
+
+        ### Logger set-up
+        log_filename = f"output_{self.run_name}.txt"
+        log = self.set_log(log_filename)
 
         dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
 
