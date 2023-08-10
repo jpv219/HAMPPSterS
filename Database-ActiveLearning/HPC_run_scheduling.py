@@ -348,12 +348,19 @@ class HPCScheduling:
         self.run_name = "run_"+str(self.run_ID)
         self.run_path = pset_dict['run_path']
         self.path = os.path.join(self.run_path, self.run_name)
+        output_file_path = os.path.join(self.path,f'{self.run_name}.out')
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
         self.pipe_radius = float(pset_dict['pipe_radius'])
 
         ### Checking if there is an output file: if not, run did not start - complete correctly
-        
+        if not os.path.exists(output_file_path):
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print(f'File {self.run_name}.out does not exist')
+            print("====RETURN_BOOL====")
+            print("False")
+            return False
 
         os.chdir(ephemeral_path)
 
@@ -526,7 +533,8 @@ class HPCScheduling:
     def submit_job(self,path,name):
 
         proc = []
-        proc = Popen(['qsub', f"{path}/job_{name}.sh"], stdout=PIPE)
+        os.chdir(f'{path}')
+        proc = Popen(['qsub', f"job_{name}.sh"], stdout=PIPE)
 
         output = proc.communicate()[0].decode('utf-8').split()
 

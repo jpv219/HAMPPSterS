@@ -98,7 +98,7 @@ class SimScheduling:
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"Authentication failed: {e}")
-            sys.exit(1)
+            return {}
         
         ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
 
@@ -139,11 +139,12 @@ class SimScheduling:
                 status = new_status
                 restart = eval(ret_bool)
 
-            except ValueError as e:
+            except (ValueError,FileNotFoundError) as e:
                 log.info(f'Exited with message: {e}')
+                return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
                 log.info(f"Authentication failed: {e}")
-                sys.exit(1)
+                return {}
 
         ### vtk convert job creation and submission
 
@@ -160,7 +161,7 @@ class SimScheduling:
             log.info('-' * 100)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"Authentication failed: {e}")
-            sys.exit(1)
+            return {}
         
         ### Updating dictionary with job convertid
 
@@ -186,7 +187,7 @@ class SimScheduling:
             self.scp_download(log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"Authentication failed: {e}")
-            sys.exit(1)
+            return {}
 
         log.info('-' * 100)
         log.info('PVPYTHON POSTPROCESSING')
@@ -300,6 +301,8 @@ class SimScheduling:
                 elif exc == "ValueError":
                     raise ValueError('Exception raised from qstat in job_wait \
                                 or attempting to search restart in job_restart')
+                elif exc == "FileNotFoundError":
+                    raise FileNotFoundError('Cannot execute restart procedure')
                 else:
                     raise NameError('Search for exception from log failed')
 
