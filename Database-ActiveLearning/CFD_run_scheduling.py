@@ -198,9 +198,10 @@ class SimScheduling:
 
         pvpyactive, pid = self.is_pvpython_running()
 
-        if pvpyactive:
+        while pvpyactive:
             log.info(f'pvpython is active in process ID : {pid}')
             sleep(600)
+            pvpyactive, pid = self.is_pvpython_running()
 
         dfDSD, IntA = self.post_process(log)
         Nd = dfDSD.size
@@ -223,7 +224,7 @@ class SimScheduling:
                 log.info(f'Job {job} has status {status}. Sleeping for:{t_wait/60} mins')
                 log.info('-' * 100)
 
-                sleep(t_wait-1770)
+                sleep(t_wait)
 
                 try:
                     ### Execute monitor function in HPC to check job status

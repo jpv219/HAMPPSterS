@@ -101,7 +101,7 @@ class HPCScheduling:
         print("====JOB_IDS====")
         print(job_IDS)
 
-        #sleep(300)
+        sleep(120)
 
         ### Check job status and assign waiting time accordingly
         t_jobwait, status = self.job_wait(job_IDS)
@@ -320,7 +320,7 @@ class HPCScheduling:
                 raise ValueError('Job exists but belongs to another account')
     
             if status == 'Q' or status == 'H':
-                t_wait = 1800
+                t_wait = 900
             elif status == 'R':
                 time_format = '%H:%M'
                 wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
@@ -412,7 +412,7 @@ class HPCScheduling:
                 print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
                 print("====JOB_IDS====")
                 print(job_IDS)
-                #sleep(300)
+                sleep(120)
 
                 ### check status and waiting time for re-submitted job
                 t_jobwait, status = self.job_wait(job_IDS)
