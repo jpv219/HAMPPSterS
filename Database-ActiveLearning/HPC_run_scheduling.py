@@ -1,5 +1,5 @@
 ### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
-### CFD scheduling and monitoring script
+### HPC scheduling and monitoring script
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
@@ -461,13 +461,17 @@ class HPCScheduling:
         except:
             pass
 
-        ### Listing ISO and VAR vtks
+        ### Listing ISO and VAR vtks and pvds
         ISO_file_list = glob.glob('ISO_*.vtk')
         VAR_file_list = glob.glob('VAR_*_*.vtk')
+        PVD_file_list = glob.glob('VAR_*_time=*.pvd')
+        sorted_PVDs = sorted(PVD_file_list, key = lambda filename: 
+                    float(filename.split('=')[-1].split('.pvd')[0]))
         last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
 
-        ### First pvd file for pvpython processing
+        ### First and last pvd file for pvpython processing
         pvd_0file = glob.glob(f'VAR_{self.run_name}_time=0.00000E+00.pvd')[0]
+        pvd_ffile = sorted_PVDs[-1]
     
         ### Files to be converted, last time step in VAR
         VAR_toconvert_list = glob.glob(f'VAR_*_{last_vtk}.vtk')
@@ -486,6 +490,7 @@ class HPCScheduling:
             shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')
             shutil.move(f'{self.run_name}.csv','RESULTS')
             shutil.move(f'{pvd_0file}', 'RESULTS')
+            shutil.move(f'{pvd_ffile}', 'RESULTS')
             print('-' * 100)
             print('VAR, ISO and csv files moved to RESULTS')
         except:

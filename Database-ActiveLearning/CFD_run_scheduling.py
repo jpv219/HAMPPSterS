@@ -17,6 +17,7 @@ import numpy as np
 import sys
 import logging
 import psutil
+import glob
 
 class SimScheduling:
 
@@ -198,10 +199,10 @@ class SimScheduling:
         pvpyactive, pid = self.is_pvpython_running()
 
         if pvpyactive:
-            sleep(600)
             log.info(f'pvpython is active in process ID : {pid}')
+            sleep(600)
 
-        dfDSD = self.post_process(log)
+        dfDSD, IntA = self.post_process(log)
         Nd = dfDSD.size
 
         log.info('-' * 100)
@@ -210,7 +211,7 @@ class SimScheduling:
         log.info(f'Number of drops in this run: {Nd}')
         log.info(f'Drop size dist. {dfDSD}')
             
-        return {"Nd":Nd, "DSD":dfDSD}
+        return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
     
     ### calling monitoring and restart function to check in on jobs
 
@@ -266,8 +267,8 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        config.read('configjp.ini')
-        #config.read('confignk.ini')
+        #config.read('configjp.ini')
+        config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
 
@@ -363,8 +364,8 @@ class SimScheduling:
 
         ###Create run local directory to store data
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
-        ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
-        #ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
+        #ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
+        ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
 
         try:
             os.mkdir(self.save_path_runID)
@@ -377,8 +378,8 @@ class SimScheduling:
         warnings.filterwarnings("ignore", category=ResourceWarning)
 
         config = configparser.ConfigParser()
-        config.read('configjp.ini')
-        #config.read('confignk.ini')
+        #config.read('configjp.ini')
+        config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
 
@@ -415,6 +416,25 @@ class SimScheduling:
 
     def post_process(self,log):
 
+        ### Extracting Interfacial Area from CSV
+        os.chdir(self.save_path_runID) 
+        pvdfiles = glob.glob('VAR_*_time=*.pvd')
+        maxpvd_tf = max(float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles)
+
+        df_csv = pd.read_csv(os.path.join(self.save_path_runID,f'{self.run_name}.csv'))
+        df_csv['diff'] = abs(df_csv['Time']-maxpvd_tf)
+        log.info('Reading data from csv')
+        log.info('-'*100)
+
+        tf_row = df_csv.sort_values(by='diff')
+
+        IntA = tf_row.iloc[0]['INTERFACE_SURFACE_AREA']
+        log.info('Interfacial area extracted')
+        log.info('-'*100)
+
+        os.chdir(self.local_path)
+
+        ### Running pvpython script for Nd and DSD
         script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
 
         log.info('Executing pvpython script')
@@ -434,9 +454,12 @@ class SimScheduling:
             
             df_DSD = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
 
-            return df_DSD
 
         except subprocess.CalledProcessError as e:
             log.info(f"Error executing the script with pvpython: {e}")
+            df_DSD = None
         except FileNotFoundError:
             log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+            df_DSD = None
+
+        return df_DSD, IntA
