@@ -291,7 +291,7 @@ class SimScheduling:
             results = self.search(out_lines=out_lines,search=search)
 
             jobid = results.get("jobid", None)
-            t_wait = int(results.get("t_wait", 0))
+            t_wait = float(results.get("t_wait", 0))
             status = results.get("status", None)
             ret_bool = results.get("ret_bool", None)
             exc = results.get("exception",None)

@@ -17,6 +17,7 @@ import subprocess
 import re
 import argparse
 import json
+import numpy as np
 
 class HPCScheduling:
 
@@ -92,6 +93,10 @@ class HPCScheduling:
         print('-' * 100)
         print('JOB SUBMISSION')
         print('-' * 100)
+
+        ### wait time to submit jobs, avoiding them to go all at once
+        init_wait_time = np.random.RandomState().randint(0,120)
+        sleep(init_wait_time)
 
         job_IDS = self.submit_job(self.path,self.run_name)
 
