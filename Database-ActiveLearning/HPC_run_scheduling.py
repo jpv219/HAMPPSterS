@@ -103,14 +103,13 @@ class HPCScheduling:
         print('-' * 100)
         print(f'Job {self.run_ID} submitted succesfully with ID {job_IDS}')
 
-        print("====JOB_IDS====")
-        print(job_IDS)
-
         sleep(120)
 
         ### Check job status and assign waiting time accordingly
-        t_jobwait, status = self.job_wait(job_IDS)
+        t_jobwait, status, update_jobID = self.job_wait(job_IDS)
 
+        print("====JOB_IDS====")
+        print(update_jobID)
         print("====JOB_STATUS====")
         print(status)
         print("====WAIT_TIME====")
@@ -131,7 +130,9 @@ class HPCScheduling:
 
         ### Call job waiting method and extract corresponding outputs
         try:
-            t_jobwait, status = self.job_wait(int(self.jobID))
+            t_jobwait, status, newjobid = self.job_wait(int(self.jobID))
+            print("====JOB_IDS====")
+            print(newjobid)
             print("====JOB_STATUS====")
             print(status)
             print("====WAIT_TIME====")
@@ -324,8 +325,16 @@ class HPCScheduling:
             if not jobstatus:
                 raise ValueError('Job exists but belongs to another account')
     
-            if status == 'Q' or status == 'H':
-                t_wait = 900
+            if status == 'Q':
+                t_wait = 3600
+                newjobid = job_id
+            elif status == 'H':
+                print(f'Deleting HELD job with old id: {job_id}')
+                Popen(['qdel', f"{job_id}"])
+                sleep(30)
+                newjobid = self.submit_job(self.path,self.run_name)
+                t_wait = 3600
+                print(f'Submitted new job with id: {newjobid}')
             elif status == 'R':
                 time_format = '%H:%M'
                 wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
@@ -333,6 +342,7 @@ class HPCScheduling:
                 delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
                 remaining = delta.total_seconds()+60
                 t_wait = remaining
+                newjobid = job_id
             else:
                 t_wait = 0
                 
@@ -343,7 +353,7 @@ class HPCScheduling:
             print(f"Error: {e}")
             raise ValueError('Existing job but doesnt belong to this account')
             
-        return t_wait, status
+        return t_wait, status, newjobid
 
     ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
 
@@ -415,12 +425,12 @@ class HPCScheduling:
                 job_IDS = self.submit_job(self.path,self.run_name)
                 print('-' * 100)
                 print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
-                print("====JOB_IDS====")
-                print(job_IDS)
                 sleep(120)
 
                 ### check status and waiting time for re-submitted job
-                t_jobwait, status = self.job_wait(job_IDS)
+                t_jobwait, status, new_jobID = self.job_wait(job_IDS)
+                print("====JOB_IDS====")
+                print(new_jobID)
                 print("====JOB_STATUS====")
                 print(status)
                 print("====WAIT_TIME====")
@@ -526,14 +536,17 @@ class HPCScheduling:
         print('-' * 100)
         print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
 
+        t_jobwait, status, new_jobID = self.job_wait(jobid)
         print("====JOB_IDS====")
-        print(jobid)
-
-        t_jobwait, status = self.job_wait(jobid)
+        print(new_jobID)
         print("====JOB_STATUS====")
         print(status)
-        print("====WAIT_TIME====")
-        print(t_jobwait)
+        if status == 'Q' or status == 'H':
+            print("====WAIT_TIME====")
+            print(t_jobwait-1800)
+        elif status == 'R':
+            print("====WAIT_TIME====")
+            print(t_jobwait)
 
         os.chdir(self.path)
         os.chdir('..')

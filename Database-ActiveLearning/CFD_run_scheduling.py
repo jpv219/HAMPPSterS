@@ -106,18 +106,13 @@ class SimScheduling:
         restart = True
         while restart:
 
-            ### Setting updated dictionary with jobid from submitted job
-            mdict = pset_dict
-            mdict['jobID'] = jobid
-            mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
-
             ### job monitoring loop
 
             log.info('-' * 100)
             log.info('JOB MONITORING')
             log.info('-' * 100)
 
-            self.jobmonitor(mdict_str, t_wait, status, self.run_ID, HPC_script,log)
+            self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
 
             ### Job restart execution
 
@@ -164,11 +159,7 @@ class SimScheduling:
             log.info(f"Authentication failed: {e}")
             return {}
         
-        ### Updating dictionary with job convertid
-
-        mdict['jobID'] = conv_jobid
-        mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
-        convjob = 'Convert' + str(self.run_ID)
+        conv_name = 'Convert' + str(self.run_ID)
 
         ### job convert monitoring loop
 
@@ -176,7 +167,7 @@ class SimScheduling:
         log.info('JOB MONITORING')
         log.info('-' * 100)
 
-        self.jobmonitor(mdict_str,conv_t_wait,conv_status,convjob,HPC_script,log=log)
+        self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
 
         ### Downloading files and local Post-processing
 
@@ -203,6 +194,7 @@ class SimScheduling:
             sleep(600)
             pvpyactive, pid = self.is_pvpython_running()
 
+        ### Exectuing post-processing
         dfDSD, IntA = self.post_process(log)
         Nd = dfDSD.size
 
@@ -216,12 +208,18 @@ class SimScheduling:
     
     ### calling monitoring and restart function to check in on jobs
 
-    def jobmonitor(self, mdict_str, t_wait, status, job, HPC_script,log):
+    def jobmonitor(self, t_wait, status, jobid, run, HPC_script,log):
         running = True
         while running:
+            
+            ### Setting updated dictionary with jobid from submitted job
+            mdict = self.pset_dict   
+            mdict['jobID'] = jobid
+            mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
+
             if t_wait>0:
                 log.info('-' * 100)
-                log.info(f'Job {job} has status {status}. Sleeping for:{t_wait/60} mins')
+                log.info(f'Job {run} has status {status}. Sleeping for:{t_wait/60} mins')
                 log.info('-' * 100)
 
                 sleep(t_wait)
@@ -229,23 +227,24 @@ class SimScheduling:
                 try:
                     ### Execute monitor function in HPC to check job status
                     command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    _, new_t_wait, new_status, _ = self.execute_remote_command(
-                        command=command,search=1,log=log
+                    new_jobid, new_t_wait, new_status, _ = self.execute_remote_command(
+                        command=command,search=0,log=log
                         )
                     
                     ### update t_wait and job status accordingly
                     t_wait = new_t_wait
                     status = new_status
+                    jobid = new_jobid
 
                     log.info('-' * 100)
-                    log.info(f'Job {job} status is {status}. Updated sleeping time: {t_wait/60} mins')
+                    log.info(f'Job {run} status is {status}. Updated sleeping time: {t_wait/60} mins')
                 except (RuntimeError, ValueError, NameError) as e:
                     log.info('-' * 100)
                     log.info(f'Exited with message: {e}')
                     log.info('-' * 100)
 
                     if isinstance(e, RuntimeError):
-                        log.info(f'JOB {job} FINISHED')
+                        log.info(f'JOB {run} FINISHED')
                         log.info('-' * 100)
 
                         ### Update t_wait and job status for finished job condition, exiting the loop
