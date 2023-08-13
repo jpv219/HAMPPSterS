@@ -35,7 +35,7 @@ save_path = ps.plist("save_path",["/media/jpv219/ML/Runs"])
 
 ## Parameters to vary in the sample space
 max_diameter = 0.02
-SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-3],'Angle':[20,80]}
+SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-4],'Angle':[20,80]}
 
 captured_output = io.StringIO()
 
@@ -66,7 +66,7 @@ pipe_radius = ps.plist("pipe_radius",radius_list)
 max_diameter = ps.plist("max_diameter",[max_diameter])
 n_bars = ps.plist("n_bars",nbars_list)
 flowrate = ps.plist("flowrate",flowrate_list)
-d_per_level = ps.plist("d_per_level",["8"])
+d_per_level = ps.plist("d_per_level",["6"])
 n_levels = ps.plist("n_levels",["2"])
 d_radius = ps.plist("d_radius",["[0.0005,0.0003]"])
 

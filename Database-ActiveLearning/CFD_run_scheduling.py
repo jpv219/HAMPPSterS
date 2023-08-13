@@ -219,7 +219,7 @@ class SimScheduling:
 
             if t_wait>0:
                 log.info('-' * 100)
-                log.info(f'Job {run} has status {status}. Sleeping for:{t_wait/60} mins')
+                log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
                 log.info('-' * 100)
 
                 sleep(t_wait)
@@ -237,7 +237,7 @@ class SimScheduling:
                     jobid = new_jobid
 
                     log.info('-' * 100)
-                    log.info(f'Job {run} status is {status}. Updated sleeping time: {t_wait/60} mins')
+                    log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
                 except (RuntimeError, ValueError, NameError) as e:
                     log.info('-' * 100)
                     log.info(f'Exited with message: {e}')

@@ -208,7 +208,7 @@ class HPCScheduling:
             radius = float(self.pipe_radius)
             max_diameter = float(self.max_diameter)
             d_pipe = 2*radius
-            min_res = 18000
+            min_res = 20000
 
             ### Resolution and domain size condition
             if min_res*(2*self.max_diameter)/128 > 16:
