@@ -235,7 +235,7 @@ class HPCScheduling:
                 cpus = min_res*(2*d_pipe)/64
                 xsub = math.ceil(cpus / 2) * 2
                 ysub = zsub = int(xsub/2)
-                mem = 200
+                mem = 800
                 cell1 = cell2 = cell3 = 64
                 ncpus = int(xsub*ysub*zsub)
                 n_nodes = 1
@@ -244,7 +244,7 @@ class HPCScheduling:
                 if cpus <= 10:
                     xsub = math.ceil(cpus / 2) * 2
                     ysub = zsub = int(xsub/2)
-                    mem = 920
+                    mem = 800
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
