@@ -17,6 +17,7 @@ import numpy as np
 import sys
 import logging
 import psutil
+import glob
 
 class SimScheduling:
 
@@ -43,6 +44,8 @@ class SimScheduling:
         logger.addHandler(file_handler)
 
         return logger  # Return the logger instance
+
+    ### Checking if a pvpython process is active
 
     @staticmethod
     def is_pvpython_running():
@@ -94,24 +97,14 @@ class SimScheduling:
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
-        except paramiko.AuthenticationException as e:
-            print(f"Authentication failed: {e}")
-            print(f'Error attempting to submit job with runID: {self.run_ID}')
-            sys.exit(1)
-        except paramiko.SSHException as e:
-            print(f"SSH connection failed: {e}")
-            print(f'Error attempting to submit job with runID: {self.run_ID}')
-            sys.exit(1)
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
         
         ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
 
         restart = True
         while restart:
-
-            ### Setting updated dictionary with jobid from submitted job
-            mdict = pset_dict
-            mdict['jobID'] = jobid
-            mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
 
             ### job monitoring loop
 
@@ -119,7 +112,7 @@ class SimScheduling:
             log.info('JOB MONITORING')
             log.info('-' * 100)
 
-            self.jobmonitor(mdict_str, t_wait, status, self.run_ID, HPC_script,log)
+            self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
 
             ### Job restart execution
 
@@ -130,7 +123,10 @@ class SimScheduling:
             try:
                 log.info('-' * 100)
                 command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
-                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(command=command,search=2,log=log)
+                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
+                    command=command, search=2, log=log
+                    )
+
                 log.info('-' * 100)
 
                 ### updating
@@ -139,16 +135,12 @@ class SimScheduling:
                 status = new_status
                 restart = eval(ret_bool)
 
-            except ValueError as e:
+            except (ValueError,FileNotFoundError) as e:
                 log.info(f'Exited with message: {e}')
-            except paramiko.AuthenticationException as e:
-                print(f"Authentication failed: {e}")
-                print(f'Error attempting to submit job with runID: {self.run_ID}')
-                sys.exit(1)
-            except paramiko.SSHException as e:
-                print(f"SSH connection failed: {e}")
-                print(f'Error attempting to submit job with runID: {self.run_ID}')
-                sys.exit(1)
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"Authentication failed: {e}")
+                return {}
 
         ### vtk convert job creation and submission
 
@@ -159,22 +151,15 @@ class SimScheduling:
         try:
             log.info('-' * 100)
             command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
-            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(command=command,search=0,log=log)
+            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
+                command=command,search=0,log=log
+                )
             log.info('-' * 100)
-        except paramiko.AuthenticationException as e:
-            print(f"Authentication failed: {e}")
-            print(f'Error attempting to submit job with runID: {self.run_ID}')
-            sys.exit(1)
-        except paramiko.SSHException as e:
-            print(f"SSH connection failed: {e}")
-            print(f'Error attempting to submit job with runID: {self.run_ID}')
-            sys.exit(1)
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
         
-        ### Updating dictionary with job convertid
-
-        mdict['jobID'] = conv_jobid
-        mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
-        convjob = 'Convert' + str(self.run_ID)
+        conv_name = 'Convert' + str(self.run_ID)
 
         ### job convert monitoring loop
 
@@ -182,7 +167,7 @@ class SimScheduling:
         log.info('JOB MONITORING')
         log.info('-' * 100)
 
-        self.jobmonitor(mdict_str,conv_t_wait,conv_status,convjob,HPC_script,log=log)
+        self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
 
         ### Downloading files and local Post-processing
 
@@ -192,26 +177,25 @@ class SimScheduling:
 
         try:
             self.scp_download(log)
-        except paramiko.AuthenticationException as e:
-            print(f"Authentication failed: {e}")
-            print(f'Error attempting to submit job with runID: {self.run_ID}')
-            sys.exit(1)
-        except paramiko.SSHException as e:
-            print(f"SSH connection failed: {e}")
-            print(f'Error attempting to submit job with runID: {self.run_ID}')
-            sys.exit(1)
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
 
         log.info('-' * 100)
         log.info('PVPYTHON POSTPROCESSING')
         log.info('-' * 100)
 
+        ### Checking if a pvpython is operating on another process, if so sleeps.
+
         pvpyactive, pid = self.is_pvpython_running()
 
-        if pvpyactive:
-            sleep(600)
+        while pvpyactive:
             log.info(f'pvpython is active in process ID : {pid}')
+            sleep(600)
+            pvpyactive, pid = self.is_pvpython_running()
 
-        dfDSD = self.post_process(log)
+        ### Exectuing post-processing
+        dfDSD, IntA = self.post_process(log)
         Nd = dfDSD.size
 
         log.info('-' * 100)
@@ -220,44 +204,55 @@ class SimScheduling:
         log.info(f'Number of drops in this run: {Nd}')
         log.info(f'Drop size dist. {dfDSD}')
             
-        return {"Nd":Nd, "DSD":dfDSD}
+        return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
     
     ### calling monitoring and restart function to check in on jobs
 
-    def jobmonitor(self, mdict_str, t_wait, status, job, HPC_script,log):
+    def jobmonitor(self, t_wait, status, jobid, run, HPC_script,log):
         running = True
         while running:
+            
+            ### Setting updated dictionary with jobid from submitted job
+            mdict = self.pset_dict   
+            mdict['jobID'] = jobid
+            mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
+
             if t_wait>0:
                 log.info('-' * 100)
-                log.info(f'Job {job} has status {status}. Sleeping for:{t_wait/60} mins')
+                log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
                 log.info('-' * 100)
-                sleep(t_wait-1770)
+
+                sleep(t_wait)
+
                 try:
+                    ### Execute monitor function in HPC to check job status
                     command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    _, new_t_wait, new_status, _ = self.execute_remote_command(command=command,search=1,log=log)
+                    new_jobid, new_t_wait, new_status, _ = self.execute_remote_command(
+                        command=command,search=0,log=log
+                        )
+                    
+                    ### update t_wait and job status accordingly
                     t_wait = new_t_wait
                     status = new_status
+                    jobid = new_jobid
+
                     log.info('-' * 100)
-                    log.info(f'Job {job} status is {status}. Updated sleeping time: {t_wait/60} mins')
-                except RuntimeError as e:
+                    log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
+                except (RuntimeError, ValueError, NameError) as e:
                     log.info('-' * 100)
                     log.info(f'Exited with message: {e}')
-                    log.info(f'JOB {job} FINISHED')
                     log.info('-' * 100)
-                    t_wait = 0
-                    status = 'F'
-                    running = False
-                except ValueError as e:
-                    log.info(f'Exited with message: {e}')
-                except NameError as e:
-                    log.info(f'Exited with message: {e}')
-                except paramiko.AuthenticationException as e:
-                    print(f"Authentication failed: {e}")
-                    print(f'Error attempting to submit job: {job}')
-                    sys.exit(1)
-                except paramiko.SSHException as e:
-                    print(f"SSH connection failed: {e}")
-                    print(f'Error attempting to submit job: {job}')
+
+                    if isinstance(e, RuntimeError):
+                        log.info(f'JOB {run} FINISHED')
+                        log.info('-' * 100)
+
+                        ### Update t_wait and job status for finished job condition, exiting the loop
+                        t_wait = 0
+                        status = 'F'
+                        running = False
+                except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                    log.info(f"Authentication failed: {e}")
                     sys.exit(1)
             else:
                 running = False
@@ -265,15 +260,21 @@ class SimScheduling:
     ### Executing HPC functions remotely via Paramiko SSH library.
 
     def execute_remote_command(self,command,search,log):
+        ### Establish an SSH connection using a context manager
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         warnings.filterwarnings("ignore", category=ResourceWarning)
 
+        ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        config.read('configjp.ini')
-        #config.read('confignk.ini')
+        #config.read('configjp.ini')
+        config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
+
+        ### Initialize variables for result storage
+        jobid, t_wait, status, ret_bool = None, 0, None, None
+        exc = None
         
         try:
             ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
@@ -285,24 +286,28 @@ class SimScheduling:
                 log.info(stripped_line)
                 out_lines.append(stripped_line)
             
-            ### Extracting job id and wait time for job
+            ### Extracting exceptions, job id, job wait time, status and restart condition
             results = self.search(out_lines=out_lines,search=search)
 
             jobid = results.get("jobid", None)
-            t_wait = int(results.get("t_wait", 0))
+            t_wait = float(results.get("t_wait", 0))
             status = results.get("status", None)
             ret_bool = results.get("ret_bool", None)
             exc = results.get("exception",None)
 
+            ### Handle exceptions
             if exc is not None:
                 if exc == "RuntimeError":
                     raise RuntimeError('Job finished')
                 elif exc == "ValueError":
-                    raise ValueError('Exception raised from qstat in job_wait or attempting to search restart in job_restart') 
+                    raise ValueError('Exception raised from qstat in job_wait \
+                                or attempting to search restart in job_restart')
+                elif exc == "FileNotFoundError":
+                    raise FileNotFoundError('Cannot execute restart procedure')
                 else:
                     raise NameError('Search for exception from log failed')
 
-        ### closing HPC session
+        ### Closing HPC session
         finally:
             stdin.close()
             stdout.close()
@@ -317,6 +322,8 @@ class SimScheduling:
         ##### search = 0 : looks for JobID, status and wait time
         ##### search = 1 : looks for wait time, status
         ##### search = 2 : looks for JobID, status and wait time and boolean return values
+
+        ### Define markers and corresponding result keys for different search types
         if search == 0:
             markers = {
                 "====JOB_IDS====": "jobid",
@@ -324,26 +331,12 @@ class SimScheduling:
                 "====JOB_STATUS====": "status",
                 "====EXCEPTION====" : "exception"
                 }
-            results = {}
-            current_variable = None
-
-            for idx, line in enumerate(out_lines):
-                if line in markers:
-                    current_variable = markers[line]
-                    results[current_variable] = out_lines[idx + 1]
         elif search == 1:
             markers = {
                 "====WAIT_TIME====": "t_wait",
                 "====JOB_STATUS====": "status",
                 "====EXCEPTION====" : "exception"
                 }
-            results = {}
-            current_variable = None
-
-            for idx, line in enumerate(out_lines):
-                if line in markers:
-                    current_variable = markers[line]
-                    results[current_variable] = out_lines[idx + 1]
         elif search == 2:
             markers = {
                 "====JOB_IDS====": "jobid",
@@ -352,13 +345,16 @@ class SimScheduling:
                 "====RESTART====": "ret_bool",
                 "====EXCEPTION====" : "exception"
                 }
-            results = {}
-            current_variable = None
+            
+        results = {}
+        current_variable = None
 
-            for idx, line in enumerate(out_lines):
-                if line in markers:
-                    current_variable = markers[line]
-                    results[current_variable] = out_lines[idx + 1]
+        for idx, line in enumerate(out_lines):
+            if line in markers:
+                current_variable = markers[line]
+                # Store the value associated with the marker as the value of the current variable
+                results[current_variable] = out_lines[idx + 1]
+
 
         return results
 
@@ -368,8 +364,9 @@ class SimScheduling:
 
         ###Create run local directory to store data
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
-        ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
-        #ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
+        #ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
+        ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
+
         try:
             os.mkdir(self.save_path_runID)
             log.info(f'Saving folder created at {self.save_path}')
@@ -381,8 +378,8 @@ class SimScheduling:
         warnings.filterwarnings("ignore", category=ResourceWarning)
 
         config = configparser.ConfigParser()
-        config.read('configjp.ini')
-        #config.read('confignk.ini')
+        #config.read('configjp.ini')
+        config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
 
@@ -392,7 +389,6 @@ class SimScheduling:
             sftp = paramiko.SFTPClient.from_transport(transport)
 
             remote_path = os.path.join(ephemeral_path,self.run_name,'RESULTS')
-
             remote_files = sftp.listdir_attr(remote_path)
 
             for file_attr in remote_files:
@@ -402,6 +398,7 @@ class SimScheduling:
                 # Check if it's a regular file before copying
                 if file_attr.st_mode & 0o100000:
                     sftp.get(remote_file_path, local_file_path)
+
             log.info('-' * 100)
             log.info(f'Files successfully copied at {self.save_path}')
             
@@ -419,13 +416,33 @@ class SimScheduling:
 
     def post_process(self,log):
 
+        ### Extracting Interfacial Area from CSV
+        os.chdir(self.save_path_runID) 
+        pvdfiles = glob.glob('VAR_*_time=*.pvd')
+        maxpvd_tf = max(float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles)
+
+        df_csv = pd.read_csv(os.path.join(self.save_path_runID,f'{self.run_name}.csv'))
+        df_csv['diff'] = abs(df_csv['Time']-maxpvd_tf)
+        log.info('Reading data from csv')
+        log.info('-'*100)
+
+        tf_row = df_csv.sort_values(by='diff')
+
+        IntA = tf_row.iloc[0]['INTERFACE_SURFACE_AREA']
+        log.info('Interfacial area extracted')
+        log.info('-'*100)
+
+        os.chdir(self.local_path)
+
+        ### Running pvpython script for Nd and DSD
         script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
 
         log.info('Executing pvpython script')
         log.info('-'*100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
             outlines= []
@@ -437,9 +454,12 @@ class SimScheduling:
             
             df_DSD = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
 
-            return df_DSD
 
         except subprocess.CalledProcessError as e:
-            print(f"Error executing the script with pvpython: {e}")
+            log.info(f"Error executing the script with pvpython: {e}")
+            df_DSD = None
         except FileNotFoundError:
-            print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+            log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+            df_DSD = None
+
+        return df_DSD, IntA

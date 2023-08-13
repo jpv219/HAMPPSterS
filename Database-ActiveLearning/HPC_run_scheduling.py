@@ -1,5 +1,5 @@
 ### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
-### CFD scheduling and monitoring script
+### HPC scheduling and monitoring script
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
@@ -17,6 +17,7 @@ import subprocess
 import re
 import argparse
 import json
+import numpy as np
 
 class HPCScheduling:
 
@@ -70,12 +71,14 @@ class HPCScheduling:
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
         self.mainpath = os.path.join(self.run_path,'..')
 
+        ### Creating f90
         print('-' * 100)
         print('F90 CREATION')
         print('-' * 100)
 
         self.makef90()
 
+        ### Creating job.sh
         print('-' * 100)
         print('JOB.SH CREATION')
         print('-' * 100)
@@ -86,22 +89,27 @@ class HPCScheduling:
             except ValueError as e:
                 print(f'Case ID {self.run_ID} failed due to: {e}')
 
+        ### Submitting job.sh
         print('-' * 100)
         print('JOB SUBMISSION')
         print('-' * 100)
 
-        job_IDS = self.submit_job()
+        ### wait time to submit jobs, avoiding them to go all at once
+        init_wait_time = np.random.RandomState().randint(0,120)
+        sleep(init_wait_time)
+
+        job_IDS = self.submit_job(self.path,self.run_name)
 
         print('-' * 100)
         print(f'Job {self.run_ID} submitted succesfully with ID {job_IDS}')
 
+        sleep(120)
+
+        ### Check job status and assign waiting time accordingly
+        t_jobwait, status, update_jobID = self.job_wait(job_IDS)
+
         print("====JOB_IDS====")
-        print(job_IDS)
-
-        #sleep(300)
-
-        t_jobwait, status = self.job_wait(job_IDS)
-
+        print(update_jobID)
         print("====JOB_STATUS====")
         print(status)
         print("====WAIT_TIME====")
@@ -110,6 +118,7 @@ class HPCScheduling:
     ### checking jobstate and sleeping until completion or restart commands
 
     def monitor(self,mdict):
+        ### Read dictionary with job_ID to monitor
         self.mdict = mdict
         self.jobID = mdict['jobID']
         self.run_ID = mdict['run_ID']
@@ -119,8 +128,11 @@ class HPCScheduling:
         self.run_name = "run_"+str(self.run_ID)
         self.path = os.path.join(self.run_path, self.run_name)
 
+        ### Call job waiting method and extract corresponding outputs
         try:
-            t_jobwait, status = self.job_wait(int(self.jobID))
+            t_jobwait, status, newjobid = self.job_wait(int(self.jobID))
+            print("====JOB_IDS====")
+            print(newjobid)
             print("====JOB_STATUS====")
             print(status)
             print("====WAIT_TIME====")
@@ -190,16 +202,19 @@ class HPCScheduling:
         ## Assign values to placeholders
         os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
 
+        ### If geometry variations are studied, construct domain and mesh specifications in job.sh accordingly
         if self.case_type == 'Geom':
 
             radius = float(self.pipe_radius)
             max_diameter = float(self.max_diameter)
             d_pipe = 2*radius
-            min_res = 18000
+            min_res = 20000
 
+            ### Resolution and domain size condition
             if min_res*(2*self.max_diameter)/128 > 16:
                 raise ValueError("Max p_diameter doesn't comply with min. res.")
 
+            ## x-subdomain is 2 times the pipe's diameter
             box_2 = math.ceil(4*radius*1000)/1000
             box_4 = math.ceil(2*radius*1000)/1000
             box_6 = math.ceil(2*radius*1000)/1000
@@ -208,17 +223,19 @@ class HPCScheduling:
             os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
         
-            ## first cut for 64 cells per subdomain considering the max nodes can only be 10
-            ## x-subdomain is 2 times the pipe's diameter
+            ## first cut for 64 cells per subdomain considering the x-max subdomains to be 10 - max cpus 250 with 1 node.
             first_d_cut = (64*10/(2*min_res))/max_diameter
-            ## taking only 6 and 128 for the x configuration
+            
+            ## Below second cut taking 6 for all subdomains and 128 cells for x. cpus 216 with 1 node 
             second_d_cut = ((6*64)/min_res)/max_diameter 
+
+            ## Above second cut, all subdomains must have 128 cells and set with multiple nodes.
 
             if d_pipe < first_d_cut*max_diameter:
                 cpus = min_res*(2*d_pipe)/64
                 xsub = math.ceil(cpus / 2) * 2
                 ysub = zsub = int(xsub/2)
-                mem = 200
+                mem = 800
                 cell1 = cell2 = cell3 = 64
                 ncpus = int(xsub*ysub*zsub)
                 n_nodes = 1
@@ -227,7 +244,7 @@ class HPCScheduling:
                 if cpus <= 10:
                     xsub = math.ceil(cpus / 2) * 2
                     ysub = zsub = int(xsub/2)
-                    mem = 920
+                    mem = 800
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -261,6 +278,7 @@ class HPCScheduling:
                 cell1= 128
                 cell2 = cell3 = 64
 
+            ### Replacing placeholders in job.sh file after resolution calculations
             os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'y_subd\'/{ysub}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'z_subd\'/{zsub}/\" {self.path}/job_{self.run_name}.sh')
@@ -277,6 +295,7 @@ class HPCScheduling:
 
         elif self.case_type == 'Surf':
 
+            ### Replacing placeholders for surfactant parametric study with fixed geometry
             os.system(f'sed -i \"s/\'diff1\'/{self.diff1}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'diff2\'/{self.diff2}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'ka\'/{self.ka}/\" {self.path}/job_{self.run_name}.sh')
@@ -299,15 +318,23 @@ class HPCScheduling:
             if p.returncode != 0:
                 raise subprocess.CalledProcessError(p.returncode, p.args)
             
-            ## formatted to Imperial HPC 
+            ## formatted to Imperial HPC, extracting job status and performing actions accordingly 
             jobstatus = str(output,'utf-8').split()[-3:]
             status = jobstatus[1]
 
             if not jobstatus:
                 raise ValueError('Job exists but belongs to another account')
     
-            if status == 'Q' or status == 'H':
-                t_wait = 1800
+            if status == 'Q':
+                t_wait = 3600
+                newjobid = job_id
+            elif status == 'H':
+                print(f'Deleting HELD job with old id: {job_id}')
+                Popen(['qdel', f"{job_id}"])
+                sleep(30)
+                newjobid = self.submit_job(self.path,self.run_name)
+                t_wait = 3600
+                print(f'Submitted new job with id: {newjobid}')
             elif status == 'R':
                 time_format = '%H:%M'
                 wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
@@ -315,6 +342,7 @@ class HPCScheduling:
                 delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
                 remaining = delta.total_seconds()+60
                 t_wait = remaining
+                newjobid = job_id
             else:
                 t_wait = 0
                 
@@ -325,7 +353,7 @@ class HPCScheduling:
             print(f"Error: {e}")
             raise ValueError('Existing job but doesnt belong to this account')
             
-        return t_wait, status
+        return t_wait, status, newjobid
 
     ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
 
@@ -335,11 +363,22 @@ class HPCScheduling:
         self.run_name = "run_"+str(self.run_ID)
         self.run_path = pset_dict['run_path']
         self.path = os.path.join(self.run_path, self.run_name)
+        output_file_path = os.path.join(self.path,f'{self.run_name}.out')
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
         self.pipe_radius = float(pset_dict['pipe_radius'])
 
+        ### Checking if there is an output file: if not, run did not start - complete correctly
+        if not os.path.exists(output_file_path):
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print(f'File {self.run_name}.out does not exist')
+            print("====RETURN_BOOL====")
+            print("False")
+            return False
+
         os.chdir(ephemeral_path)
+
         ## Checking location of the interface in the x direction -- stopping criterion
         ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
         domain_x = math.ceil(4*self.pipe_radius*1000)/1000
@@ -383,14 +422,15 @@ class HPCScheduling:
                     file.truncate()
 
                 ### submitting job with restart modification
-                job_IDS = self.submit_job()
+                job_IDS = self.submit_job(self.path,self.run_name)
                 print('-' * 100)
                 print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
-                print("====JOB_IDS====")
-                print(job_IDS)
-                #sleep(300)
+                sleep(120)
+
                 ### check status and waiting time for re-submitted job
-                t_jobwait, status = self.job_wait(job_IDS)
+                t_jobwait, status, new_jobID = self.job_wait(job_IDS)
+                print("====JOB_IDS====")
+                print(new_jobID)
                 print("====JOB_STATUS====")
                 print(status)
                 print("====WAIT_TIME====")
@@ -424,8 +464,7 @@ class HPCScheduling:
         self.convert_path = pset_dict['convert_path']
         self.path = os.path.join(self.run_path, self.run_name)
 
-        proc = []
-
+        ### Move to ephemeral and create RESULTS saving folder
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
         os.chdir(ephemeral_path)
@@ -437,33 +476,42 @@ class HPCScheduling:
         except:
             pass
 
+        ### Listing ISO and VAR vtks and pvds
         ISO_file_list = glob.glob('ISO_*.vtk')
         VAR_file_list = glob.glob('VAR_*_*.vtk')
-        pvd_0file = glob.glob(f'VAR_{self.run_name}_time=0.00000E+00.pvd')[0]
-        
+        PVD_file_list = glob.glob('VAR_*_time=*.pvd')
+        sorted_PVDs = sorted(PVD_file_list, key = lambda filename: 
+                    float(filename.split('=')[-1].split('.pvd')[0]))
         last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
-        
+
+        ### First and last pvd file for pvpython processing
+        pvd_0file = glob.glob(f'VAR_{self.run_name}_time=0.00000E+00.pvd')[0]
+        pvd_ffile = sorted_PVDs[-1]
+    
+        ### Files to be converted, last time step in VAR
         VAR_toconvert_list = glob.glob(f'VAR_*_{last_vtk}.vtk')
-
         files_to_convert = ISO_file_list + VAR_toconvert_list
-
         file_count = len(files_to_convert)
 
+        ### Moving files to RESULTS
         for file in files_to_convert:
             shutil.move(file,'RESULTS')
         print('-' * 100)
         print('Convert files copied to RESULTS')
 
+        ### Moving individual files of interest: pvd, csd
         try:
             shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
             shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')
             shutil.move(f'{self.run_name}.csv','RESULTS')
             shutil.move(f'{pvd_0file}', 'RESULTS')
+            shutil.move(f'{pvd_ffile}', 'RESULTS')
             print('-' * 100)
             print('VAR, ISO and csv files moved to RESULTS')
         except:
             pass
 
+        ### Cleaning previous restart and vtk from ephemeral
         os.system('rm *vtk')
         os.system('rm *rst')
 
@@ -474,54 +522,59 @@ class HPCScheduling:
         except:
             pass
 
+        ### Finding, copying and modifying convert files into RESULTS
         convert_scripts = glob.glob(os.path.join(self.convert_path, '*'))
 
         for file in convert_scripts:
             shutil.copy2(file, '.')
 
         os.system(f'sed -i \"s/\'FILECOUNT\'/{file_count}/\" Multithread_pool.py')
-        
-        proc = Popen(['qsub', 'job_convert.sh'], stdout=PIPE)
 
-        output = proc.communicate()[0].decode('utf-8').split()
-
-        jobid = int(re.search(r'\b\d+\b',output[0]).group())
+        ### Submitting job convert and extracting job_id, wait time and status
+        jobid = self.submit_job(os.path.join(ephemeral_path,'RESULTS'),'convert')
 
         print('-' * 100)
         print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
 
+        t_jobwait, status, new_jobID = self.job_wait(jobid)
         print("====JOB_IDS====")
-        print(jobid)
-
-        t_jobwait, status = self.job_wait(jobid)
+        print(new_jobID)
         print("====JOB_STATUS====")
         print(status)
-        print("====WAIT_TIME====")
-        print(t_jobwait)
+        if status == 'Q' or status == 'H':
+            print("====WAIT_TIME====")
+            print(t_jobwait-1800)
+        elif status == 'R':
+            print("====WAIT_TIME====")
+            print(t_jobwait)
 
         os.chdir(self.path)
         os.chdir('..')
 
     ### submitting the SMX job and recording job_id
 
-    def submit_job(self):
+    def submit_job(self,path,name):
 
         proc = []
-        proc = Popen(['qsub', f"{self.path}/job_{self.run_name}.sh"], stdout=PIPE)
+        os.chdir(f'{path}')
+        proc = Popen(['qsub', f"job_{name}.sh"], stdout=PIPE)
 
         output = proc.communicate()[0].decode('utf-8').split()
 
+        ### Search job id from output after qsub
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
         return jobid
     
 def main():
+    ### Argument parser to specify function to run
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "function",
         choices=["run","monitor","job_restart","vtk_convert"], 
     )
 
+    ### Input argument for dictionary
     parser.add_argument(
         "--pdict",
         type=json.loads,

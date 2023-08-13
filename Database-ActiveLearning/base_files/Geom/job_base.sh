@@ -50,7 +50,7 @@ cat > Blue.nml <<'EOF'
   num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=47.9d0
 !
 ! Fixed time step,                     If fixed, set dt.
-  fixed_time_step=.TRUE.             dt=1.0D-4
+  fixed_time_step=.FALSE.             dt=1.0D-4
 !
 ! Time integeration scheme ("GEAR" order(2) or "CRANK-NICHOLSON" order(2) or "EULER" order(1) scheme).
   time_integration_scheme="GEAR"
@@ -59,10 +59,10 @@ cat > Blue.nml <<'EOF'
   sl_runge_kutta_order    = 1      ! Semi-Lagrangian Runge-Kutta order: 1 or 2.
 !
 ! Time step factor multipliers
-  cfl_time_step_factor    =0.4d0
+  cfl_time_step_factor    =0.5d0
   visc_time_step_factor   =50.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.08d0
+  int_time_step_factor    =0.12d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
   surf_time_step_factor   =2.0d0
@@ -162,7 +162,7 @@ cat > Blue.nml <<'EOF'
   !
   ! DEFAULT BOUNDARY CONDITIONS
   !                                            u,         v,        w
-  velocity_bctype                          = "NDDDDD", "NDDDDD", "NDDDDD"
+  velocity_bctype                          = "DNDDDD", "DNDDDD", "DNDDDD"
   adjust_velocity                          = .TRUE.        ! Adjust velocity on Neumann boundaries (true/false)
   ! Immersed solid boundary condition types
   !                                           u,   v,   w
@@ -190,7 +190,7 @@ cat > Blue.nml <<'EOF'
 &PRESSURE_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   ! DEFAULT BOUNDARY CONDITIONS
-  pressure_bctype                          = "DNNNNN"      ! Default domain boundary conditions types
+  pressure_bctype                          = "NDNNNN"      ! Default domain boundary conditions types
   pressure_iso_bctype                      = "N"           ! Immersed solid boundary condition types
   ! Faces: West          East 
            Pwest=0.0d0   Peast=0.0d0                       ! Default Dirichlet West/East boundary conditions
@@ -204,7 +204,7 @@ cat > Blue.nml <<'EOF'
   p_max_iter=100    p_tol=1.0D-10         p_relax=1.05D0     p_max_comp=30
   !
   ! Nb grid.       relax_max_grid      Nn max cycles     Nb sweeps down.    Nb sweeps down (used by MG only)
-  p_grids=5        p_relax_max=1.1d0  p_max_cycles=50   p_sweeps_down=20   p_sweeps_up=40
+  p_grids=5        p_relax_max=1.1d0  p_max_cycles=100   p_sweeps_down=20   p_sweeps_up=40
 !--------------------------------------------------------------------------------------------------------------------------------
 /
 &ENERGY_PROPERTIES
@@ -379,7 +379,7 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=1.0d-3     output_restart_file_prefix="RUN_NAME"
+  output_restart_frequency=0     output_restart_time_interval=2.5d-4     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
   restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"
