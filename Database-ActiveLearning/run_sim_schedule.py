@@ -23,9 +23,9 @@ nruns = 16
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 log.info(f'Case {case} studied with {nruns} runs')
 
-run_path = ps.plist("run_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
-base_path = ps.plist("base_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
-convert_path = ps.plist("convert_path",["/rds/general/user/nkahouad/home/F_CONVERT"])
+run_path = ps.plist("run_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
+base_path = ps.plist("base_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
+convert_path = ps.plist("convert_path",["/rds/general/user/jpv219/home/F_CONVERT"])
 
 case_type = ps.plist("case",[case])
 run_ID = ps.plist("run_ID",nruns_list)

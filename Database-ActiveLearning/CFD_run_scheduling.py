@@ -14,7 +14,6 @@ import configparser
 import warnings
 import json
 import numpy as np
-import sys
 import logging
 import psutil
 import glob
@@ -93,6 +92,10 @@ class SimScheduling:
         log.info('NEW RUN')
         log.info('-' * 100)
         log.info('-' * 100)
+
+        ### wait time to connect at first, avoiding multiple simultaneuous connections
+        init_wait_time = np.random.RandomState().randint(0,180)
+        sleep(init_wait_time)
 
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
@@ -294,8 +297,8 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        #config.read('configjp.ini')
-        config.read('confignk.ini')
+        config.read('configjp.ini')
+        #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
 
@@ -391,8 +394,8 @@ class SimScheduling:
 
         ###Create run local directory to store data
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
-        #ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
-        ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
+        ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
+        #ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
 
         try:
             os.mkdir(self.save_path_runID)
@@ -405,8 +408,8 @@ class SimScheduling:
         warnings.filterwarnings("ignore", category=ResourceWarning)
 
         config = configparser.ConfigParser()
-        #config.read('configjp.ini')
-        config.read('confignk.ini')
+        config.read('configjp.ini')
+        #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
 
