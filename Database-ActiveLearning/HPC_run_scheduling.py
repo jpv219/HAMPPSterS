@@ -240,7 +240,7 @@ class HPCScheduling:
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
-                elif cpus <= 8:
+                else:
                     xsub = math.ceil(cpus / 2) * 2
                     ysub = zsub = int(xsub/2)
                     mem = 124 
