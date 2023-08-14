@@ -233,17 +233,17 @@ class HPCScheduling:
 
             if d_pipe < first_d_cut*max_diameter:
                 cpus = min_res*(2*d_pipe)/64
-                if cpus <=6:
+                if cpus <= 6:
                     xsub = math.ceil(cpus / 2) * 2
                     ysub = zsub = int(xsub/2)
                     mem = 128 
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
-                else:
+                elif cpus <= 8:
                     xsub = math.ceil(cpus / 2) * 2
                     ysub = zsub = int(xsub/2)
-                    mem = 128 
+                    mem = 124 
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub/4)
                     n_nodes = 4                  
@@ -280,7 +280,7 @@ class HPCScheduling:
 
             else:
                 xsub = ysub = zsub = 6
-                mem = 128
+                mem = 256
                 ncpus = int(xsub*ysub*zsub)
                 n_nodes=1
                 cell1= 128
