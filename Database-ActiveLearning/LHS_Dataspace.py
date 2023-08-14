@@ -59,3 +59,9 @@ def runDOE(SMX_dict,numsamples):
     
     return modifiedLHS
 
+def runSurfDOE(Surf_dict,samples):
+
+    SurfDOE = build.space_filling_lhs(Surf_dict, num_samples=samples)
+
+    return SurfDOE
+

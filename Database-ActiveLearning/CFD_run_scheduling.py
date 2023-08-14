@@ -100,7 +100,10 @@ class SimScheduling:
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"Authentication failed: {e}")
             return {}
-        
+        except (ValueError, FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+            
         ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
 
         restart = True
@@ -112,7 +115,14 @@ class SimScheduling:
             log.info('JOB MONITORING')
             log.info('-' * 100)
 
-            self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            try:
+                self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            except (ValueError, FileNotFoundError,NameError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"Authentication failed: {e}")
+                return {}
 
             ### Job restart execution
 
@@ -135,7 +145,7 @@ class SimScheduling:
                 status = new_status
                 restart = eval(ret_bool)
 
-            except (ValueError,FileNotFoundError) as e:
+            except (ValueError,FileNotFoundError,NameError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -158,6 +168,9 @@ class SimScheduling:
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"Authentication failed: {e}")
             return {}
+        except (ValueError, FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
         
         conv_name = 'Convert' + str(self.run_ID)
 
@@ -167,7 +180,14 @@ class SimScheduling:
         log.info('JOB MONITORING')
         log.info('-' * 100)
 
-        self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
+        try:
+            self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
+        except (ValueError, FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
 
         ### Downloading files and local Post-processing
 
@@ -238,12 +258,12 @@ class SimScheduling:
 
                     log.info('-' * 100)
                     log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
-                except (RuntimeError, ValueError, NameError) as e:
-                    log.info('-' * 100)
-                    log.info(f'Exited with message: {e}')
-                    log.info('-' * 100)
-
+                except (RuntimeError, ValueError, NameError) as e:  
                     if isinstance(e, RuntimeError):
+
+                        log.info('-' * 100)
+                        log.info(f'Exited with message: {e}')
+                        log.info('-' * 100)
                         log.info(f'JOB {run} FINISHED')
                         log.info('-' * 100)
 
@@ -251,9 +271,16 @@ class SimScheduling:
                         t_wait = 0
                         status = 'F'
                         running = False
+
+                    else:
+                        log.info('-' * 100)
+                        log.info(f'Exited with message: {e}')
+                        log.info('-' * 100)
+                        raise e
+
                 except (paramiko.AuthenticationException, paramiko.SSHException) as e:
                     log.info(f"Authentication failed: {e}")
-                    sys.exit(1)
+                    raise e
             else:
                 running = False
 
