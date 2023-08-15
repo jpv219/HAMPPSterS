@@ -62,7 +62,7 @@ cat > Blue.nml <<'EOF'
   cfl_time_step_factor    =0.5d0
   visc_time_step_factor   =50.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.12d0
+  int_time_step_factor    =0.2d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
   surf_time_step_factor   =2.0d0
@@ -379,7 +379,7 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=2.5d-4     output_restart_file_prefix="RUN_NAME"
+  output_restart_frequency=0     output_restart_time_interval=1.0d-4     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
   restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"
@@ -395,7 +395,8 @@ cp $PROJECT.csv ~/../ephemeral/$PROJECT
 cd ~/../ephemeral/$PROJECT
 # Run the program.
 echo "... Run started @ $(date) ..."
-module load mpi/intel-2019.8.254 intel-suite/2019.4
+#module load mpi/intel-2019.8.254 intel-suite/2019.4
+module load mpi/intel-2019.8.254 intel-suite/2020.2
 #module load  mpi/intel-2019 intel-suite/2019.4
 #pbsexec -grace 55 mpiexec ./$PROGRAM ; OK=$?
 #mpirun -np $NBPROC ./$PROGRAM ; OK=$?

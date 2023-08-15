@@ -62,7 +62,7 @@ cat > Blue.nml <<'EOF'
   cfl_time_step_factor    =0.4d0
   visc_time_step_factor   =50.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.12d0
+  int_time_step_factor    =0.2d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
   surf_time_step_factor   =2.0d0
@@ -182,9 +182,9 @@ cat > Blue.nml <<'EOF'
   !----------------------------
   ! SOLVER PARAMETERS
   ! Iterations.     Tolerance.        Relaxation.          Components (used by GMRES only).
-  u_max_iter=50     u_tol=1.D-9      u_relax=1.25D0       u_max_comp=10
-  v_max_iter=50     v_tol=1.D-9      v_relax=1.25D0       v_max_comp=10
-  w_max_iter=50     w_tol=1.D-9      w_relax=1.25D0       w_max_comp=10
+  u_max_iter=50     u_tol=1.D-12      u_relax=1.25D0       u_max_comp=10
+  v_max_iter=50     v_tol=1.D-12      v_relax=1.25D0       v_max_comp=10
+  w_max_iter=50     w_tol=1.D-12      w_relax=1.25D0       w_max_comp=10
 !--------------------------------------------------------------------------------------------------------------------------------
 /
 &PRESSURE_PROPERTIES
@@ -201,7 +201,7 @@ cat > Blue.nml <<'EOF'
   !----------------------------
   ! SOLVER PARAMETERS
   ! Iterations.     Tolerance.          Relaxation.        components (used by GMRES only).
-  p_max_iter=100    p_tol=1.0D-8         p_relax=1.05D0     p_max_comp=30
+  p_max_iter=100    p_tol=1.0D-10         p_relax=1.05D0     p_max_comp=30
   !
   ! Nb grid.       relax_max_grid      Nn max cycles     Nb sweeps down.    Nb sweeps down (used by MG only)
   p_grids=5        p_relax_max=1.1d0  p_max_cycles=50   p_sweeps_down=20   p_sweeps_up=40
@@ -379,7 +379,7 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=1.0d-3     output_restart_file_prefix="RUN_NAME"
+  output_restart_frequency=0     output_restart_time_interval=2.5d-4     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
   restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"
