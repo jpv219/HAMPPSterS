@@ -7,6 +7,7 @@
 
 from doepy import build
 import math
+import numpy as np
 
 ## Function applying restrictions
 
@@ -59,9 +60,31 @@ def runDOE(SMX_dict,numsamples):
     
     return modifiedLHS
 
+def surf_restriction(DOE):
+    for i in range(DOE.shape[0]):
+        ginf = DOE.loc[i,'Maximum packing conc (mol/ m2)']
+        gini = DOE.loc[i,'Initial surface conc (mol/m2)']
+
+        old_gini = gini
+
+        if gini>=ginf:
+            random_float = np.random.uniform(low=0.05, high=0.95)  
+            random_float = round(random_float, 2) 
+            gini = random_float*ginf
+            print('G_ini (mol/m2) in row ' + str(i) + ' modified from ' + str(old_gini) + ' to ' + str(gini))
+        DOE.loc[i,'Initial surface conc (mol/m2)'] = gini
+
+    return DOE
+
+def gamma_ratio(row):
+    return (row['Initial surface conc (mol/m2)']/row['Maximum packing conc (mol/ m2)'])
+
 def runSurfDOE(Surf_dict,samples):
 
     SurfDOE = build.space_filling_lhs(Surf_dict, num_samples=samples)
 
-    return SurfDOE
+    Modified_SurfDOE = surf_restriction(SurfDOE)
+    Modified_SurfDOE['G0/Ginf'] = Modified_SurfDOE.apply(lambda row: gamma_ratio(row), axis = 1)
+
+    return Modified_SurfDOE
 
