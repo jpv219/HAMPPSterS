@@ -95,7 +95,7 @@ class HPCScheduling:
         print('-' * 100)
 
         ### wait time to submit jobs, avoiding them to go all at once
-        init_wait_time = np.random.RandomState().randint(0,120)
+        init_wait_time = np.random.RandomState().randint(60,180)
         sleep(init_wait_time)
 
         job_IDS = self.submit_job(self.path,self.run_name)
@@ -208,7 +208,7 @@ class HPCScheduling:
             radius = float(self.pipe_radius)
             max_diameter = float(self.max_diameter)
             d_pipe = 2*radius
-            min_res = 20000
+            min_res = 18000
 
             ### Resolution and domain size condition
             if min_res*(2*self.max_diameter)/128 > 16:
@@ -223,28 +223,46 @@ class HPCScheduling:
             os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
         
-            ## first cut for 64 cells per subdomain considering the x-max subdomains to be 10 - max cpus 250 with 1 node.
+            ## first cut for 64 cells per subd considering max x-subd as 10. ELSE added to consider 128 cells for x-subd and decrease ncpus.
             first_d_cut = (64*10/(2*min_res))/max_diameter
             
-            ## Below second cut taking 6 for all subdomains and 128 cells for x. cpus 216 with 1 node 
+            ## Below second cut taking 6 for all subdomains and 128 cells for x-subd.
             second_d_cut = ((6*64)/min_res)/max_diameter 
 
             ## Above second cut, all subdomains must have 128 cells and set with multiple nodes.
 
             if d_pipe < first_d_cut*max_diameter:
                 cpus = min_res*(2*d_pipe)/64
-                xsub = math.ceil(cpus / 2) * 2
-                ysub = zsub = int(xsub/2)
-                mem = 800
-                cell1 = cell2 = cell3 = 64
-                ncpus = int(xsub*ysub*zsub)
-                n_nodes = 1
+                if cpus <= 6:
+                    xsub = math.ceil(cpus / 2) * 2
+                    ysub = zsub = int(xsub/2)
+                    mem = 128 
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+                ### GENERAL QUEUE OPTION
+                
+                # elif cpus < 8:
+                #     xsub = math.ceil(cpus / 2) * 2
+                #     ysub = zsub = int(xsub/2)
+                #     mem = 124 
+                #     cell1 = cell2 = cell3 = 64
+                #     ncpus = int(xsub*ysub*zsub/4)
+                #     n_nodes = 4   
+                
+                else:
+                    xsub = ysub = zsub = math.ceil(min_res*(2*d_pipe)/128)
+                    mem = 256
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes=1
+                    cell1= 128
+                    cell2 = cell3 = 64            
             elif d_pipe > second_d_cut*max_diameter:
                 cpus = min_res*(2*d_pipe)/128
                 if cpus <= 10:
                     xsub = math.ceil(cpus / 2) * 2
                     ysub = zsub = int(xsub/2)
-                    mem = 800
+                    mem = 512
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -254,25 +272,25 @@ class HPCScheduling:
                     cell1 = cell2 = cell3 = 128
                     n_nodes = 4
                     ncpus = int(xsub*ysub*zsub/n_nodes)
-                    mem = 200
+                    mem = 100
                 elif cpus >12 and cpus <= 14:
                     xsub = 14
                     ysub = zsub = int(xsub/2)
                     cell1 = cell2 = cell3 = 128
                     n_nodes = 7
                     ncpus = int(xsub*ysub*zsub/n_nodes)
-                    mem = 200
+                    mem = 100
                 elif cpus > 14 and cpus <=16:
                     xsub = 16
                     ysub = zsub = int(xsub/2)
                     cell1 = cell2 = cell3 = 128
                     n_nodes = 8
                     ncpus = int(xsub*ysub*zsub/n_nodes)
-                    mem = 200
+                    mem = 256
 
             else:
                 xsub = ysub = zsub = 6
-                mem = 800
+                mem = 256
                 ncpus = int(xsub*ysub*zsub)
                 n_nodes=1
                 cell1= 128
@@ -330,17 +348,18 @@ class HPCScheduling:
                 newjobid = job_id
             elif status == 'H':
                 print(f'Deleting HELD job with old id: {job_id}')
+                print('-' * 100)
                 Popen(['qdel', f"{job_id}"])
-                sleep(30)
+                sleep(60)
                 newjobid = self.submit_job(self.path,self.run_name)
-                t_wait = 3600
+                t_wait = 1800
                 print(f'Submitted new job with id: {newjobid}')
             elif status == 'R':
                 time_format = '%H:%M'
                 wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
                 elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
                 delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
-                remaining = delta.total_seconds()+60
+                remaining = delta.total_seconds()+120
                 t_wait = remaining
                 newjobid = job_id
             else:

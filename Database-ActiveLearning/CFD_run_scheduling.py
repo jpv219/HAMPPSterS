@@ -14,7 +14,6 @@ import configparser
 import warnings
 import json
 import numpy as np
-import sys
 import logging
 import psutil
 import glob
@@ -94,13 +93,20 @@ class SimScheduling:
         log.info('-' * 100)
         log.info('-' * 100)
 
+        ### wait time to connect at first, avoiding multiple simultaneuous connections
+        init_wait_time = np.random.RandomState().randint(0,180)
+        sleep(init_wait_time)
+
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"Authentication failed: {e}")
             return {}
-        
+        except (ValueError, FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+            
         ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
 
         restart = True
@@ -112,7 +118,14 @@ class SimScheduling:
             log.info('JOB MONITORING')
             log.info('-' * 100)
 
-            self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            try:
+                self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            except (ValueError, FileNotFoundError,NameError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"Authentication failed: {e}")
+                return {}
 
             ### Job restart execution
 
@@ -135,7 +148,7 @@ class SimScheduling:
                 status = new_status
                 restart = eval(ret_bool)
 
-            except (ValueError,FileNotFoundError) as e:
+            except (ValueError,FileNotFoundError,NameError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -158,6 +171,9 @@ class SimScheduling:
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"Authentication failed: {e}")
             return {}
+        except (ValueError, FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
         
         conv_name = 'Convert' + str(self.run_ID)
 
@@ -167,7 +183,14 @@ class SimScheduling:
         log.info('JOB MONITORING')
         log.info('-' * 100)
 
-        self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
+        try:
+            self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
+        except (ValueError, FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
 
         ### Downloading files and local Post-processing
 
@@ -238,12 +261,12 @@ class SimScheduling:
 
                     log.info('-' * 100)
                     log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
-                except (RuntimeError, ValueError, NameError) as e:
-                    log.info('-' * 100)
-                    log.info(f'Exited with message: {e}')
-                    log.info('-' * 100)
-
+                except (RuntimeError, ValueError, NameError) as e:  
                     if isinstance(e, RuntimeError):
+
+                        log.info('-' * 100)
+                        log.info(f'Exited with message: {e}')
+                        log.info('-' * 100)
                         log.info(f'JOB {run} FINISHED')
                         log.info('-' * 100)
 
@@ -251,9 +274,16 @@ class SimScheduling:
                         t_wait = 0
                         status = 'F'
                         running = False
+
+                    else:
+                        log.info('-' * 100)
+                        log.info(f'Exited with message: {e}')
+                        log.info('-' * 100)
+                        raise e
+
                 except (paramiko.AuthenticationException, paramiko.SSHException) as e:
                     log.info(f"Authentication failed: {e}")
-                    sys.exit(1)
+                    raise e
             else:
                 running = False
 
@@ -267,8 +297,8 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        #config.read('configjp.ini')
-        config.read('confignk.ini')
+        config.read('configjp.ini')
+        #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
 
@@ -364,8 +394,8 @@ class SimScheduling:
 
         ###Create run local directory to store data
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
-        #ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
-        ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
+        ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
+        #ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
 
         try:
             os.mkdir(self.save_path_runID)
@@ -378,8 +408,8 @@ class SimScheduling:
         warnings.filterwarnings("ignore", category=ResourceWarning)
 
         config = configparser.ConfigParser()
-        #config.read('configjp.ini')
-        config.read('confignk.ini')
+        config.read('configjp.ini')
+        #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
 

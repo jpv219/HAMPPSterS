@@ -19,7 +19,7 @@ module USER
   integer,	      parameter :: Number_of_Bars     =   8
   integer,            parameter :: Number_of_Elements =   1
 !
-  integer,            parameter :: Nb_Drops_per_Level =   8          !
+  integer,            parameter :: Nb_Drops_per_Level =   6          !
   integer,            parameter :: Nb_Levels          =   2          ! 
 !
   real(kind=d),dimension(Nb_Levels), parameter :: Drop_Radius =i [5.0d-4,3.0e-4]
