@@ -223,10 +223,10 @@ class HPCScheduling:
             os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
         
-            ## first cut for 64 cells per subdomain considering the x-max subdomains to be 10 - max cpus 250 with 1 node. IF added to consider queing general with 4 nodes and less cpus.
+            ## first cut for 64 cells per subd considering max x-subd as 10. ELSE added to consider 128 cells for x-subd and decrease ncpus.
             first_d_cut = (64*10/(2*min_res))/max_diameter
             
-            ## Below second cut taking 6 for all subdomains and 128 cells for x. cpus 216 with 1 node 
+            ## Below second cut taking 6 for all subdomains and 128 cells for x-subd.
             second_d_cut = ((6*64)/min_res)/max_diameter 
 
             ## Above second cut, all subdomains must have 128 cells and set with multiple nodes.
@@ -240,13 +240,23 @@ class HPCScheduling:
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
+                ### GENERAL QUEUE OPTION
+                
+                # elif cpus < 8:
+                #     xsub = math.ceil(cpus / 2) * 2
+                #     ysub = zsub = int(xsub/2)
+                #     mem = 124 
+                #     cell1 = cell2 = cell3 = 64
+                #     ncpus = int(xsub*ysub*zsub/4)
+                #     n_nodes = 4   
+                
                 else:
-                    xsub = math.ceil(cpus / 2) * 2
-                    ysub = zsub = int(xsub/2)
-                    mem = 124 
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub/4)
-                    n_nodes = 4                  
+                    xsub = ysub = zsub = math.ceil(min_res*(2*d_pipe)/128)
+                    mem = 256
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes=1
+                    cell1= 128
+                    cell2 = cell3 = 64            
             elif d_pipe > second_d_cut*max_diameter:
                 cpus = min_res*(2*d_pipe)/128
                 if cpus <= 10:
