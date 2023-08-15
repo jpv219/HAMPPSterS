@@ -296,7 +296,7 @@ cat > Blue.nml <<'EOF'
 &SURFACTANT_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   surfactant_transport                     = .TRUE.       ! Surfactant transport (true/false)
-  surf_phase_1                             =   'diff1'd0      ! Mass diffusity phase_1 (m2/s)
+  surf_phase_1                             =   'diff1'd-20      ! Mass diffusity phase_1 (m2/s)
   surf_phase_2                             =   'diff2'd0    ! Mass diffusity phase_2 (m2/s)
   surf_adsorpt                             =   'ka'd0     ! Adsorption coefficient
   surf_desorpt                             =   'kd'd0    ! Desoprtion coefficient
