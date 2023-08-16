@@ -101,7 +101,7 @@ class SimScheduling:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"Authentication failed: {e}")
+            log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
         except (ValueError, FileNotFoundError,NameError) as e:
             log.info(f'Exited with message: {e}')
@@ -124,7 +124,7 @@ class SimScheduling:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                log.info(f"Authentication failed: {e}")
+                log.info(f"SSH ERROR: Authentication failed: {e}")
                 return {}
 
             ### Job restart execution
@@ -152,7 +152,7 @@ class SimScheduling:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                log.info(f"Authentication failed: {e}")
+                log.info(f"SSH ERROR: Authentication failed: {e}")
                 return {}
 
         ### vtk convert job creation and submission
@@ -169,7 +169,7 @@ class SimScheduling:
                 )
             log.info('-' * 100)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"Authentication failed: {e}")
+            log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
         except (ValueError, FileNotFoundError,NameError) as e:
             log.info(f'Exited with message: {e}')
@@ -189,7 +189,7 @@ class SimScheduling:
             log.info(f'Exited with message: {e}')
             return {}
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"Authentication failed: {e}")
+            log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
 
         ### Downloading files and local Post-processing
@@ -201,7 +201,7 @@ class SimScheduling:
         try:
             self.scp_download(log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"Authentication failed: {e}")
+            log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
 
         log.info('-' * 100)
@@ -363,10 +363,6 @@ class SimScheduling:
     ### Executing HPC functions remotely via Paramiko SSH library.
 
     def execute_remote_command(self,command,search,log):
-        ### Establish an SSH connection using a context manager
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        warnings.filterwarnings("ignore", category=ResourceWarning)
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
@@ -375,48 +371,70 @@ class SimScheduling:
         #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
+        try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
 
         ### Initialize variables for result storage
         jobid, t_wait, status, ret_bool = None, 0, None, None
         exc = None
-        
-        try:
-            ssh.connect('login.hpc.ic.ac.uk', username=user, password=key)
 
-            stdin, stdout, stderr = ssh.exec_command(command)
-            out_lines = []
-            for line in stdout:
-                stripped_line = line.strip()
-                log.info(stripped_line)
-                out_lines.append(stripped_line)
-            
-            ### Extracting exceptions, job id, job wait time, status and restart condition
-            results = self.search(out_lines=out_lines,search=search)
+        for login in try_logins:
 
-            jobid = results.get("jobid", None)
-            t_wait = float(results.get("t_wait", 0))
-            status = results.get("status", None)
-            ret_bool = results.get("ret_bool", None)
-            exc = results.get("exception",None)
+            ### Establish an SSH connection using a context manager
+            ssh = paramiko.SSHClient()
+            ssh.load_system_host_keys()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            warnings.filterwarnings("ignore", category=ResourceWarning)
 
-            ### Handle exceptions
-            if exc is not None:
-                if exc == "RuntimeError":
-                    raise RuntimeError('Job finished')
-                elif exc == "ValueError":
-                    raise ValueError('Exception raised from qstat in job_wait \
-                                or attempting to search restart in job_restart')
-                elif exc == "FileNotFoundError":
-                    raise FileNotFoundError('Cannot execute restart procedure')
+            try:
+                ssh.connect(login, username=user, password=key)
+
+                stdin, stdout, stderr = ssh.exec_command(command)
+                out_lines = []
+                for line in stdout:
+                    stripped_line = line.strip()
+                    log.info(stripped_line)
+                    out_lines.append(stripped_line)
+                
+                ### Extracting exceptions, job id, job wait time, status and restart condition
+                results = self.search(out_lines=out_lines,search=search)
+
+                jobid = results.get("jobid", None)
+                t_wait = float(results.get("t_wait", 0))
+                status = results.get("status", None)
+                ret_bool = results.get("ret_bool", None)
+                exc = results.get("exception",None)
+
+                ### Handle exceptions
+                if exc is not None:
+                    if exc == "RuntimeError":
+                        raise RuntimeError('Job finished')
+                    elif exc == "ValueError":
+                        raise ValueError('Exception raised from qstat in job_wait \
+                                    or attempting to search restart in job_restart')
+                    elif exc == "FileNotFoundError":
+                        raise FileNotFoundError('Cannot execute restart procedure')
+                    else:
+                        raise NameError('Search for exception from log failed')
+                    
+                if stdin is not None:
+                    break
+
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                if login == try_logins[-1]:
+                    raise e
                 else:
-                    raise NameError('Search for exception from log failed')
+                    log.info(f'SSH connection failed with login {login}, trying again ...')
+                    continue
 
-        ### Closing HPC session
-        finally:
-            stdin.close()
-            stdout.close()
-            stderr.close()
-            ssh.close()
+            ### Closing HPC session
+            finally:
+                if 'stdin' in locals():
+                    stdin.close()
+                if 'stdout' in locals():
+                    stdout.close()
+                if 'stderr' in locals():
+                    stderr.close()
+                ssh.close()
         
         return jobid, t_wait, status, ret_bool
  
@@ -476,45 +494,64 @@ class SimScheduling:
             log.info(f'Saving folder created at {self.save_path}')
         except:
             pass
-        
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        warnings.filterwarnings("ignore", category=ResourceWarning)
 
+        ### Config faile with keys to login to the HPC
         config = configparser.ConfigParser()
         config.read('configjp.ini')
         #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
+        try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
 
-        try:
-            ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
-            transport = ssh.get_transport()
-            sftp = paramiko.SFTPClient.from_transport(transport)
-
-            remote_path = os.path.join(ephemeral_path,self.run_name,'RESULTS')
-            remote_files = sftp.listdir_attr(remote_path)
-
-            for file_attr in remote_files:
-                remote_file_path = os.path.join(remote_path, file_attr.filename)
-                local_file_path = os.path.join(self.save_path_runID, file_attr.filename)
-
-                # Check if it's a regular file before copying
-                if file_attr.st_mode & 0o100000:
-                    sftp.get(remote_file_path, local_file_path)
-
-            log.info('-' * 100)
-            log.info(f'Files successfully copied at {self.save_path}')
+        for login in try_logins:
             
+            ### Establish an SSH connection using a context manager
+            ssh = paramiko.SSHClient()
+            ssh.load_system_host_keys()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            warnings.filterwarnings("ignore", category=ResourceWarning)
 
-        ### closing HPC session
-        finally:
-            if 'sftp' in locals():
-                sftp.close()
-            if 'ssh' in locals():
-                ssh.close()
-        log.info('-' * 100)
-        log.info('-' * 100)
+            try:
+                ssh.connect(login, username=user, password=key)
+                stdin, _, _ = ssh.exec_command("echo 'SSH connection test'")
+                transport = ssh.get_transport()
+                sftp = paramiko.SFTPClient.from_transport(transport)
+
+                remote_path = os.path.join(ephemeral_path,self.run_name,'RESULTS')
+                remote_files = sftp.listdir_attr(remote_path)
+
+                for file_attr in remote_files:
+                    remote_file_path = os.path.join(remote_path, file_attr.filename)
+                    local_file_path = os.path.join(self.save_path_runID, file_attr.filename)
+
+                    # Check if it's a regular file before copying
+                    if file_attr.st_mode & 0o100000:
+                        sftp.get(remote_file_path, local_file_path)
+
+                log.info('-' * 100)
+                log.info(f'Files successfully copied at {self.save_path}')
+
+                if stdin is not None:
+                    break
+                
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                if login == try_logins[-1]:
+                    raise e
+                else:
+                    log.info(f'SSH connection failed with login {login}, trying again ...')
+                    continue
+
+            ### closing HPC session
+            finally:
+                if 'sftp' in locals():
+                    sftp.close()
+                if 'stdin' in locals():
+                    stdin.close()
+                if 'ssh' in locals():
+                    ssh.close()
+                    
+            log.info('-' * 100)
+            log.info('-' * 100)
 
     ### Post-processing function extracting relevant outputs from sim's final timestep.
 
