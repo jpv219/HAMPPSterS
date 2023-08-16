@@ -1,7 +1,7 @@
 ### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
 ### CFD scheduling, monitoring and post-processing script
 ### to be run locally
-### Author: Juan Pablo Valdes,
+### Authors: Juan Pablo Valdes, Paula D. Pico
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -229,6 +229,77 @@ class SimScheduling:
             
         return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
     
+    ### Local monitoring of existing jobs in HPC and performing overall BLUE workflow
+    
+    def localmonitor(self,pset_dict):
+        ###Path and running attributes
+        self.pset_dict = pset_dict
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.run_path = pset_dict['run_path']
+        self.init_jobID = pset_dict['init_jobID']
+        self.case_name = pset_dict['case_name']
+        self.run_ID = pset_dict['run_ID']
+        self.main_path = os.path.join(self.run_path,'..')
+
+        ### Logger set-up
+        log_filename = f"output_{self.case_name}.txt"
+        log = self.set_log(log_filename)
+        dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
+
+        HPC_script = 'HPC_run_scheduling.py'
+
+        ##Initial values
+        t_wait = 1
+        status = 'I'
+        jobid = self.init_jobID
+
+        restart = True
+        while restart:
+
+            ### job monitoring loop
+
+            log.info('-' * 100)
+            log.info('JOB MONITORING')
+            log.info('-' * 100)
+
+            try:
+                self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            except (ValueError, FileNotFoundError,NameError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"Authentication failed: {e}")
+                return {}
+
+            ### Job restart execution
+
+            log.info('-' * 100)
+            log.info('JOB RESTARTING')
+            log.info('-' * 100)
+
+            try:
+                log.info('-' * 100)
+                command = f'python {self.main_path}/{HPC_script} test_restart --pdict \'{dict_str}\''
+                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
+                    command=command, search=2, log=log
+                    )
+
+                log.info('-' * 100)
+
+                ### updating
+                jobid = new_jobID
+                t_wait = new_t_wait
+                status = new_status
+                restart = eval(ret_bool)
+
+            except (ValueError,FileNotFoundError,NameError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"Authentication failed: {e}")
+                return {}
+
     ### calling monitoring and restart function to check in on jobs
 
     def jobmonitor(self, t_wait, status, jobid, run, HPC_script,log):
@@ -239,13 +310,15 @@ class SimScheduling:
             mdict = self.pset_dict   
             mdict['jobID'] = jobid
             mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
+            print(mdict_str)
 
             if t_wait>0:
                 log.info('-' * 100)
                 log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
                 log.info('-' * 100)
 
-                sleep(t_wait)
+                #sleep(t_wait)
+                sleep(60)
 
                 try:
                     ### Execute monitor function in HPC to check job status
@@ -297,7 +370,8 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        config.read('configjp.ini')
+        config.read('configpp.ini')
+        #config.read('configjp.ini')
         #config.read('confignk.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
@@ -307,7 +381,7 @@ class SimScheduling:
         exc = None
         
         try:
-            ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
+            ssh.connect('login.hpc.ic.ac.uk', username=user, password=key)
 
             stdin, stdout, stderr = ssh.exec_command(command)
             out_lines = []

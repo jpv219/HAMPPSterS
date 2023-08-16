@@ -374,6 +374,108 @@ class HPCScheduling:
             
         return t_wait, status, newjobid
 
+    ### Checking whether the conditions to restart a job are met
+
+    def condition_restart(self,pset_dict):
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = "run_"+str(self.run_ID)
+        self.run_path = pset_dict['run_path']
+        self.path = os.path.join(self.run_path, self.run_name)
+        output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        self.cond_csv = pset_dict['cond_csv']
+        self.conditional = pset_dict['conditional']
+        self.cond_csv_limit = pset_dict['cond_csv_limit']
+    
+        if not os.path.exists(output_file_path):
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print(f'File {self.run_name}.out does not exist')
+            print("====RETURN_BOOL====")
+            print("False")
+            return False
+        
+        return True
+
+
+    def test_restart(self,pset_dict):
+
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = "run_"+str(self.run_ID)
+        self.run_path = pset_dict['run_path']
+        self.path = os.path.join(self.run_path, self.run_name)
+        output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+
+        if self.condition_restart(pset_dict):
+            os.chdir(self.path)
+            line_with_pattern = None
+
+            ### Checking last restart file instance in output file
+            with open(f"{self.run_name}.out", 'r') as file:
+                lines = file.readlines()
+                pattern = 'writing restart file'
+                for line in reversed(lines):
+                    if pattern in line:
+                        line_with_pattern = line.strip()
+                        break
+            ### Extracting restart number from line
+            if line_with_pattern is not None:
+                ### searching with re a sequence of 1 or more digits '\d+' in between two word boundaries '\b'
+                match = re.search(r"\b\d+\b", line_with_pattern)
+                if match is not None:
+                    restart_num = int(match.group())
+                else:
+                    print("====EXCEPTION====")
+                    print("ValueError")
+                    print('No restart number match found')
+                    print("====RETURN_BOOL====")
+                    print("False")
+                    return False
+                ### Modifying .sh file accordingly
+                with open(f"job_{self.run_name}.sh", 'r+') as file:
+                    lines = file.readlines()
+                    restart_line = lines[384]
+                    modified_restart = re.sub('FALSE', 'TRUE', restart_line)
+                    ### modifying the restart number by searching dynamically with f-strings. 
+                    modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', restart_num), modified_restart)
+                    lines[384] = modified_restart
+                    file.seek(0)
+                    file.writelines(lines)
+                    file.truncate()
+
+                ### submitting job with restart modification
+                job_IDS = self.submit_job(self.path,self.run_name)
+                print('-' * 100)
+                print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
+                sleep(120)
+
+                ### check status and waiting time for re-submitted job
+                t_jobwait, status, new_jobID = self.job_wait(job_IDS)
+                print("====JOB_IDS====")
+                print(new_jobID)
+                print("====JOB_STATUS====")
+                print(status)
+                print("====WAIT_TIME====")
+                print(t_jobwait)
+                print("====RESTART====")
+                print("True")
+                return True
+            else:
+                print("====EXCEPTION====")
+                print("ValueError")
+                print("Restart file pattern in .out not found or does not exist")
+                print("====RESTART====")
+                print("False")
+                return False
+            
+        else:
+            print('-' * 100)
+            print("Job reached completion, no restarts required")
+            print("====RESTART====")
+            print("False")
+            return False
+
     ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
 
     def job_restart(self,pset_dict):
@@ -590,7 +692,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "function",
-        choices=["run","monitor","job_restart","vtk_convert"], 
+        choices=["run","monitor","job_restart","test_restart","vtk_convert"], 
     )
 
     ### Input argument for dictionary
