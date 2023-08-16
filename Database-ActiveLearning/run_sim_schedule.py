@@ -50,12 +50,6 @@ with contextlib.redirect_stdout(captured_output):
 
 log.info('-' * 100)
 log.info('\n'+ psdict.to_string())
-log.info('-' * 100)
-
-### Save LHS dictionary for later
-
-with open('LHS_Geom.okl','wb') as file:
-    pickle.dump(psdict, file)
 
 ## Geometry parameters
 
@@ -114,8 +108,21 @@ n_levels = ps.plist("n_levels",["2"])
 d_radius = ps.plist("d_radius",["[0.0005,0.0003]"])
 smx_pos = ps.plist("smx_pos",smx_pos_list)
 
-## creates parameter grid (list of dictionarys)
-params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
+## Surfactant parameters
+diff1 = ps.plist('D_d',[])
+diff2 = ps.plist('D_b',[])
+ka = ps.plist('ka',[])
+kd = ps.plist('kd',[])
+ginf = ps.plist('ginf',[])
+gini = ps.plist('gini',[])
+diffs = ps.plist('D_s',[])
+beta = ps.plist('beta',[])
+
+#creates parameter grid (list of dictionarys)
+if case == 'Geom':
+    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
+else:
+    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,diff1,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
@@ -126,6 +133,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,skip_dups=False)   
+    df = ps.run_local(simulator.localrun, loaded_params, poolsize=4,save=True,skip_dups=False)   
 
 
