@@ -74,7 +74,7 @@ class SimScheduling:
         self.save_path = pset_dict['save_path']
         self.run_path = pset_dict['run_path']
         self.run_name = "run_"+str(self.run_ID)
-        self.user = pset_dict['user']
+        self.usr = pset_dict['user']
 
         self.main_path = os.path.join(self.run_path,'..')
 
@@ -367,7 +367,7 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        config.read(f'config_{self.user}.ini')
+        config.read(f'config_{self.usr}.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
@@ -485,7 +485,7 @@ class SimScheduling:
 
         ###Create run local directory to store data
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
-        ephemeral_path = f'/rds/general/user/{self.user}/ephemeral/'
+        ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
 
         try:
             os.mkdir(self.save_path_runID)
@@ -495,7 +495,7 @@ class SimScheduling:
 
         ### Config faile with keys to login to the HPC
         config = configparser.ConfigParser()
-        config.read(f'config_{user}.ini')
+        config.read(f'config_{self.usr}.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
