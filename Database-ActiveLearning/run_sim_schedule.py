@@ -50,6 +50,12 @@ with contextlib.redirect_stdout(captured_output):
 
 log.info('-' * 100)
 log.info('\n'+ psdict.to_string())
+log.info('-' * 100)
+
+### Save LHS dictionary for later
+
+with open('LHS_Geom.pkl', 'wb') as file:
+    pickle.dump(psdict, file)
 
 ### Save LHS dictionary for later
 
@@ -112,7 +118,6 @@ d_per_level = ps.plist("d_per_level",["6"])
 n_levels = ps.plist("n_levels",["2"])
 d_radius = ps.plist("d_radius",["[0.0005,0.0003]"])
 smx_pos = ps.plist("smx_pos",smx_pos_list)
-
 
 ## creates parameter grid (list of dictionarys)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
