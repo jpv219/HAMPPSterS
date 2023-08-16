@@ -57,6 +57,11 @@ log.info('-' * 100)
 with open('LHS_Geom.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
+### Save LHS dictionary for later
+
+with open('LHS_Geom.pkl', 'wb') as file:
+    pickle.dump(psdict, file)
+
 ## Geometry parameters
 
 if not re_run:
