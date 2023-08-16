@@ -74,11 +74,12 @@ class SimScheduling:
         self.save_path = pset_dict['save_path']
         self.run_path = pset_dict['run_path']
         self.run_name = "run_"+str(self.run_ID)
+        self.user = pset_dict['user']
 
         self.main_path = os.path.join(self.run_path,'..')
 
         ### Logger set-up
-        log_filename = f"output_{self.run_name}.txt"
+        log_filename = f"output_{self.case_type}/output_{self.run_name}.txt"
         log = self.set_log(log_filename)
 
         dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
@@ -293,8 +294,7 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        config.read('configjp.ini')
-        #config.read('confignk.ini')
+        config.read(f'config_{user}.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
@@ -335,7 +335,7 @@ class SimScheduling:
                     if exc == "RuntimeError":
                         raise RuntimeError('Job finished')
                     elif exc == "ValueError":
-                        raise ValueError('Exception raised from qstat in job_wait \
+                        raise ValueError('Exception raised from job sh creation, or qstat in job_wait \
                                     or attempting to search restart in job_restart')
                     elif exc == "FileNotFoundError":
                         raise FileNotFoundError('Cannot execute restart procedure')
@@ -412,8 +412,7 @@ class SimScheduling:
 
         ###Create run local directory to store data
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
-        ephemeral_path = '/rds/general/user/jpv219/ephemeral/'
-        #ephemeral_path = '/rds/general/user/nkahouad/ephemeral/'
+        ephemeral_path = f'/rds/general/user/{self.user}/ephemeral/'
 
         try:
             os.mkdir(self.save_path_runID)
@@ -423,8 +422,7 @@ class SimScheduling:
 
         ### Config faile with keys to login to the HPC
         config = configparser.ConfigParser()
-        config.read('configjp.ini')
-        #config.read('confignk.ini')
+        config.read(f'config_{user}.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']

@@ -20,17 +20,19 @@ log.info('Parametric study launch')
 log.info('-' * 100)
 log.info('-' * 100)
 
-case = "Geom"
+case = "geom"
 nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
+user = 'jpv219'
 
 run_path = ps.plist("run_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
 convert_path = ps.plist("convert_path",["/rds/general/user/jpv219/home/F_CONVERT"])
 
 case_type = ps.plist("case",[case])
+user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 
 local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning"])
@@ -54,7 +56,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('LHS_Geom.pkl', 'wb') as file:
+with open('DOE/LHS_Geom.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ## Geometry parameters
@@ -74,7 +76,7 @@ if not re_run:
     data = list(zip(bar_width_list, bar_thickness_list, bar_angle_list, radius_list, nbars_list, flowrate_list, smx_pos_list))
 
     # Save the combined data into a CSV file
-    with open('parameters.csv', 'w', newline='') as csvfile:
+    with open('params/parameters.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos'])
         writer.writerows(data)
@@ -90,7 +92,7 @@ else:
     smx_pos_list = []
 
     # Load data from CSV file
-    with open('parameters.csv', 'r') as csvfile:
+    with open('params/parameters.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             bar_width_list.append(row['bar_width'])
@@ -115,7 +117,9 @@ d_radius = ps.plist("d_radius",["[0.0005,0.0003]"])
 smx_pos = ps.plist("smx_pos",smx_pos_list)
 
 ## creates parameter grid (list of dictionarys)
-params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
+                  user_ps,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),
+                  max_diameter,d_per_level,n_levels,d_radius)
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################

@@ -20,17 +20,19 @@ log.info('Parametric study launch')
 log.info('-' * 100)
 log.info('-' * 100)
 
-case = "Surf"
+case = "surf"
 nruns = 32
 nruns_list = [str(i)+'S' for i in range(1, nruns + 1)]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
+user = 'nkahouad'
 
 run_path = ps.plist("run_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
 convert_path = ps.plist("convert_path",["/rds/general/user/nkahouad/home/F_CONVERT"])
 
 case_type = ps.plist("case",[case])
+user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 
 local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning"])
@@ -56,7 +58,7 @@ log.info('\n'+ dict_print.to_string())
 
 ### Save LHS dictionary for later
 
-with open('LHS_Surf.pkl', 'wb') as file:
+with open('DOE/LHS_Surf.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ## Surfactant parameters
@@ -75,7 +77,7 @@ if not re_run:
     data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
 
     # Save the combined data into a CSV file
-    with open('parameters_surf.csv', 'w', newline='') as csvfile:
+    with open('params/parameters_surf.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['D_b', 'ka', 'kd', 'ginf', 'gini', 'D_s', 'beta'])
         writer.writerows(data)
@@ -89,7 +91,7 @@ else:
     beta_list = []
 
     # Load data from CSV file
-    with open('parameters_surf.csv', 'r') as csvfile:
+    with open('params/parameters_surf.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             diff2_list.append(row['D_b'])
@@ -112,7 +114,7 @@ diffs = ps.plist('D_s',diffs_list)
 beta = ps.plist('beta',beta_list)
 
 #creates parameter grid (list of dictionarys)
-params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,diff1,zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,diff1,user_ps,zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################

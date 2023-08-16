@@ -5,8 +5,9 @@ try:
 except:
     pass
 try:
-    os.system('rm output*')
+    os.system('rm output_geom/output*')
+    os.system('rm output_surf/output*')
 except:
     pass
-os.system('rm *csv')
-os.system('rm *pkl')
+os.system('rm params/*csv')
+os.system('rm DOE/*pkl')
