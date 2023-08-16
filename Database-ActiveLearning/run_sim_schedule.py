@@ -19,7 +19,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "Geom"
-nruns = 16
+nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 log.info(f'Case {case} studied with {nruns} runs')
 

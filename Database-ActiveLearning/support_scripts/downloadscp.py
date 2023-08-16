@@ -16,38 +16,55 @@ try:
 except:
     pass
 
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-warnings.filterwarnings("ignore", category=ResourceWarning)
-
+### Config faile with keys to login to the HPC
 config = configparser.ConfigParser()
 config.read('../configjp.ini')
-#config.read('../confignk.ini')
+#config.read('confignk.ini')
 user = config.get('SSH', 'username')
 key = config.get('SSH', 'password')
+try_logins = ['login-d.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
 
-try:
-    ssh.connect('login-a.hpc.ic.ac.uk', username=user, password=key)
-    transport = ssh.get_transport()
-    sftp = paramiko.SFTPClient.from_transport(transport)
+for login in try_logins:
 
-    remote_path = os.path.join(ephemeral_path,run_name)
+    ssh = paramiko.SSHClient()
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    warnings.filterwarnings("ignore", category=ResourceWarning)
 
-    remote_files = sftp.listdir_attr(remote_path)
+    try:
+        ssh.connect(login, username=user, password=key)
+        stdin, _, _ = ssh.exec_command("echo 'SSH connection test'")
+        transport = ssh.get_transport()
+        sftp = paramiko.SFTPClient.from_transport(transport)
 
-    for file_attr in remote_files:
-        remote_file_path = os.path.join(remote_path, file_attr.filename)
-        local_file_path = os.path.join(save_path_runID, file_attr.filename)
+        remote_path = os.path.join(ephemeral_path,run_name)
+        remote_files = sftp.listdir_attr(remote_path)
 
-        # Check if it's a regular file before copying
-        if file_attr.st_mode & 0o100000:
-            sftp.get(remote_file_path, local_file_path)
-            print(f'Copied file {file_attr.filename}')
-    
+        for file_attr in remote_files:
+            remote_file_path = os.path.join(remote_path, file_attr.filename)
+            local_file_path = os.path.join(save_path_runID, file_attr.filename)
 
-### closing HPC session
-finally:
-    if 'sftp' in locals():
-        sftp.close()
-    if 'ssh' in locals():
-        ssh.close()
+            # Check if it's a regular file before copying
+            if file_attr.st_mode & 0o100000:
+                sftp.get(remote_file_path, local_file_path)
+
+        
+        print(f'Files successfully copied at {save_path_runID}')
+
+        if stdin is not None:
+            break
+        
+    except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+        if login == try_logins[-1]:
+            raise e
+        else:
+            print(f'SSH connection failed with login {login}, trying again ...')
+            continue
+        
+
+    ### closing HPC session
+    finally:
+        if 'sftp' in locals():
+            sftp.close()
+        if 'ssh' in locals():
+            ssh.close()
