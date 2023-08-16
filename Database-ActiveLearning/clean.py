@@ -9,3 +9,4 @@ try:
 except:
     pass
 os.system('rm *csv')
+os.system('rm *pkl')

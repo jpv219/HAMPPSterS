@@ -9,6 +9,8 @@ from doepy import build
 import math
 import numpy as np
 
+                      ############################# GEOMETRY FEATURES - LHS #########################
+
 ## Function applying restrictions
 
 def apply_restrictions(DOE):
@@ -47,7 +49,6 @@ def calcRe(row):
 def calcPos(row):
     return row['Radius (mm)']
 
-
 def runDOE(SMX_dict,numsamples):
 
     ## Initial LHS with no restrictions
@@ -59,6 +60,9 @@ def runDOE(SMX_dict,numsamples):
     modifiedLHS['SMX_pos (mm)'] = modifiedLHS.apply(lambda row: calcPos(row), axis = 1)
     
     return modifiedLHS
+
+
+                 ############################# SURFACTANT PROPERTIES - LHS #########################
 
 def surf_restriction(DOE):
     for i in range(DOE.shape[0]):
@@ -78,13 +82,33 @@ def surf_restriction(DOE):
 
 def gamma_ratio(row):
     return (row['Initial surface conc (mol/m2)']/row['Maximum packing conc (mol/ m2)'])
+def PeS(row):
+    return (0.159*0.008/row['Surface diffusivity (m2/s)'])
+def PeB(row):
+    return (0.159*0.008/row['Bulk Diffusivity (m2/s)'])
+def Bi(row):
+    return (row['Desorption Coeff (1/s)']*0.008/0.159)
+def Cinf(row):
+    return ((row['Desorption Coeff (1/s)']*row['Initial surface conc (mol/m2)'])/
+            (row['Adsorption Coeff (m3/mol s)']*(row['Maximum packing conc (mol/ m2)']-row['Initial surface conc (mol/m2)'])))
+def Da(row):
+    return (row['Maximum packing conc (mol/ m2)']/(row['Cinf']*0.008))
+def K(row):
+    return (row['Adsorption Coeff (m3/mol s)']*row['Cinf']/row['Desorption Coeff (1/s)'])
 
 def runSurfDOE(Surf_dict,samples):
 
     SurfDOE = build.space_filling_lhs(Surf_dict, num_samples=samples)
-
+    #### Adding dimensionless parameter calculation for easier post processing
     Modified_SurfDOE = surf_restriction(SurfDOE)
     Modified_SurfDOE['G0/Ginf'] = Modified_SurfDOE.apply(lambda row: gamma_ratio(row), axis = 1)
+    Modified_SurfDOE['PeS'] = Modified_SurfDOE.apply(lambda row: PeS(row), axis = 1)
+    Modified_SurfDOE['PeB'] = Modified_SurfDOE.apply(lambda row: PeB(row), axis = 1)
+    Modified_SurfDOE['Bi'] = Modified_SurfDOE.apply(lambda row: Bi(row), axis = 1)
+    Modified_SurfDOE['Cinf'] = Modified_SurfDOE.apply(lambda row: Cinf(row), axis = 1)
+    Modified_SurfDOE['Da'] = Modified_SurfDOE.apply(lambda row: Da(row), axis = 1)
+    Modified_SurfDOE['K'] = Modified_SurfDOE.apply(lambda row: K(row), axis = 1)
+
 
     return Modified_SurfDOE
 

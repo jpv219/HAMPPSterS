@@ -12,6 +12,7 @@ from logger import log
 import io
 import contextlib
 import csv
+import pickle
 
 log.info('-' * 100)
 log.info('-' * 100)
@@ -50,6 +51,11 @@ with contextlib.redirect_stdout(captured_output):
 log.info('-' * 100)
 log.info('\n'+ psdict.to_string())
 log.info('-' * 100)
+
+### Save LHS dictionary for later
+
+with open('LHS_Geom.pkl', 'wb') as file:
+    pickle.dump(psdict, file)
 
 ## Geometry parameters
 
