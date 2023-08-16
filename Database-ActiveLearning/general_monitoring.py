@@ -37,6 +37,7 @@ def main():
     pset_dict['cond_csv'] = "Time"
     pset_dict['conditional'] = "<"
     pset_dict['cond_csv_limit'] = "100000000"
+    pset_dict['user'] = "pdp19"
 
     if pset_dict['conditional'] in operator_map:
         comparison_func = operator_map[pset_dict['conditional']]

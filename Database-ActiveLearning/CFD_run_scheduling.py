@@ -242,6 +242,7 @@ class SimScheduling:
         self.case_name = pset_dict['case_name']
         self.run_ID = pset_dict['run_ID']
         self.main_path = os.path.join(self.run_path,'..')
+        self.user = pset_dict['user']
 
         ### Logger set-up
         log_filename = f"output_{self.case_name}.txt"
@@ -366,7 +367,7 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        config.read(f'config_{user}.ini')
+        config.read(f'config_{self.user}.ini')
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
