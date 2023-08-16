@@ -11,6 +11,7 @@ from LHS_Dataspace import runDOE
 from logger import log
 import io
 import contextlib
+import csv
 
 log.info('-' * 100)
 log.info('-' * 100)
@@ -22,6 +23,7 @@ case = "Geom"
 nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 log.info(f'Case {case} studied with {nruns} runs')
+re_run = False
 
 run_path = ps.plist("run_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
@@ -47,6 +49,7 @@ with contextlib.redirect_stdout(captured_output):
 
 log.info('-' * 100)
 log.info('\n'+ psdict.to_string())
+log.info('-' * 100)
 
 ## Geometry parameters
 
@@ -72,21 +75,27 @@ d_radius = ps.plist("d_radius",["[0.0005,0.0003]"])
 
 smx_pos = ps.plist("smx_pos",smx_pos_list)
 
-## Surfactant parameters
-diff1 = ps.plist('D_d',[])
-diff2 = ps.plist('D_b',[])
-ka = ps.plist('ka',[])
-kd = ps.plist('kd',[])
-ginf = ps.plist('ginf',[])
-gini = ps.plist('gini',[])
-diffs = ps.plist('D_s',[])
-beta = ps.plist('beta',[])
 
-#creates parameter grid (list of dictionarys)
-if case == 'Geom':
-    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
-else:
-    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,diff1,diff2,ka,kd,ginf,gini,diffs,beta))
+## creates parameter grid (list of dictionarys)
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
+
+
+if not re_run:
+    ### Saving params in a csv in case re-runs are needed
+    log.info('Saving parametric run in csv')
+    log.info('-' * 100)
+    with open('params.csv', "w", newline="") as csv_file:
+        fieldnames = params[0].keys()
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(params)
+
+loaded_params = []
+with open('params.csv', newline="") as csv_file:
+    reader = csv.DictReader(csv_file)
+    for row in reader:
+        loaded_params.append(row)
+
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
@@ -97,6 +106,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,skip_dups=False)   
+    df = ps.run_local(simulator.localrun, loaded_params, poolsize=4,save=True,skip_dups=False)   
 
 
