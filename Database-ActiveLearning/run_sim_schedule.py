@@ -55,6 +55,8 @@ log.info('\n'+ psdict.to_string())
 
 if not re_run:
 
+if not re_run:
+
     bar_width_list = list(map(str,psdict['Bar_Width (mm)'] / 1000))
     bar_thickness_list = list(map(str,psdict['Bar_Thickness (mm)'] / 1000))
     bar_angle_list = list(map(str,psdict['Angle']))
@@ -108,21 +110,27 @@ n_levels = ps.plist("n_levels",["2"])
 d_radius = ps.plist("d_radius",["[0.0005,0.0003]"])
 smx_pos = ps.plist("smx_pos",smx_pos_list)
 
-## Surfactant parameters
-diff1 = ps.plist('D_d',[])
-diff2 = ps.plist('D_b',[])
-ka = ps.plist('ka',[])
-kd = ps.plist('kd',[])
-ginf = ps.plist('ginf',[])
-gini = ps.plist('gini',[])
-diffs = ps.plist('D_s',[])
-beta = ps.plist('beta',[])
 
-#creates parameter grid (list of dictionarys)
-if case == 'Geom':
-    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
-else:
-    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,diff1,diff2,ka,kd,ginf,gini,diffs,beta))
+## creates parameter grid (list of dictionarys)
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
+
+
+if not re_run:
+    ### Saving params in a csv in case re-runs are needed
+    log.info('Saving parametric run in csv')
+    log.info('-' * 100)
+    with open('params.csv', "w", newline="") as csv_file:
+        fieldnames = params[0].keys()
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(params)
+
+loaded_params = []
+with open('params.csv', newline="") as csv_file:
+    reader = csv.DictReader(csv_file)
+    for row in reader:
+        loaded_params.append(row)
+
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
@@ -133,6 +141,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, loaded_params, poolsize=4,save=True,skip_dups=False)   
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,skip_dups=False)   
 
 
