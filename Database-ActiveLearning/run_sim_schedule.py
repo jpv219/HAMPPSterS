@@ -51,6 +51,11 @@ with contextlib.redirect_stdout(captured_output):
 log.info('-' * 100)
 log.info('\n'+ psdict.to_string())
 
+### Save LHS dictionary for later
+
+with open('LHS_Geom.pkl', 'wb') as file:
+    pickle.dump(psdict, file)
+
 ## Geometry parameters
 
 if not re_run:

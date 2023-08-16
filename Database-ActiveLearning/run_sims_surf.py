@@ -11,6 +11,8 @@ from LHS_Dataspace import runSurfDOE
 from logger import log
 import io
 import contextlib
+import csv
+import pickle
 
 log.info('-' * 100)
 log.info('-' * 100)
@@ -22,6 +24,7 @@ case = "Surf"
 nruns = 32
 nruns_list = [str(i)+'S' for i in range(1, nruns + 1)]
 log.info(f'Case {case} studied with {nruns} runs')
+re_run = False
 
 run_path = ps.plist("run_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
@@ -46,17 +49,57 @@ with contextlib.redirect_stdout(captured_output):
     log.info('Modifications to the DOE')
     log.info(captured_output.getvalue())
 
+dict_print = psdict.iloc[:,5:13]
+
 log.info('-' * 100)
-log.info('\n'+ psdict.to_string())
+log.info('\n'+ dict_print.to_string())
+
+### Save LHS dictionary for later
+
+with open('LHS_Surf.pkl', 'wb') as file:
+    pickle.dump(psdict, file)
 
 ## Surfactant parameters
-diff2_list = list(map(str,psdict['Bulk Diffusivity (m2/s)']))
-ka_list = list(map(str,psdict['Adsorption Coeff (m3/mol s)']))
-kd_list = list(map(str,psdict['Desorption Coeff (1/s)']))
-ginf_list = list(map(str,psdict['Maximum packing conc (mol/ m2)']))
-gini_list = list(map(str,psdict['Initial surface conc (mol/m2)']))
-diffs_list = list(map(str,psdict['Surface diffusivity (m2/s)']))
-beta_list = list(map(str,psdict['Elasticity Coeff']))
+
+if not re_run:
+
+    diff2_list = list(map(str,psdict['Bulk Diffusivity (m2/s)']))
+    ka_list = list(map(str,psdict['Adsorption Coeff (m3/mol s)']))
+    kd_list = list(map(str,psdict['Desorption Coeff (1/s)']))
+    ginf_list = list(map(str,psdict['Maximum packing conc (mol/ m2)']))
+    gini_list = list(map(str,psdict['Initial surface conc (mol/m2)']))
+    diffs_list = list(map(str,psdict['Surface diffusivity (m2/s)']))
+    beta_list = list(map(str,psdict['Elasticity Coeff']))
+
+    # Combine the lists
+    data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
+
+    # Save the combined data into a CSV file
+    with open('parameters_surf.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['D_b', 'ka', 'kd', 'ginf', 'gini', 'D_s', 'beta'])
+        writer.writerows(data)
+else:
+    diff2_list = []
+    ka_list = []
+    kd_list = []
+    ginf_list = []
+    gini_list = []
+    diffs_list = []
+    beta_list = []
+
+    # Load data from CSV file
+    with open('parameters_surf.csv', 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            diff2_list.append(row['D_b'])
+            ka_list.append(row['ka'])
+            kd_list.append(row['kd'])
+            ginf_list.append(row['ginf'])
+            gini_list.append(row['gini'])
+            diffs_list.append(row['D_s'])
+            beta_list.append(row['beta'])
+ 
 
 
 diff1 = ps.plist('D_d',["1.0"])
@@ -75,12 +118,11 @@ params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path
 ######################################################################################################################################################################################
 log.info('-' * 100)
 log.info('' * 100)
-log.info(params)
 
 
-# simulator = SimScheduling()
+simulator = SimScheduling()
 
-# if __name__ == '__main__':
-#     df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,skip_dups=False)   
+if __name__ == '__main__':
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,skip_dups=False)   
 
 
