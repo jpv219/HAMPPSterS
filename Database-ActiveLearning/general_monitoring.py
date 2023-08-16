@@ -9,10 +9,20 @@ from CFD_run_scheduling import SimScheduling
 from logger import log
 import io
 import contextlib
+import operator
 
 log.info('General job monitoring launch')
 log.info('-' * 100)
 log.info('-' * 100)
+
+operator_map = {
+    "<": operator.lt,
+    ">": operator.gt,
+    "<=": operator.le,
+    ">=": operator.ge,
+    "==": operator.eq,
+    "!=": operator.ne
+}
 
 def main():
     simulator = SimScheduling()
@@ -23,12 +33,17 @@ def main():
     pset_dict['run_ID'] = "1"
     pset_dict['local_path'] = "/home/pdp19/Documents/SMX_DeepLearning/Database-ActiveLearning"
     pset_dict['save_path'] = "/media/pdp19/PPICO/Pinchoff_ligament/pinchoff_test"
-    pset_dict['init_jobID'] = "8148268"
+    pset_dict['init_jobID'] = "8150117"
     pset_dict['cond_csv'] = "Time"
     pset_dict['conditional'] = "<"
-    pset_dict['cond_csv_limit'] = "10000000"
+    pset_dict['cond_csv_limit'] = "100000000"
 
-    simulator.localmonitor(pset_dict)
+    if pset_dict['conditional'] in operator_map:
+        comparison_func = operator_map[pset_dict['conditional']]
+        simulator.localmonitor(pset_dict)
+
+    else:
+        raise ValueError("Invalid operator. Please provide a correct operator (<,>,<=,>=,==,!=)")
 
 if __name__ == '__main__':
     main()

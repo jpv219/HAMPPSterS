@@ -310,7 +310,6 @@ class SimScheduling:
             mdict = self.pset_dict   
             mdict['jobID'] = jobid
             mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
-            print(mdict_str)
 
             if t_wait>0:
                 log.info('-' * 100)

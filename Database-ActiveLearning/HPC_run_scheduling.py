@@ -18,6 +18,16 @@ import re
 import argparse
 import json
 import numpy as np
+import operator
+
+operator_map = {
+    "<": operator.lt,
+    ">": operator.gt,
+    "<=": operator.le,
+    ">=": operator.ge,
+    "==": operator.eq,
+    "!=": operator.ne
+}
 
 class HPCScheduling:
 
@@ -379,40 +389,102 @@ class HPCScheduling:
     def condition_restart(self,pset_dict):
         self.run_ID = pset_dict['run_ID']
         self.run_name = "run_"+str(self.run_ID)
+        self.case_name = pset_dict['case_name']
         self.run_path = pset_dict['run_path']
-        self.path = os.path.join(self.run_path, self.run_name)
-        output_file_path = os.path.join(self.path,f'{self.run_name}.out')
-        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        self.path = os.path.join(self.run_path)
+        output_file_path = os.path.join(self.path,f'{self.case_name}.out')
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.case_name)
         self.cond_csv = pset_dict['cond_csv']
         self.conditional = pset_dict['conditional']
         self.cond_csv_limit = pset_dict['cond_csv_limit']
     
+        # Check # 1: Does the .out file exist?
         if not os.path.exists(output_file_path):
             print("====EXCEPTION====")
             print("FileNotFoundError")
-            print(f'File {self.run_name}.out does not exist')
+            print(f'File {self.case_name}.out does not exist')
             print("====RETURN_BOOL====")
             print("False")
             return False
+        else:
+            print('Output file found')
         
-        return True
+        # Check # 2: Has it created .rst files? Are they new files?
+        os.chdir(self.path)
+        line_with_pattern = None
+        
+        ### Checking last restart file instance in output file
+        with open(f"{self.case_name}.out", 'r') as file:
+            pattern = 'writing restart file'
+            lines = file.readlines()
+            for line in reversed(lines):
+                if pattern in line:
+                    line_with_pattern = line.strip()
+                    print('Restart files found')
+                    break
+            if line_with_pattern is None:
+                print("====EXCEPTION====")
+                print("ValueError")
+                print('No restart number match found')
+                print("====RETURN_BOOL====")
+                print("False")
+                return False
+            
+            else:
+                ### searching with re a sequence of 1 or more digits '\d+' in between two word boundaries '\b'
+                match = re.search(r"\b\d+\b", line_with_pattern)
+                new_restart_num = int(match.group())
+                print(new_restart_num)
+                with open(f"job_{self.case_name}.sh", 'r+') as file:
+                    lines = file.readlines()
+                    for line in lines:
+                        match = re.search(r'input_file_index=(.+)', line)
+                        print('match found')
+                    if match:
+                        old_restart_num = int(match.group())
+                        print(old_restart_num)
+                if new_restart_num == old_restart_num:
+                    print("====WARNING====")
+                    print("ValueError")
+                    print('No new .rst files were created in the previous run. Job will be submitted but please check')
+                else:
+                    print('New .rst files were created')
+        
+        # Check # 4: Has the finishing condition been satisfied?
+        os.chdir(ephemeral_path)
+        csv_file = pd.read_csv(f'HST_{self.case_name}.csv')
+        cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
+        comparison_func = operator_map[self.conditional]
+        print(comparison_func)
 
+        if not comparison_func(cond_val_last, float(self.cond_csv_limit)):
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print(f'Finishing condition satisfied. Simulation finalised')
+            print("====RETURN_BOOL====")
+            print("False")
+            return False
+        else:
+            print('Finishing condition not yet satisfied')
+        
+        # If all checks have been passed, then return True to restart the job
+        return True
 
     def test_restart(self,pset_dict):
 
         self.run_ID = pset_dict['run_ID']
         self.run_name = "run_"+str(self.run_ID)
+        self.case_name = pset_dict['case_name']
         self.run_path = pset_dict['run_path']
-        self.path = os.path.join(self.run_path, self.run_name)
-        output_file_path = os.path.join(self.path,f'{self.run_name}.out')
-        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        self.path = os.path.join(self.run_path)
+        output_file_path = os.path.join(self.path,f'{self.case_name}.out')
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.case_name)
 
         if self.condition_restart(pset_dict):
             os.chdir(self.path)
             line_with_pattern = None
-
             ### Checking last restart file instance in output file
-            with open(f"{self.run_name}.out", 'r') as file:
+            with open(f"{self.case_name}.out", 'r') as file:
                 lines = file.readlines()
                 pattern = 'writing restart file'
                 for line in reversed(lines):
@@ -433,22 +505,28 @@ class HPCScheduling:
                     print("False")
                     return False
                 ### Modifying .sh file accordingly
-                with open(f"job_{self.run_name}.sh", 'r+') as file:
+                with open(f"job_{self.case_name}.sh", 'r+') as file:
                     lines = file.readlines()
-                    restart_line = lines[384]
+                    for line in lines:
+                        if "input_file_index=" in line:
+                            restart_line = line
+                            break  # Stop searching once the line is found
                     modified_restart = re.sub('FALSE', 'TRUE', restart_line)
+
                     ### modifying the restart number by searching dynamically with f-strings. 
                     modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', restart_num), modified_restart)
-                    lines[384] = modified_restart
+                    lines[lines.index(restart_line)] = modified_restart
+                    print(restart_num)
                     file.seek(0)
                     file.writelines(lines)
                     file.truncate()
 
                 ### submitting job with restart modification
-                job_IDS = self.submit_job(self.path,self.run_name)
+                print('before submitting')
+                job_IDS = self.submit_job(self.path,self.case_name)
                 print('-' * 100)
-                print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
-                sleep(120)
+                print(f'Job {self.case_name} re-submitted correctly with ID: {job_IDS}')
+                sleep(10)
 
                 ### check status and waiting time for re-submitted job
                 t_jobwait, status, new_jobID = self.job_wait(job_IDS)
