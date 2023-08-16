@@ -53,13 +53,47 @@ log.info('-' * 100)
 
 ## Geometry parameters
 
-bar_width_list = list(map(str,psdict['Bar_Width (mm)'] / 1000))
-bar_thickness_list = list(map(str,psdict['Bar_Thickness (mm)'] / 1000))
-bar_angle_list = list(map(str,psdict['Angle']))
-radius_list = list(map(str,psdict['Radius (mm)'] / 1000))
-nbars_list = list(map(str,psdict['Nbars']))
-flowrate_list = list(map(str,psdict['Flowrate (m3/s)']))
-smx_pos_list = list(map(str,psdict['SMX_pos (mm)'] / 1000))
+if not re_run:
+
+    bar_width_list = list(map(str,psdict['Bar_Width (mm)'] / 1000))
+    bar_thickness_list = list(map(str,psdict['Bar_Thickness (mm)'] / 1000))
+    bar_angle_list = list(map(str,psdict['Angle']))
+    radius_list = list(map(str,psdict['Radius (mm)'] / 1000))
+    nbars_list = list(map(str,psdict['Nbars']))
+    flowrate_list = list(map(str,psdict['Flowrate (m3/s)']))
+    smx_pos_list = list(map(str,psdict['SMX_pos (mm)'] / 1000))
+
+
+    # Combine the lists
+    data = list(zip(bar_width_list, bar_thickness_list, bar_angle_list, radius_list, nbars_list, flowrate_list, smx_pos_list))
+
+    # Save the combined data into a CSV file
+    with open('parameters.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos'])
+        writer.writerows(data)
+
+else:
+    # Initialize empty lists for each parameter
+    bar_width_list = []
+    bar_thickness_list = []
+    bar_angle_list = []
+    radius_list = []
+    nbars_list = []
+    flowrate_list = []
+    smx_pos_list = []
+
+    # Load data from CSV file
+    with open('parameters.csv', 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            bar_width_list.append(row['bar_width'])
+            bar_thickness_list.append(row['bar_thickness'])
+            bar_angle_list.append(row['bar_angle'])
+            radius_list.append(row['radius'])
+            nbars_list.append(row['nbars'])
+            flowrate_list.append(row['flowrate'])
+            smx_pos_list.append(row['smx_pos'])
 
 
 bar_width = ps.plist("bar_width",bar_width_list)
@@ -72,30 +106,10 @@ flowrate = ps.plist("flowrate",flowrate_list)
 d_per_level = ps.plist("d_per_level",["6"])
 n_levels = ps.plist("n_levels",["2"])
 d_radius = ps.plist("d_radius",["[0.0005,0.0003]"])
-
 smx_pos = ps.plist("smx_pos",smx_pos_list)
-
 
 ## creates parameter grid (list of dictionarys)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,zip(run_ID,bar_width,bar_thickness,bar_angle,pipe_radius,n_bars,flowrate,smx_pos),max_diameter,d_per_level,n_levels,d_radius)
-
-
-if not re_run:
-    ### Saving params in a csv in case re-runs are needed
-    log.info('Saving parametric run in csv')
-    log.info('-' * 100)
-    with open('params.csv', "w", newline="") as csv_file:
-        fieldnames = params[0].keys()
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(params)
-
-loaded_params = []
-with open('params.csv', newline="") as csv_file:
-    reader = csv.DictReader(csv_file)
-    for row in reader:
-        loaded_params.append(row)
-
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
@@ -106,6 +120,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, loaded_params, poolsize=4,save=True,skip_dups=False)   
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,skip_dups=False)   
 
 

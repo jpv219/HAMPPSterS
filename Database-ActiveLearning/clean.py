@@ -8,3 +8,4 @@ try:
     os.system('rm output*')
 except:
     pass
+os.system('rm *csv')
