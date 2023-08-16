@@ -22,7 +22,7 @@ module USER
   integer,            parameter :: Nb_Drops_per_Level =   6          !
   integer,            parameter :: Nb_Levels          =   2          ! 
 !
-  real(kind=d),dimension(Nb_Levels), parameter :: Drop_Radius =i [5.0d-4,3.0e-4]
+  real(kind=d),dimension(Nb_Levels), parameter :: Drop_Radius = [5.0d-4,3.0d-4]
   real(kind=d),	      parameter :: Flow_Rate =   9.07897d-6     ! (m^3/s)
   public ::  USER_solid, USER_init, USER_bcd, USER_int
 

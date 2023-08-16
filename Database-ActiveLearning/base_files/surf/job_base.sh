@@ -2,7 +2,7 @@
 #PBS -N RUN_NAME
 #PBS -o RUN_NAME.out
 #PBS -j oe
-#PBS -l select=1:ncpus=125:mem=800gb
+#PBS -l select=1:ncpus=125:mem=256gb
 #PBS -l walltime=8:00:00
 set -vx
 cd $PBS_O_WORKDIR
@@ -50,7 +50,7 @@ cat > Blue.nml <<'EOF'
   num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=-1.0d0
 !
 ! Fixed time step,                     If fixed, set dt.
-  fixed_time_step=.TRUE.             dt=4.0D-4
+  fixed_time_step=.FALSE.             dt=4.0D-4
 !
 ! Time integeration scheme ("GEAR" order(2) or "CRANK-NICHOLSON" order(2) or "EULER" order(1) scheme).
   time_integration_scheme="GEAR"
@@ -379,7 +379,7 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=2.5d-4     output_restart_file_prefix="RUN_NAME"
+  output_restart_frequency=0     output_restart_time_interval=1.0d-4     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
   restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"

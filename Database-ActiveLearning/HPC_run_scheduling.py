@@ -58,13 +58,13 @@ class HPCScheduling:
 
             ### Surfactant features
             self.diff1 = pset_dict['D_d']
-            self.diff2 = pset_dict['D_b']
-            self.ka = pset_dict['ka']
-            self.kd = pset_dict['kd']
-            self.ginf = pset_dict['ginf']
-            self.gini = pset_dict['gini']
-            self.diffs = pset_dict['D_s']
-            self.beta = pset_dict['beta']
+            self.diff2 = format(float(pset_dict['D_b']),'.10f')
+            self.ka = format(float(pset_dict['ka']),'.10f')
+            self.kd = format(float(pset_dict['kd']),'.10f')
+            self.ginf = format(float(pset_dict['ginf']),'.10f')
+            self.gini = format(float(pset_dict['gini']),'.10f')
+            self.diffs = format(float(pset_dict['D_s']),'.10f')
+            self.beta = format(float(pset_dict['beta']),'.10f')
 
         self.run_name = "run_"+str(self.run_ID)
         self.path = os.path.join(self.run_path, self.run_name)
