@@ -49,7 +49,7 @@ class HPCScheduling:
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
 
-        if self.case_type == 'Geom':
+        if self.case_type == 'geom':
 
             ### Geometry features
             self.bar_width = pset_dict['bar_width']
@@ -93,11 +93,13 @@ class HPCScheduling:
         print('JOB.SH CREATION')
         print('-' * 100)
 
-        if self.case_type == 'Geom':
-            try:
-                self.setjobsh()
-            except ValueError as e:
-                print(f'Case ID {self.run_ID} failed due to: {e}')
+        try:
+            self.setjobsh()
+        except ValueError as e:
+            print(f'Case ID {self.run_ID} failed due to: {e}')
+            print("====EXCEPTION====")
+            print("ValueError")
+            raise ValueError (f'Exited HPC with error {e}')
 
         ### Submitting job.sh
         print('-' * 100)
@@ -168,7 +170,7 @@ class HPCScheduling:
         print('-' * 100)
         print(f'Run directory {self.path} created and base files copied')
 
-        if self.case_type == 'Geom':
+        if self.case_type == 'geom':
 
             ## Assign values to placeholders
             os.system(f'sed -i \"s/\'pipe_radius\'/{self.pipe_radius}/\" {self.path}/{self.run_name}_SMX.f90')
@@ -213,7 +215,7 @@ class HPCScheduling:
         os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
 
         ### If geometry variations are studied, construct domain and mesh specifications in job.sh accordingly
-        if self.case_type == 'Geom':
+        if self.case_type == 'geom':
 
             radius = float(self.pipe_radius)
             max_diameter = float(self.max_diameter)
@@ -321,7 +323,7 @@ class HPCScheduling:
             print('-' * 100)
             print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
 
-        elif self.case_type == 'Surf':
+        elif self.case_type == 'surf':
 
             ### Replacing placeholders for surfactant parametric study with fixed geometry
             os.system(f'sed -i \"s/\'diff1\'/{self.diff1}/\" {self.path}/job_{self.run_name}.sh')

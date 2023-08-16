@@ -1,3 +1,6 @@
 *.txt
 __pycache__/
 *.ini
+*csv
+calc/
+*pkl
