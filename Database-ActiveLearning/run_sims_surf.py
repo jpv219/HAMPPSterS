@@ -8,11 +8,13 @@
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
 from LHS_Dataspace import runSurfDOE
-from logger import log
+from logger import configure_logger
 import io
 import contextlib
 import csv
 import pickle
+
+log = configure_logger("surf")
 
 log.info('-' * 100)
 log.info('-' * 100)
@@ -105,6 +107,7 @@ else:
 
 
 diff1 = ps.plist('D_d',["1.0"])
+pipe_radius = ps.plist("pipe_radius",["0.007875"])
 diff2 = ps.plist('D_b',diff2_list)
 ka = ps.plist('ka',ka_list)
 kd = ps.plist('kd',kd_list)

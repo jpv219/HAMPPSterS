@@ -411,7 +411,7 @@ class SimScheduling:
                         raise ValueError('Exception raised from job sh creation, or qstat in job_wait \
                                     or attempting to search restart in job_restart')
                     elif exc == "FileNotFoundError":
-                        raise FileNotFoundError('Cannot execute restart procedure')
+                        raise FileNotFoundError('Cannot execute restart procedure, either .out or .csv files not found')
                     else:
                         raise NameError('Search for exception from log failed')
                     
