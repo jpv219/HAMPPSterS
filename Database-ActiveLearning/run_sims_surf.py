@@ -105,6 +105,7 @@ else:
 
 
 diff1 = ps.plist('D_d',["1.0"])
+pipe_radius = ps.plist("pipe_radius",["0.007875"])
 diff2 = ps.plist('D_b',diff2_list)
 ka = ps.plist('ka',ka_list)
 kd = ps.plist('kd',kd_list)

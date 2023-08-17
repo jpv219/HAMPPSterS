@@ -376,16 +376,64 @@ class HPCScheduling:
             
         return t_wait, status, newjobid
 
-    ### checking termination condition (PtxEast position) and restarting sh based on last output restart reached
+    ### checking termination condition (PtxEast position or real time) and restarting sh based on last output restart reached
+
+    def stop_crit(self):
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        os.chdir(ephemeral_path)
+
+        if self.case_type == 'geom':
+
+            ### Checking if there is a csv file: if not, run cannot be restart in geom case
+            if os.path.exists(f'{self.run_name}.csv'):
+                ## Checking location of the interface in the x direction -- stopping criterion
+                ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
+                domain_x = math.ceil(4*self.pipe_radius*1000)/1000
+                min_lim = 0.90*domain_x
+                return ptxEast_f < min_lim
+
+            ### Else returning none to print the exception in case of geom runs
+            else:
+                return None
+        else:
+
+            if os.path.exists(f'{self.run_name}.csv'):
+                ## Checking location of the interface in the x direction -- stopping criterion
+                ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
+                domain_x = math.ceil(4*self.pipe_radius*1000)/1000
+                min_lim = 0.90*domain_x
+
+                ### option to consider an additional termination condition in case csv file does not exist or can't be read
+                ### Mainly for surf case with known time termination
+                VAR_file_list = glob.glob('VAR_*_*.vtk')
+                last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
+                t_n = last_vtk*5e-3 # based on the jobsh base file configuration
+                t_f = 0.3 # seconds based on high res SMX simulations
+
+                return ptxEast_f < min_lim and t_n<t_f
+
+            ### Else returning none to print the exception in case of geom runs
+            else:
+                ### option to consider an additional termination condition in case csv file does not exist or can't be read
+                ### Mainly for surf case with known time termination
+                VAR_file_list = glob.glob('VAR_*_*.vtk')
+                last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
+                t_n = last_vtk*5e-3 # based on the jobsh base file configuration
+                t_f = 0.3 # seconds based on high res SMX simulations
+
+                return t_n<t_f
+
+
 
     def job_restart(self,pset_dict):
 
+        self.pset_dict = pset_dict
         self.run_ID = pset_dict['run_ID']
+        self.case_type = pset_dict['case']
         self.run_name = "run_"+str(self.run_ID)
         self.run_path = pset_dict['run_path']
         self.path = os.path.join(self.run_path, self.run_name)
         output_file_path = os.path.join(self.path,f'{self.run_name}.out')
-        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
         self.pipe_radius = float(pset_dict['pipe_radius'])
 
@@ -397,15 +445,18 @@ class HPCScheduling:
             print("====RETURN_BOOL====")
             print("False")
             return False
+        
+        ### If it is case geom and there is no csv to check stop, exit with exception and stop run
+        if self.case_type == 'geom' and self.stop_crit() is None:
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print(f'File {self.run_name}.csv does not exist')
+            print("====RETURN_BOOL====")
+            print("False")
+            return False
+    
 
-        os.chdir(ephemeral_path)
-
-        ## Checking location of the interface in the x direction -- stopping criterion
-        ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
-        domain_x = math.ceil(4*self.pipe_radius*1000)/1000
-        min_lim = 0.95*domain_x
-
-        if ptxEast_f < min_lim:
+        if self.stop_crit():
             os.chdir(self.path)
             line_with_pattern = None
 
