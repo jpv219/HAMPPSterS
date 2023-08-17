@@ -439,7 +439,7 @@ class HPCScheduling:
                 print(new_restart_num)
                 with open(f"job_{self.case_name}.sh", 'r+') as file:
                     lines = file.readlines()
-                    for line in lines:
+                    for line in reversed(lines):
                         match = re.search(r'input_file_index=(.+)', line)
                         print('match found')
                     if match:
