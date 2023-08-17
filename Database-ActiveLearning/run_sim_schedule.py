@@ -8,11 +8,13 @@
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
 from LHS_Dataspace import runDOE
-from logger import log
+from logger import configure_logger
 import io
 import contextlib
 import csv
 import pickle
+
+log = configure_logger("geom")
 
 log.info('-' * 100)
 log.info('-' * 100)
