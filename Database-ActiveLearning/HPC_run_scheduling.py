@@ -376,11 +376,12 @@ class HPCScheduling:
             
         return t_wait, status, newjobid
 
-    ### checking termination condition (PtxEast position or real time) and restarting sh based on last output restart reached
+    ### checking termination condition (PtxEast position or real time) 
 
     def stop_crit(self):
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
         os.chdir(ephemeral_path)
+        radius = float(self.pipe_radius)
 
         if self.case_type == 'geom':
 
@@ -388,7 +389,7 @@ class HPCScheduling:
             if os.path.exists(f'{self.run_name}.csv'):
                 ## Checking location of the interface in the x direction -- stopping criterion
                 ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
-                domain_x = math.ceil(4*self.pipe_radius*1000)/1000
+                domain_x = math.ceil(4*radius*1000)/1000
                 min_lim = 0.90*domain_x
                 return ptxEast_f < min_lim
 
@@ -400,7 +401,7 @@ class HPCScheduling:
             if os.path.exists(f'{self.run_name}.csv'):
                 ## Checking location of the interface in the x direction -- stopping criterion
                 ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
-                domain_x = math.ceil(4*self.pipe_radius*1000)/1000
+                domain_x = math.ceil(4*radius*1000)/1000
                 min_lim = 0.90*domain_x
 
                 ### option to consider an additional termination condition in case csv file does not exist or can't be read
@@ -424,6 +425,7 @@ class HPCScheduling:
                 return t_n<t_f
 
 
+    ### Restarting sh based on termination condition eval and last output restart reached
 
     def job_restart(self,pset_dict):
 
@@ -435,7 +437,7 @@ class HPCScheduling:
         self.path = os.path.join(self.run_path, self.run_name)
         output_file_path = os.path.join(self.path,f'{self.run_name}.out')
 
-        self.pipe_radius = float(pset_dict['pipe_radius'])
+        self.pipe_radius = pset_dict['pipe_radius']
 
         ### Checking if there is an output file: if not, run did not start - complete correctly
         if not os.path.exists(output_file_path):

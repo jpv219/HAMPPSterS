@@ -106,18 +106,18 @@ else:
  
 
 
-diff1 = ps.plist('D_d',["1.0"])
+diff1 = ps.plist("D_d",["1.0"])
 pipe_radius = ps.plist("pipe_radius",["0.007875"])
-diff2 = ps.plist('D_b',diff2_list)
-ka = ps.plist('ka',ka_list)
-kd = ps.plist('kd',kd_list)
-ginf = ps.plist('ginf',ginf_list)
-gini = ps.plist('gini',gini_list)
-diffs = ps.plist('D_s',diffs_list)
-beta = ps.plist('beta',beta_list)
+diff2 = ps.plist("D_b",diff2_list)
+ka = ps.plist("ka",ka_list)
+kd = ps.plist("kd",kd_list)
+ginf = ps.plist("ginf",ginf_list)
+gini = ps.plist("gini",gini_list)
+diffs = ps.plist("D_s",diffs_list)
+beta = ps.plist("beta",beta_list)
 
 #creates parameter grid (list of dictionarys)
-params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,diff1,user_ps,zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,diff1,user_ps,pipe_radius,zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
