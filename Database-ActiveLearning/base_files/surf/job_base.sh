@@ -65,7 +65,7 @@ cat > Blue.nml <<'EOF'
   int_time_step_factor    =0.2d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
-  surf_time_step_factor   =2.0d0
+  surf_time_step_factor   =3.0d0
   global_time_step_factor =1.0d0
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
@@ -334,7 +334,7 @@ cat > Blue.nml <<'EOF'
   output_box_selection=.FALSE.       output_box_coordinates=0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0
 !
 ! If ParaView,               Format,                Loop Frequency,          Time interval (s),             Prefix.
-  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=5.0d-3   paraview_file_prefix="RUN_NAME"
+  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=1.0d-3   paraview_file_prefix="RUN_NAME"
 !
 ! If tecplot,                Loop Frequency,        Time interval (s),        Prefix.
   tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="RUN_NAME"
@@ -343,7 +343,7 @@ cat > Blue.nml <<'EOF'
   interface_output=.FALSE.    interface_format="stl"   interface_frequency=10   interface_time_interval=0.0d0    interface_file_prefix="RUN_NAME"
 !
 ! If history,         Loop Frequency,        Time interval (s),        Prefix.
-  history_output=.FALSE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="RUN_NAME"
+  history_output=.TRUE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="RUN_NAME"
                       !                       X,          Y,          Z
                       center_reference_point= 0.064d0,      0.008d0,      0.008d0        ! Center reference.
                       axis_reference_point  = 0.0d0,      0.0d0                    ! z-axis reference.
