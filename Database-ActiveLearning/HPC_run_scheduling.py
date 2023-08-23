@@ -1,7 +1,7 @@
 ### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
 ### HPC scheduling and monitoring script
 ### to be run in the HPC node
-### Author: Juan Pablo Valdes,
+### Author: Juan Pablo Valdes, Paula Pico
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -386,11 +386,9 @@ class HPCScheduling:
             
         return t_wait, status, newjobid
 
-    ### Checking whether the conditions to restart a job are met
+    ### Function that performs multiple checks to decide if the simulation should restart
 
     def condition_restart(self,pset_dict):
-        self.run_ID = pset_dict['run_ID']
-        self.run_name = "run_"+str(self.run_ID)
         self.case_name = pset_dict['case_name']
         self.run_path = pset_dict['run_path']
         self.path = os.path.join(self.run_path)
@@ -399,19 +397,70 @@ class HPCScheduling:
         self.cond_csv = pset_dict['cond_csv']
         self.conditional = pset_dict['conditional']
         self.cond_csv_limit = pset_dict['cond_csv_limit']
+        new_restart_num = 0
+        message = []
     
-        # Check # 1: Does the .out file exist?
+        # Check # 1: Does the .out file exist? --------------------------------------------------------------
         if not os.path.exists(output_file_path):
-            print("====EXCEPTION====")
-            print("FileNotFoundError")
-            print(f'File {self.case_name}.out does not exist')
-            print("====RETURN_BOOL====")
-            print("False")
-            return False
-        else:
-            print('Output file found')
+            message = ['-' * 100,"====EXCEPTION====","FileNotFoundError",f'File {self.case_name}.out does not exist',"====RETURN_BOOL====","False",'-' * 100]
+            return False, new_restart_num, message
+
+        # Check # 2: Did the simulation diverge or were the .rst files deleted? --------------------------------------------------------------
+        os.chdir(self.path)
+        line_with_pattern = None
         
-        # Check # 2: Has it created .rst files? Are they new files?
+        ### Checking last restart file instance in output file
+        with open(f"{self.case_name}.out", 'r') as file:
+            pattern = 'BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES'
+            # Only read the last 50 lines of .out file
+            lines = file.readlines()[-50:]
+            for line in reversed(lines):
+                if pattern in line:
+                    line_with_pattern = line.strip()
+                    break
+            if line_with_pattern is not None:
+                message = ['-' * 100,"====EXCEPTION====","ValueError",f'Simulation {self.case_name} diverged or .rst files deleted!',"====RETURN_BOOL====","False",'-' * 100]
+                return False, new_restart_num, message
+            
+        # Check # 3: Did the HPC kill the job because of lack of memory? --------------------------------------------------------------
+        os.chdir(self.path)
+        line_with_pattern = None
+        
+        ### Checking last restart file instance in output file
+        with open(f"{self.case_name}.out", 'r') as file:
+            pattern = 'PBS: job killed: mem'
+            # Only read the last 50 lines of .out file
+            lines = file.readlines()[-50:]
+            for line in reversed(lines):
+                if pattern in line:
+                    line_with_pattern = line.strip()
+                    break
+            if line_with_pattern is not None:
+                message = ['-' * 100,"====EXCEPTION====","SystemExit",f'Simulation {self.case_name} was killed due to lack of memory',"====RETURN_BOOL====","False",'-' * 100]
+                return False, new_restart_num, message
+        
+        # Check # 4: Has the finishing condition been satisfied? --------------------------------------------------------------
+        os.chdir(ephemeral_path)
+        try:
+            csv_file = glob.glob(os.path.join(".", "*.csv"))
+            if csv_file:
+                csv_file = pd.read_csv(f'HST_{self.case_name}.csv')
+                cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
+                cond_val_ini = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[0]
+                progress = 100*np.abs(((cond_val_last - cond_val_ini)/(float(self.cond_csv_limit) - cond_val_ini)))
+                comparison_func = operator_map[self.conditional]
+
+                if not comparison_func(cond_val_last, float(self.cond_csv_limit)):
+                    message = ['-' * 100,"====EXCEPTION====","SystemExit",f'Finishing condition of simulation {self.case_name} satisfied',"====RETURN_BOOL====","False",'-' * 100]
+                    return False, new_restart_num, message
+            else:
+                print('-' * 100)
+                print("WARNING: No *csv file found. Cannot check finishing condition. Simulation progress not calculated")
+                print('-' * 100)
+        finally:
+            progress = 0
+        
+        # Check # 5: Has it created .rst files? Are they new files? --------------------------------------------------------------
         os.chdir(self.path)
         line_with_pattern = None
         
@@ -422,138 +471,78 @@ class HPCScheduling:
             for line in reversed(lines):
                 if pattern in line:
                     line_with_pattern = line.strip()
-                    print('Restart files found')
                     break
             if line_with_pattern is None:
-                print("====EXCEPTION====")
-                print("ValueError")
-                print('No restart number match found')
-                print("====RETURN_BOOL====")
-                print("False")
-                return False
-            
+                message = ['-' * 100,"====EXCEPTION====","ValueError",f'No restart number match found in simulation {self.case_name}',"====RETURN_BOOL====","False",'-' * 100]
+                return False, new_restart_num, message       
             else:
-                ### searching with re a sequence of 1 or more digits '\d+' in between two word boundaries '\b'
                 match = re.search(r"\b\d+\b", line_with_pattern)
                 new_restart_num = int(match.group())
-                print(new_restart_num)
                 with open(f"job_{self.case_name}.sh", 'r+') as file:
                     lines = file.readlines()
                     for line in reversed(lines):
-                        match = re.search(r'input_file_index=(.+)', line)
-                        print('match found')
-                    if match:
-                        old_restart_num = int(match.group())
-                        print(old_restart_num)
+                        match = re.search(r'input_file_index=(\d+)', line)
+                        if match:
+                            old_restart_num = int(match.group(1))
+                            break
                 if new_restart_num == old_restart_num:
-                    print("====WARNING====")
-                    print("ValueError")
-                    print('No new .rst files were created in the previous run. Job will be submitted but please check')
+                    message = ['-' * 100,"====WARNING====","ValueError",'No new .rst files were created in previous run. Job will be re-submitted but please check',f'The restart index is {new_restart_num}',f'The relative progess is {round(progress, 2)}%','-' * 100]
                 else:
-                    print('New .rst files were created')
-        
-        # Check # 4: Has the finishing condition been satisfied?
-        os.chdir(ephemeral_path)
-        csv_file = pd.read_csv(f'HST_{self.case_name}.csv')
-        cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
-        comparison_func = operator_map[self.conditional]
-        print(comparison_func)
-
-        if not comparison_func(cond_val_last, float(self.cond_csv_limit)):
-            print("====EXCEPTION====")
-            print("FileNotFoundError")
-            print(f'Finishing condition satisfied. Simulation finalised')
-            print("====RETURN_BOOL====")
-            print("False")
-            return False
-        else:
-            print('Finishing condition not yet satisfied')
+                    message = ['-' * 100,f'Simulation {self.case_name} passed all restarting checks!',f'The restart index is {new_restart_num}',f'The relative progess is {round(progress, 2)}%','-' * 100]
         
         # If all checks have been passed, then return True to restart the job
-        return True
+        return True, new_restart_num, message
+    
+    ### Testing function to restart
 
     def test_restart(self,pset_dict):
 
-        self.run_ID = pset_dict['run_ID']
-        self.run_name = "run_"+str(self.run_ID)
-        self.case_name = pset_dict['case_name']
-        self.run_path = pset_dict['run_path']
-        self.path = os.path.join(self.run_path)
-        output_file_path = os.path.join(self.path,f'{self.case_name}.out')
-        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.case_name)
+        # Calling the checking function to see if the the simulation can restart
+        ret_bool, new_restart_num, message = self.condition_restart(pset_dict)
 
-        if self.condition_restart(pset_dict):
+        # If the output of the cheking function is True, being the restarting process
+        if ret_bool:
+            for line in message:
+                print(line)
             os.chdir(self.path)
-            line_with_pattern = None
-            ### Checking last restart file instance in output file
-            with open(f"{self.case_name}.out", 'r') as file:
+            ### Modifying .sh file accordingly
+            with open(f"job_{self.case_name}.sh", 'r+') as file:
                 lines = file.readlines()
-                pattern = 'writing restart file'
-                for line in reversed(lines):
-                    if pattern in line:
-                        line_with_pattern = line.strip()
+                for line in lines:
+                    if "input_file_index=" in line:
+                        restart_line = line
                         break
-            ### Extracting restart number from line
-            if line_with_pattern is not None:
-                ### searching with re a sequence of 1 or more digits '\d+' in between two word boundaries '\b'
-                match = re.search(r"\b\d+\b", line_with_pattern)
-                if match is not None:
-                    restart_num = int(match.group())
-                else:
-                    print("====EXCEPTION====")
-                    print("ValueError")
-                    print('No restart number match found')
-                    print("====RETURN_BOOL====")
-                    print("False")
-                    return False
-                ### Modifying .sh file accordingly
-                with open(f"job_{self.case_name}.sh", 'r+') as file:
-                    lines = file.readlines()
-                    for line in lines:
-                        if "input_file_index=" in line:
-                            restart_line = line
-                            break  # Stop searching once the line is found
-                    modified_restart = re.sub('FALSE', 'TRUE', restart_line)
+                modified_restart = re.sub('FALSE', 'TRUE', restart_line)
 
-                    ### modifying the restart number by searching dynamically with f-strings. 
-                    modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', restart_num), modified_restart)
-                    lines[lines.index(restart_line)] = modified_restart
-                    print(restart_num)
-                    file.seek(0)
-                    file.writelines(lines)
-                    file.truncate()
+                ### modifying the restart number by searching dynamically with f-strings. 
+                modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', new_restart_num), modified_restart)
+                lines[lines.index(restart_line)] = modified_restart
+                file.seek(0)
+                file.writelines(lines)
+                file.truncate()
 
-                ### submitting job with restart modification
-                print('before submitting')
-                job_IDS = self.submit_job(self.path,self.case_name)
-                print('-' * 100)
-                print(f'Job {self.case_name} re-submitted correctly with ID: {job_IDS}')
-                sleep(10)
+            ### submitting job with restart modification
+            job_IDS = self.submit_job(self.path,self.case_name)
+            print('-' * 100)
+            print(f'Job {self.case_name} re-submitted correctly with ID: {job_IDS}')
+            sleep(10)
 
-                ### check status and waiting time for re-submitted job
-                t_jobwait, status, new_jobID = self.job_wait(job_IDS)
-                print("====JOB_IDS====")
-                print(new_jobID)
-                print("====JOB_STATUS====")
-                print(status)
-                print("====WAIT_TIME====")
-                print(t_jobwait)
-                print("====RESTART====")
-                print("True")
-                return True
-            else:
-                print("====EXCEPTION====")
-                print("ValueError")
-                print("Restart file pattern in .out not found or does not exist")
-                print("====RESTART====")
-                print("False")
-                return False
+            ### check status and waiting time for re-submitted job
+            t_jobwait, status, new_jobID = self.job_wait(job_IDS)
+            print("====JOB_IDS====")
+            print(new_jobID)
+            print("====JOB_STATUS====")
+            print(status)
+            print("====WAIT_TIME====")
+            print(t_jobwait)
+            print("====RESTART====")
+            print("True")
+            return True
             
         else:
             print('-' * 100)
-            print("Job reached completion, no restarts required")
-            print("====RESTART====")
-            print("False")
+            for line in message:
+                print(line)
             return False
 
     ### checking termination condition (PtxEast position or real time) and restarting sh based on last output restart reached
@@ -602,7 +591,6 @@ class HPCScheduling:
                 t_f = 0.3 # seconds based on high res SMX simulations
 
                 return t_n<t_f
-
 
 
     def job_restart(self,pset_dict):
@@ -704,6 +692,137 @@ class HPCScheduling:
             print("====RESTART====")
             print("False")
             return False
+
+
+    ### Testing general function to convert vtk to vtr
+    def test_vtk_convert(self,pset_dict):
+
+        self.case_name = pset_dict['case_name']
+        self.run_path = pset_dict['run_path']
+        self.path = os.path.join(self.run_path)
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.case_name)
+        self.convert_path = pset_dict['convert_path']
+
+        os.chdir(ephemeral_path)
+        # Retrieving all *pvd and *vtk files of case in EPHEMERAL
+        ISO_file_list = glob.glob('ISO_*.vtk')
+        VAR_file_list = glob.glob('VAR_*_*.vtk')
+        PVD_file_list = glob.glob('VAR_*.pvd')
+        files_to_convert = VAR_file_list + ISO_file_list
+        file_count = len(files_to_convert)
+
+        # Check if pvds and vtks exist
+        if not PVD_file_list:
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('No pvd files were found')
+            print("====RETURN_BOOL====")
+            print("False")
+            return False
+
+        elif not VAR_file_list:
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('No VAR files were found')
+            print("====RETURN_BOOL====")
+            print("False")
+        else:
+            print('VTKS and PVDs found. Converting process will begin')
+
+            #Creates directory in EPHEMERAL of the form 'FILES_X+1', where X is the highest value found in directory
+            directory_pattern = re.compile(r'FILES(\d+)')
+            existing_directories = [dir_name for dir_name in os.listdir('.') if os.path.isdir(dir_name) and directory_pattern.match(dir_name)]
+
+            if existing_directories:
+                largest_x = max(int(directory_pattern.match(dir_name).group(1)) for dir_name in existing_directories)
+            else:
+                largest_x = -1
+
+            new_x = largest_x + 1
+            new_directory_name = f'FILES{new_x}'
+            os.mkdir(new_directory_name)
+            print(f"Created new directory: {new_directory_name}")
+            os.chdir(new_directory_name)
+            # Move pvds and vtks to FILES_X+1
+            for file in files_to_convert + PVD_file_list:
+                shutil.move(f"../{file}", ".")
+            print("pvd + var + ISO files moved")
+
+            for item in os.listdir(self.convert_path):
+                source_item = os.path.join(f"{self.convert_path}", item)
+                destination_item = os.path.join(".", item)
+                if os.path.isdir(source_item):
+                    shutil.copytree(source_item, destination_item)
+                else:
+                    shutil.copy2(source_item, destination_item)
+
+            print("All files and directories from F_CONVERT copied successfully")
+            print(f"{file_count} files to convert")
+            # Replace value of 'FILECOUNT' for the number of vtks to convert in Multithread_pool.py
+            os.system(f'sed -i \"s/\'FILECOUNT\'/{file_count}/\" Multithread_pool.py')
+            print('Multithread has been updated')
+            # Change job conversion name
+            os.system(f'sed -i \"s/\'case_name\'/{self.case_name}/\" job_convert.sh')
+            print('Job name updated')
+
+            ### Submitting job convert and extracting job_id, wait time and status
+            jobid = self.submit_job(os.getcwd(),'convert')
+
+            print('-' * 100)
+            print(f'JOB CONVERT from {self.case_name} submitted succesfully with ID {jobid}')
+
+            t_jobwait, status, new_jobID = self.job_wait(jobid)
+            print("====JOB_IDS====")
+            print(new_jobID)
+            print("====JOB_STATUS====")
+            print(status)
+            if status == 'Q' or status == 'H':
+                print("====WAIT_TIME====")
+                print(t_jobwait-2000)
+            elif status == 'R':
+                print("====WAIT_TIME====")
+                print(t_jobwait-2000)
+            # IMPORTANT: this function will create a file in the main directory of the case called "last_convert.txt". This file stores the name of the last /
+            #  "FILES_X+1" created so it can be read by the copy function to find it.
+            os.chdir(self.path)
+            with open('last_convert.txt', 'w') as f:
+                f.write(f'{new_directory_name}')
+
+
+    # Function that checks if the conversion job was succesful before copying files from EPHEMERAL
+    def test_check_convert(self,pset_dict):
+        self.case_name = pset_dict['case_name']
+        self.run_path = pset_dict['run_path']
+        self.path = os.path.join(self.run_path)
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.case_name)
+        self.convert_path = pset_dict['convert_path']
+        os.chdir(self.path)
+
+        # IMPORTANT: this function reads the txt file created by the vtk conversion function to find the name of the "FILES_X+1" directory to be copied
+        with open('last_convert.txt', 'r') as file:
+            lines = file.readlines()
+        last_FILES = lines[-1].strip()
+
+        print("Last Files directory:", last_FILES)
+        ephemeral_dict = os.path.join(os.environ['EPHEMERAL'],self.case_name,last_FILES)
+        print(ephemeral_dict)
+        os.chdir(ephemeral_dict)
+        ISO_file_list = glob.glob('ISO_*.vtk')
+        VAR_file_list = glob.glob('VAR_*_*.vtk')
+        files_to_convert = VAR_file_list + ISO_file_list
+
+        # The conversion process was unsuccessful if vtk files are found outside VTK_SAVE
+        if files_to_convert:
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print("vtks found in main conversion directory. Conversion failed")
+            print("====RETURN_BOOL====")
+            print("False")
+            return False
+        else:
+            print("Conversion successful. Copying process can begin")
+            print("True")
+            return True
 
     ### Converting vtk to vtr
 
@@ -823,7 +942,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "function",
-        choices=["run","monitor","job_restart","test_restart","vtk_convert"], 
+        choices=["run","monitor","job_restart","test_restart","vtk_convert","test_vtk_convert","test_check_convert"], 
     )
 
     ### Input argument for dictionary

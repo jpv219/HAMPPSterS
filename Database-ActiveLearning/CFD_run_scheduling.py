@@ -1,7 +1,7 @@
 ### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
 ### CFD scheduling, monitoring and post-processing script
 ### to be run locally
-### Authors: Juan Pablo Valdes, Paula D. Pico
+### Authors: Juan Pablo Valdes, Paula Pico
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -15,8 +15,10 @@ import warnings
 import json
 import numpy as np
 import logging
-import psutil
+import shutil
 import glob
+from stat import S_ISDIR
+from datetime import datetime
 
 class SimScheduling:
 
@@ -237,12 +239,13 @@ class SimScheduling:
         self.pset_dict = pset_dict
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
+        self.save_path_csv = pset_dict['save_path_csv']
         self.run_path = pset_dict['run_path']
         self.init_jobID = pset_dict['init_jobID']
         self.case_name = pset_dict['case_name']
         self.run_ID = pset_dict['run_ID']
         self.main_path = os.path.join(self.run_path,'..')
-        self.user = pset_dict['user']
+        self.usr = pset_dict['user']
 
         ### Logger set-up
         log_filename = f"output_{self.case_name}.txt"
@@ -273,6 +276,19 @@ class SimScheduling:
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
                 log.info(f"Authentication failed: {e}")
                 return {}
+            
+
+            ### Downloading csv file
+
+            log.info('-' * 100)
+            log.info('DOWNLOADING csv FILE')
+            log.info('-' * 100)
+
+            try:
+                self.copy_csv(log)
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"SSH ERROR: Authentication failed: {e}")
+                return {}
 
             ### Job restart execution
 
@@ -301,6 +317,289 @@ class SimScheduling:
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
                 log.info(f"Authentication failed: {e}")
                 return {}
+
+    ### Local pipeline for converting vtk files
+
+    def localconvert(self,pset_dict):
+        ###Path and running attributes
+        self.pset_dict = pset_dict
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.run_path = pset_dict['run_path']
+        self.init_jobID = pset_dict['init_jobID']
+        self.case_name = pset_dict['case_name']
+        self.run_ID = pset_dict['run_ID']
+        self.main_path = os.path.join(self.run_path,'..')
+        self.usr = pset_dict['user']
+
+        ### Logger set-up
+        log_filename = f"testest_{self.case_name}.txt"
+        log = self.set_log(log_filename)
+        dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
+        HPC_script = 'HPC_run_scheduling.py'
+
+        log.info('-' * 100)
+        log.info('-' * 100)
+        log.info('NEW CONVERSION PROCESS')
+        log.info('-' * 100)
+        log.info('-' * 100)
+
+        try:
+            log.info('-' * 100)
+            command = f'python {self.main_path}/{HPC_script} test_vtk_convert --pdict \'{dict_str}\''
+            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
+                command=command, search=2, log=log
+                )
+
+            log.info('-' * 100)
+
+        except (ValueError,FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
+        
+        ### job monitoring loop
+
+        log.info('-' * 100)
+        log.info('JOB MONITORING')
+        log.info('-' * 100)
+
+        try:
+            self.jobmonitor(conv_t_wait, conv_status, conv_jobid, self.run_ID, HPC_script,log)
+        except (ValueError, FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
+    
+        ### vtk convert job creation and submission
+
+        log.info('-' * 100)
+        log.info('CHECKING IF CONVERSION WAS SUCCESFUL')
+        log.info('-' * 100)
+
+        try:
+            log.info('-' * 100)
+            command = f'python {self.main_path}/{HPC_script} test_check_convert --pdict \'{dict_str}\''
+            _ = self.execute_remote_command(
+                command=command, search=2, log=log
+                )
+
+            log.info('-' * 100)
+
+        except (ValueError,FileNotFoundError,NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"Authentication failed: {e}")
+            return {}
+
+        ### Downloading files and local Post-processing
+
+        log.info('-' * 100)
+        log.info('DOWNLOADING FILES FROM EPHEMERAL')
+        log.info('-' * 100)
+
+        try:
+            self.copy_convert(log)
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"SSH ERROR: Authentication failed: {e}")
+            return {}
+        
+    #### Local function to copy converted files from EPHEMERAL to local directory 'postProcessing' within main directory of the case
+    def copy_convert(self,log):
+
+        ###Create run local directory to store data
+        self.save_path = os.path.join(self.save_path)
+        ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
+        self.path = os.path.join(self.run_path)
+
+        ### Config file with keys to login to the HPC
+        config = configparser.ConfigParser()
+        config.read(f'config_{self.usr}.ini')
+        user = config.get('SSH', 'username')
+        key = config.get('SSH', 'password')
+        try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
+
+        for login in try_logins:
+            
+            ### Establish an SSH connection using a context manager
+            ssh = paramiko.SSHClient()
+            ssh.load_system_host_keys()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            warnings.filterwarnings("ignore", category=ResourceWarning)
+
+            try:
+                ssh.connect(login, username=user, password=key)
+                stdin, _, _ = ssh.exec_command("echo 'SSH connection test'")
+                transport = ssh.get_transport()
+                sftp = paramiko.SFTPClient.from_transport(transport)
+
+                try:
+                    remote_files = sftp.listdir_attr(self.path)
+                    for item in remote_files:
+                        remote_item_path = f"{self.path}/{item.filename}"
+                        # Read remote "last_convert.txt" file to find the last directory of converted files to copy
+                        if item.filename == "last_convert.txt":
+                            with sftp.open(remote_item_path, "r") as remote_file:
+                                last_FILES = remote_file.readline().strip()
+                                print("Last directory of converted files:", last_FILES)
+                                break  # Exit loop if file is found
+                    else:
+                        print("File not found.")
+                except Exception as e:
+                    print("An error occurred:", e)
+
+                remote_path = os.path.join(ephemeral_path,self.case_name,last_FILES)
+
+                # General function to copy "FILES_X+1" and everything inside this directory, except for "VTK_SAVE"
+                def copy_remote_dir(remote_path, local_path, sftp):
+                    for item in sftp.listdir_attr(remote_path):
+                        remote_item_path = f"{remote_path}/{item.filename}"
+                        local_item_path = os.path.join(local_path, item.filename)
+                        if item.filename == "VTK_SAVE":
+                            print(f"Skipping directory: {remote_item_path}")
+                        elif S_ISDIR(item.st_mode):
+                            os.makedirs(local_item_path, exist_ok=True)
+                            copy_remote_dir(remote_item_path, local_item_path, sftp)
+                        else:
+                            sftp.get(remote_item_path, local_item_path)
+                            print(f"Copying file: {remote_item_path} to {local_item_path}")
+
+                remote_basename = os.path.basename(remote_path)
+                local_directory_path = os.path.join(self.save_path, remote_basename)
+                os.makedirs(local_directory_path, exist_ok=True)
+                copy_remote_dir(remote_path, local_directory_path, sftp)
+        
+                log.info('-' * 100)
+                log.info(f'{last_FILES} successfully copied to {self.save_path}')
+
+                if stdin is not None:
+                    break
+                
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                if login == try_logins[-1]:
+                    raise e
+                else:
+                    log.info(f'SSH connection failed with login {login}, trying again ...')
+                    continue
+
+            ### closing HPC session
+            finally:
+                if 'sftp' in locals():
+                    sftp.close()
+                if 'stdin' in locals():
+                    stdin.close()
+                if 'ssh' in locals():
+                    ssh.close()
+
+        # Once the directory of converted files is copied from EPHEMERAL, move the pvds and vtrs to postProcessing (main post-processing directory)
+        os.chdir(self.save_path)
+        # Get a list of files matching the pattern
+        pvds_to_move = [filename for filename in os.listdir(local_directory_path) if filename.endswith(".pvd")]
+
+        for filename in pvds_to_move:
+            source_file_path = os.path.join(local_directory_path, filename)
+            destination_file_path = os.path.join(self.save_path, filename)
+            
+            # Move the file to the destination directory
+            shutil.move(source_file_path, destination_file_path)
+        print(f"pvds correctly moved to from {last_FILES} to postProcessing")
+
+        vtrs_to_move = [filename for filename in os.listdir(f"{local_directory_path}/VTR_SAVE/") if filename.endswith(".vtr")]
+
+        for filename in vtrs_to_move:
+            source_file_path = os.path.join(local_directory_path, "VTR_SAVE", filename)
+            destination_file_path = os.path.join(self.save_path, filename)
+            
+            # Move the file to the destination directory
+            shutil.move(source_file_path, destination_file_path)
+        print(f"vtrs correctly moved to from {last_FILES}/VTR_SAVE to postProcessing")
+
+        log.info('-' * 100)
+        log.info('-' * 100)
+    
+    ### Function to copy the csv file. To be executed at the end of every run
+    def copy_csv(self,log):
+
+        ###Create run local directory to store data
+        self.save_path = os.path.join(self.save_path)
+        self.save_path_csv = os.path.join(self.save_path_csv)
+        ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
+        self.path = os.path.join(self.run_path)
+
+        ### Config file with keys to login to the HPC
+        config = configparser.ConfigParser()
+        config.read(f'config_{self.usr}.ini')
+        user = config.get('SSH', 'username')
+        key = config.get('SSH', 'password')
+        try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
+
+        for login in try_logins:
+            
+            ### Establish an SSH connection using a context manager
+            ssh = paramiko.SSHClient()
+            ssh.load_system_host_keys()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            warnings.filterwarnings("ignore", category=ResourceWarning)
+
+            try:
+                ssh.connect(login, username=user, password=key)
+                stdin, _, _ = ssh.exec_command("echo 'SSH connection test'")
+                transport = ssh.get_transport()
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                remote_path = os.path.join(ephemeral_path,self.case_name)
+
+                # Trying to Find .csv file in EPHEMERAL
+                try:
+                    remote_files = sftp.listdir(remote_path)
+                    csv_files = [file for file in remote_files if file.endswith(".csv")]
+
+                    # If csv is found. Create a directory named with current date in "temporal", copy the csv there and rename it to: *_{today_date}.csv
+                    if csv_files:
+                        print('-' * 100)
+                        print(f"*.csv file found in remote directory")
+                        print('-' * 100)
+                        today_date = datetime.now().strftime("%d%m%y")
+                        target_directory = os.path.join(self.save_path_csv, today_date)
+                        os.makedirs(target_directory, exist_ok=True)
+                        print(f"Directory {today_date} created")
+
+                        for csv_file in csv_files:
+                            new_csv_file_name = f"{os.path.splitext(csv_file)[0]}_{today_date}.csv"
+                            remote_file_path = os.path.join(remote_path, csv_file)
+                            local_file_path = os.path.join(target_directory, new_csv_file_name)
+                            sftp.get(remote_file_path, local_file_path)
+                            print(f"File {new_csv_file_name} copied and renamed")
+                    else:
+                        # If no csv file is found. Continue with the job restarting process and issue a warning
+                        print("WARNING: No CSV files found on remote server. Simulation will be restarted but please check")
+                finally:
+                    print("Restarting process will begin")
+                
+
+                if stdin is not None:
+                    break
+
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                if login == try_logins[-1]:
+                    raise e
+                else:
+                    log.info(f'SSH connection failed with login {login}, trying again ...')
+                    continue
+
+            ### closing HPC session
+            finally:
+                if 'sftp' in locals():
+                    sftp.close()
+                if 'stdin' in locals():
+                    stdin.close()
+                if 'ssh' in locals():
+                    ssh.close()
+        return True
 
     ### calling monitoring and restart function to check in on jobs
 
@@ -412,6 +711,8 @@ class SimScheduling:
                                     or attempting to search restart in job_restart')
                     elif exc == "FileNotFoundError":
                         raise FileNotFoundError('Cannot execute restart procedure, either .out or .csv files not found')
+                    elif exc == "SystemExit":
+                        raise SystemExit('Simulation finished')
                     else:
                         raise NameError('Search for exception from log failed')
                     

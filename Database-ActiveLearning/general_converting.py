@@ -1,5 +1,5 @@
 ### Tailored for Imperial College's HPC
-### General monitoring and restarting for BLUE jobs. Copying csv files before every simulation restart
+### General converting of vtk files and copy to local machine
 ### to be run locally
 ### Author: Paula Pico
 ### First commit: Aug, 2023
@@ -12,10 +12,11 @@ import contextlib
 import operator
 import json
 import os
+import shutil
 
-log = configure_logger("gen")
+log = configure_logger("gen_conv")
 
-log.info('General job monitoring launch')
+log.info('General converting launch')
 log.info('-' * 100)
 log.info('-' * 100)
 
@@ -37,7 +38,7 @@ def main():
 
     if pset_dict['conditional'] in operator_map:
         comparison_func = operator_map[pset_dict['conditional']]
-        simulator.localmonitor(pset_dict)
+        simulator.localconvert(pset_dict)
 
     else:
         raise ValueError("Invalid operator. Please provide a correct operator (<,>,<=,>=,==,!=)")

@@ -5,6 +5,7 @@ try:
 except:
     pass
 try:
+    os.system('rm output*')
     os.system('rm output_geom/output*')
     os.system('rm output_surf/output*')
 except:
