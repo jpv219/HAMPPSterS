@@ -19,6 +19,24 @@ import argparse
 import json
 import numpy as np
 
+
+######################## EXCEPTION CLASSES ######################
+
+class JobStatError(Exception):
+    """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
+    def __init__(self, message="Output empty on qstat execution, job finished or removed"):
+        self.message = message
+        super().__init__(self.message)
+
+class ConvergenceError(Exception):
+    """Exception class for convergence error on job"""
+    def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
+        self.message = message
+        super().__init__(self.message)
+
+#################################################################
+
+
 class HPCScheduling:
 
     ### Init function
@@ -108,14 +126,22 @@ class HPCScheduling:
         sleep(120)
 
         ### Check job status and assign waiting time accordingly
-        t_jobwait, status, update_jobID = self.job_wait(job_IDS)
+        try:
+            t_jobwait, status, update_jobID = self.job_wait(job_IDS)
+            print("====JOB_IDS====")
+            print(update_jobID)
+            print("====JOB_STATUS====")
+            print(status)
+            print("====WAIT_TIME====")
+            print(t_jobwait)
 
-        print("====JOB_IDS====")
-        print(update_jobID)
-        print("====JOB_STATUS====")
-        print(status)
-        print("====WAIT_TIME====")
-        print(t_jobwait)
+        except JobStatError:
+            print(f'Job {self.run_ID} failed on initial submission')
+            print("====EXCEPTION====")
+            print("JobStatError")
+        except ValueError:
+            print("====EXCEPTION====")
+            print("ValueError")
 
     ### checking jobstate and sleeping until completion or restart commands
 
@@ -140,10 +166,10 @@ class HPCScheduling:
             print("====WAIT_TIME====")
             print(t_jobwait)
 
-        except RuntimeError as e:
+        except JobStatError:
             print("====EXCEPTION====")
-            print("RuntimeError")
-        except ValueError as e:
+            print("JobStatError")
+        except ValueError:
             print("====EXCEPTION====")
             print("ValueError")
            
@@ -367,8 +393,8 @@ class HPCScheduling:
             else:
                 t_wait = 0
                 
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError("Job finished")
+        except subprocess.CalledProcessError:
+            raise JobStatError("qstat output empty, job finished or deleted from HPC run queue")
         
         except ValueError as e:
             print(f"Error: {e}")
@@ -424,7 +450,6 @@ class HPCScheduling:
 
                 return t_n<t_f
 
-
     ### Restarting sh based on termination condition eval and last output restart reached
 
     def job_restart(self,pset_dict):
@@ -444,8 +469,6 @@ class HPCScheduling:
             print("====EXCEPTION====")
             print("FileNotFoundError")
             print(f'File {self.run_name}.out does not exist')
-            print("====RETURN_BOOL====")
-            print("False")
             return False
         
         ### If it is case geom and there is no csv to check stop, exit with exception and stop run
@@ -453,8 +476,6 @@ class HPCScheduling:
             print("====EXCEPTION====")
             print("FileNotFoundError")
             print(f'File {self.run_name}.csv does not exist')
-            print("====RETURN_BOOL====")
-            print("False")
             return False
     
 
@@ -480,8 +501,6 @@ class HPCScheduling:
                     print("====EXCEPTION====")
                     print("ValueError")
                     print('No restart number match found')
-                    print("====RETURN_BOOL====")
-                    print("False")
                     return False
                 ### Modifying .sh file accordingly
                 with open(f"job_{self.run_name}.sh", 'r+') as file:
@@ -489,7 +508,9 @@ class HPCScheduling:
                     restart_line = lines[384]
                     modified_restart = re.sub('FALSE', 'TRUE', restart_line)
                     ### modifying the restart number by searching dynamically with f-strings. 
-                    modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', restart_num), modified_restart)
+                    modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), 
+                                              '{}={}'.format('input_file_index', restart_num), 
+                                              modified_restart)
                     lines[384] = modified_restart
                     file.seek(0)
                     file.writelines(lines)
@@ -502,28 +523,35 @@ class HPCScheduling:
                 sleep(120)
 
                 ### check status and waiting time for re-submitted job
-                t_jobwait, status, new_jobID = self.job_wait(job_IDS)
-                print("====JOB_IDS====")
-                print(new_jobID)
-                print("====JOB_STATUS====")
-                print(status)
-                print("====WAIT_TIME====")
-                print(t_jobwait)
-                print("====RESTART====")
-                print("True")
-                return True
+                try:
+                    t_jobwait, status, new_jobID = self.job_wait(job_IDS)
+                    print("====JOB_IDS====")
+                    print(new_jobID)
+                    print("====JOB_STATUS====")
+                    print(status)
+                    print("====WAIT_TIME====")
+                    print(t_jobwait)
+                    print("====RETURN_BOOL====")
+                    print("True")
+                    return True
+                except JobStatError:
+                    print(f'Restart job {self.run_ID} failed on initial re-submission')
+                    print("====EXCEPTION====")
+                    print("JobStatError")
+                except ValueError:
+                    print("====EXCEPTION====")
+                    print("ValueError")
+
             else:
                 print("====EXCEPTION====")
                 print("ValueError")
                 print("Restart file pattern in .out not found or does not exist")
-                print("====RESTART====")
-                print("False")
                 return False
             
         else:
             print('-' * 100)
             print("Job reached completion, no restarts required")
-            print("====RESTART====")
+            print("====RETURN_BOOL====")
             print("False")
             return False
 
@@ -547,7 +575,7 @@ class HPCScheduling:
             os.mkdir('RESULTS')
             print('-' * 100)
             print(f'RESULTS folder created in {ephemeral_path}')
-        except:
+        except FileExistsError:
             pass
 
         ### Listing ISO and VAR vtks and pvds
@@ -569,7 +597,17 @@ class HPCScheduling:
 
         ### Moving files to RESULTS
         for file in files_to_convert:
-            shutil.move(file,'RESULTS')
+            try:
+                shutil.move(file,'RESULTS')
+            except (FileNotFoundError, shutil.Error) as e:
+                print('-' * 100)
+                print("====EXCEPTION====")
+                print("FileNotFoundError")
+                print('-' * 100)
+                print(f"Exited with message :{e}, File or directory not found.")
+                print('-' * 100)
+                return
+
         print('-' * 100)
         print('Convert files copied to RESULTS')
 
@@ -582,8 +620,14 @@ class HPCScheduling:
             shutil.move(f'{pvd_ffile}', 'RESULTS')
             print('-' * 100)
             print('VAR, ISO and csv files moved to RESULTS')
-        except:
-            pass
+        except (FileNotFoundError, shutil.Error) as e:
+            print('-' * 100)
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('-' * 100)
+            print(f"Exited with message :{e}, File or directory not found.")
+            print('-' * 100)
+            return
 
         ### Cleaning previous restart and vtk from ephemeral
         os.system('rm *vtk')
@@ -593,14 +637,20 @@ class HPCScheduling:
 
         try:
             os.mkdir('VTK_SAVE')
-        except:
+        except FileExistsError:
             pass
 
         ### Finding, copying and modifying convert files into RESULTS
         convert_scripts = glob.glob(os.path.join(self.convert_path, '*'))
 
         for file in convert_scripts:
-            shutil.copy2(file, '.')
+            try:
+                shutil.copy2(file, '.')
+            except (FileNotFoundError, PermissionError, OSError):
+                print("====EXCEPTION====")
+                print("FileNotFoundError")
+                print(f"Failed to copy '{file}'.")
+                return
 
         os.system(f'sed -i \"s/\'FILECOUNT\'/{file_count}/\" Multithread_pool.py')
 
@@ -609,21 +659,29 @@ class HPCScheduling:
 
         print('-' * 100)
         print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
+        sleep(120)
 
-        t_jobwait, status, new_jobID = self.job_wait(jobid)
-        print("====JOB_IDS====")
-        print(new_jobID)
-        print("====JOB_STATUS====")
-        print(status)
-        if status == 'Q' or status == 'H':
-            print("====WAIT_TIME====")
-            print(t_jobwait-1800)
-        elif status == 'R':
-            print("====WAIT_TIME====")
-            print(t_jobwait)
+        try:
+            t_jobwait, status, new_jobID = self.job_wait(jobid)
+            print("====JOB_IDS====")
+            print(new_jobID)
+            print("====JOB_STATUS====")
+            print(status)
+            if status == 'Q' or status == 'H':
+                print("====WAIT_TIME====")
+                print(t_jobwait-1800)
+            elif status == 'R':
+                print("====WAIT_TIME====")
+                print(t_jobwait)
 
-        os.chdir(self.path)
-        os.chdir('..')
+        except JobStatError:
+            print(f'Convert job {self.run_ID} failed on initial submission')
+            print("====EXCEPTION====")
+            print("JobStatError")
+
+        except ValueError:
+            print("====EXCEPTION====")
+            print("ValueError")
 
     ### submitting the SMX job and recording job_id
 

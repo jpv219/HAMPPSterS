@@ -18,6 +18,23 @@ import logging
 import psutil
 import glob
 
+######################## EXCEPTION CLASSES ######################
+
+class JobStatError(Exception):
+    """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
+    def __init__(self, message="Output empty on qstat execution, job finished or removed"):
+        self.message = message
+        super().__init__(self.message)
+
+class ConvergenceError(Exception):
+    """Exception class for convergence error on job"""
+    def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
+        self.message = message
+        super().__init__(self.message)
+
+#################################################################
+
+
 class SimScheduling:
 
     ### Init function
@@ -104,7 +121,7 @@ class SimScheduling:
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
-        except (ValueError, FileNotFoundError,NameError) as e:
+        except (ValueError, JobStatError, NameError) as e:
             log.info(f'Exited with message: {e}')
             return {}
             
@@ -121,7 +138,7 @@ class SimScheduling:
 
             try:
                 self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
-            except (ValueError, FileNotFoundError,NameError) as e:
+            except (ValueError, NameError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -172,7 +189,7 @@ class SimScheduling:
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
-        except (ValueError, FileNotFoundError,NameError) as e:
+        except (FileNotFoundError, JobStatError, ValueError, NameError) as e:
             log.info(f'Exited with message: {e}')
             return {}
         
@@ -186,7 +203,7 @@ class SimScheduling:
 
         try:
             self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
-        except (ValueError, FileNotFoundError,NameError) as e:
+        except (ValueError, NameError) as e:
             log.info(f'Exited with message: {e}')
             return {}
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -262,8 +279,8 @@ class SimScheduling:
 
                     log.info('-' * 100)
                     log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
-                except (RuntimeError, ValueError, NameError) as e:  
-                    if isinstance(e, RuntimeError):
+                except (JobStatError, ValueError, NameError) as e:  
+                    if isinstance(e, JobStatError):
 
                         log.info('-' * 100)
                         log.info(f'Exited with message: {e}')
@@ -332,8 +349,8 @@ class SimScheduling:
 
                 ### Handle exceptions
                 if exc is not None:
-                    if exc == "RuntimeError":
-                        raise RuntimeError('Job finished')
+                    if exc == "JobStatError":
+                        raise JobStatError('qstat output empty, job finished or deleted from HPC run queue')
                     elif exc == "ValueError":
                         raise ValueError('Exception raised from job sh creation, or qstat in job_wait \
                                     or attempting to search restart in job_restart')
@@ -390,7 +407,7 @@ class SimScheduling:
                 "====JOB_IDS====": "jobid",
                 "====WAIT_TIME====": "t_wait",
                 "====JOB_STATUS====": "status",
-                "====RESTART====": "ret_bool",
+                "====RETURN_BOOL====": "ret_bool",
                 "====EXCEPTION====" : "exception"
                 }
             
