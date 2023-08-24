@@ -552,34 +552,38 @@ class SimScheduling:
                 transport = ssh.get_transport()
                 sftp = paramiko.SFTPClient.from_transport(transport)
                 remote_path = os.path.join(ephemeral_path,self.case_name)
+                remote_files = sftp.listdir(remote_path)
 
                 # Trying to Find .csv file in EPHEMERAL
                 try:
                     remote_files = sftp.listdir(remote_path)
-                    csv_files = [file for file in remote_files if file.endswith(".csv")]
+                    csv_files = [file for file in remote_files if file.endswith(f'HST_{self.case_name}.csv')]
 
                     # If csv is found. Create a directory named with current date in "temporal", copy the csv there and rename it to: *_{today_date}.csv
                     if csv_files:
-                        print('-' * 100)
-                        print(f"*.csv file found in remote directory")
-                        print('-' * 100)
+                        log.info('-' * 100)
+                        log.info(f"*.csv file found in remote directory")
+                        log.info('-' * 100)
                         today_date = datetime.now().strftime("%d%m%y")
                         target_directory = os.path.join(self.save_path_csv, today_date)
                         os.makedirs(target_directory, exist_ok=True)
-                        print(f"Directory {today_date} created")
+                        log.info(f"Directory {today_date} created")
 
                         for csv_file in csv_files:
                             new_csv_file_name = f"{os.path.splitext(csv_file)[0]}_{today_date}.csv"
                             remote_file_path = os.path.join(remote_path, csv_file)
                             local_file_path = os.path.join(target_directory, new_csv_file_name)
                             sftp.get(remote_file_path, local_file_path)
-                            print(f"File {new_csv_file_name} copied and renamed")
+                            log.info(f"File {new_csv_file_name} copied and renamed")
                     else:
                         # If no csv file is found. Continue with the job restarting process and issue a warning
-                        print("WARNING: No CSV files found on remote server. Simulation will be restarted but please check")
+                        log.info('-' * 100)
+                        log.info("WARNING: No csv files found to copy. Simulation will be restarted but please check")
+                        log.info('-' * 100)
                 finally:
-                    print("Restarting process will begin")
-                
+                    log.info('-' * 100)
+                    log.info("Restarting process will begin")
+                    log.info('-' * 100)
 
                 if stdin is not None:
                     break

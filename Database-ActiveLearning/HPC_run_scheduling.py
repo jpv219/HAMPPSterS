@@ -400,12 +400,12 @@ class HPCScheduling:
         new_restart_num = 0
         message = []
     
-        # Check # 1: Does the .out file exist? --------------------------------------------------------------
+        # Check # 1: Does the .out file exist? If not raise exception and kill workflow --------------------------------------------------------------
         if not os.path.exists(output_file_path):
-            message = ['-' * 100,"====EXCEPTION====","FileNotFoundError",f'File {self.case_name}.out does not exist',"====RETURN_BOOL====","False",'-' * 100]
+            message = ['-' * 100,"====EXCEPTION====","FileNotFoundError",f'File {self.case_name}.out does not exist','-' * 100]
             return False, new_restart_num, message
 
-        # Check # 2: Did the simulation diverge or were the .rst files deleted? --------------------------------------------------------------
+        # Check # 2: Did the simulation diverge or were the .rst files deleted? If so, raise exception and kill workflow -----------------------------
         os.chdir(self.path)
         line_with_pattern = None
         
@@ -419,10 +419,36 @@ class HPCScheduling:
                     line_with_pattern = line.strip()
                     break
             if line_with_pattern is not None:
-                message = ['-' * 100,"====EXCEPTION====","ValueError",f'Simulation {self.case_name} diverged or .rst files deleted!',"====RETURN_BOOL====","False",'-' * 100]
+                message = ['-' * 100,"====EXCEPTION====","ValueError",f'Simulation {self.case_name} diverged or .rst files deleted!','-' * 100]
                 return False, new_restart_num, message
-            
-        # Check # 3: Did the HPC kill the job because of lack of memory? --------------------------------------------------------------
+        
+        # Check # 3: Has the finishing condition been satisfied? If so, raise exception and kill workflow  -----------------------------------------------
+        os.chdir(ephemeral_path)
+
+        if os.path.exists(os.path.join(".", f'HST_{self.case_name}.csv')):
+            csv_file = pd.read_csv(f'HST_{self.case_name}.csv')
+            cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
+            cond_val_ini = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[0]
+            progress = 100*np.abs(((cond_val_last - cond_val_ini)/(float(self.cond_csv_limit) - cond_val_ini)))
+            comparison_func = operator_map[self.conditional]
+
+            if not comparison_func(cond_val_last, float(self.cond_csv_limit)):
+                message = ['-' * 100,"====EXCEPTION====","SystemExit",f'Finishing condition of simulation {self.case_name} satisfied','-' * 100]
+                return False, new_restart_num, message
+        else:
+            print('-' * 100)
+            print("WARNING: No *csv file found. Cannot check finishing condition. Simulation progress not calculated")
+            progress = 0
+            print('-' * 100)
+            message.append(
+                f"{'-' * 100}\n"
+                f"==== WARNING ====\n"
+                f" No *csv file found. Cannot check finishing condition.\n"
+                f"Simulation progress not calculated.\n"
+                f"{'-' * 100}\n"
+            )
+
+        # Check # 4: Did the HPC kill the job due to lack of memory? If so, issue warning and continue -------------------------------------------------------
         os.chdir(self.path)
         line_with_pattern = None
         
@@ -436,31 +462,15 @@ class HPCScheduling:
                     line_with_pattern = line.strip()
                     break
             if line_with_pattern is not None:
-                message = ['-' * 100,"====EXCEPTION====","SystemExit",f'Simulation {self.case_name} was killed due to lack of memory',"====RETURN_BOOL====","False",'-' * 100]
-                return False, new_restart_num, message
+                message.append(
+                    f"{'-' * 100}\n"
+                    f"==== WARNING ====\n"
+                    f"Simulation {self.case_name} was killed due to lack of memory.\n"
+                    f"Job will be re-submitted but please check.\n"
+                    f"{'-' * 100}\n"
+                )
         
-        # Check # 4: Has the finishing condition been satisfied? --------------------------------------------------------------
-        os.chdir(ephemeral_path)
-        try:
-            csv_file = glob.glob(os.path.join(".", "*.csv"))
-            if csv_file:
-                csv_file = pd.read_csv(f'HST_{self.case_name}.csv')
-                cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
-                cond_val_ini = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[0]
-                progress = 100*np.abs(((cond_val_last - cond_val_ini)/(float(self.cond_csv_limit) - cond_val_ini)))
-                comparison_func = operator_map[self.conditional]
-
-                if not comparison_func(cond_val_last, float(self.cond_csv_limit)):
-                    message = ['-' * 100,"====EXCEPTION====","SystemExit",f'Finishing condition of simulation {self.case_name} satisfied',"====RETURN_BOOL====","False",'-' * 100]
-                    return False, new_restart_num, message
-            else:
-                print('-' * 100)
-                print("WARNING: No *csv file found. Cannot check finishing condition. Simulation progress not calculated")
-                print('-' * 100)
-        finally:
-            progress = 0
-        
-        # Check # 5: Has it created .rst files? Are they new files? --------------------------------------------------------------
+        # Check # 5: Has it created .rst files? If not raise exception and kill workflow. Are they new files? If not, issue warning and continue -------------------
         os.chdir(self.path)
         line_with_pattern = None
         
@@ -473,7 +483,7 @@ class HPCScheduling:
                     line_with_pattern = line.strip()
                     break
             if line_with_pattern is None:
-                message = ['-' * 100,"====EXCEPTION====","ValueError",f'No restart number match found in simulation {self.case_name}',"====RETURN_BOOL====","False",'-' * 100]
+                message = ['-' * 100,"====EXCEPTION====","ValueError",f'No restart number match found in simulation {self.case_name}','-' * 100]
                 return False, new_restart_num, message       
             else:
                 match = re.search(r"\b\d+\b", line_with_pattern)
@@ -486,10 +496,22 @@ class HPCScheduling:
                             old_restart_num = int(match.group(1))
                             break
                 if new_restart_num == old_restart_num:
-                    message = ['-' * 100,"====WARNING====","ValueError",'No new .rst files were created in previous run. Job will be re-submitted but please check',f'The restart index is {new_restart_num}',f'The relative progess is {round(progress, 2)}%','-' * 100]
-                else:
-                    message = ['-' * 100,f'Simulation {self.case_name} passed all restarting checks!',f'The restart index is {new_restart_num}',f'The relative progess is {round(progress, 2)}%','-' * 100]
-        
+                    message.append(
+                        f"{'-' * 100}\n"
+                        f"==== WARNING ====\n"
+                        f"No new .rst files were created in the previous run.\n"
+                        f"Job will be re-submitted but please check.\n"
+                        f"{'-' * 100}\n"
+                    )
+
+        message.append(
+            f"{'-' * 100}\n"
+            f"Simulation {self.case_name} passed all critical restarting checks!\n"
+            f"The restart index is {new_restart_num}\n"
+            f"The relative progress is {round(progress, 2)}%\n"
+            f"{'-' * 100}\n"
+        )
+
         # If all checks have been passed, then return True to restart the job
         return True, new_restart_num, message
     
