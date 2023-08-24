@@ -112,8 +112,8 @@ class SimScheduling:
         log.info('-' * 100)
 
         ### wait time to connect at first, avoiding multiple simultaneuous connections
-        init_wait_time = np.random.RandomState().randint(0,180)
-        sleep(init_wait_time)
+        #init_wait_time = np.random.RandomState().randint(0,180)
+        #sleep(init_wait_time)
 
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
@@ -138,7 +138,7 @@ class SimScheduling:
 
             try:
                 self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
-            except (ValueError, NameError) as e:
+            except (ValueError, NameError, ConvergenceError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -250,58 +250,128 @@ class SimScheduling:
     ### calling monitoring and restart function to check in on jobs
 
     def jobmonitor(self, t_wait, status, jobid, run, HPC_script,log):
+
         running = True
+        chk_counter = 0
+        csv_check = True # Option to deacticate csv checks and only run qstat
+        
         while running:
             
-            ### Setting updated dictionary with jobid from submitted job
+            ### Setting updated dictionary with jobid from submitted job and csv_check logical gate
             mdict = self.pset_dict   
             mdict['jobID'] = jobid
+            mdict['check'] = csv_check
             mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
-
+                        
+            ### If t_wait>0, job is either running or queieng
             if t_wait>0:
-                log.info('-' * 100)
-                log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
-                log.info('-' * 100)
 
-                sleep(t_wait)
-
-                try:
-                    ### Execute monitor function in HPC to check job status
-                    command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                    new_jobid, new_t_wait, new_status, _ = self.execute_remote_command(
-                        command=command,search=0,log=log
-                        )
-                    
-                    ### update t_wait and job status accordingly
-                    t_wait = new_t_wait
-                    status = new_status
-                    jobid = new_jobid
-
+            ### Performing monitoring and waiting processes depending on job status and type
+                if (status == 'Q' or status == 'H' or (status == 'R' and 'Convert' in run)):
+                    ### If Q or H, wait and qstat later
                     log.info('-' * 100)
-                    log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
-                except (JobStatError, ValueError, NameError) as e:  
-                    if isinstance(e, JobStatError):
+                    log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
+                    log.info('-' * 100)
+                    sleep(t_wait-3570)
+                    try:
+                        ### Execute monitor function in HPC to check job status
+                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                        new_jobid, new_t_wait, new_status, _ = self.execute_remote_command(
+                            command=command,search=0,log=log
+                            )
+                        
+                        ### update t_wait and job status accordingly
+                        t_wait = new_t_wait
+                        status = new_status
+                        jobid = new_jobid
 
                         log.info('-' * 100)
-                        log.info(f'Exited with message: {e}')
-                        log.info('-' * 100)
-                        log.info(f'JOB {run} FINISHED')
-                        log.info('-' * 100)
+                        log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
+                    except (JobStatError, ValueError, NameError) as e:  
+                        if isinstance(e, JobStatError):
 
-                        ### Update t_wait and job status for finished job condition, exiting the loop
-                        t_wait = 0
-                        status = 'F'
-                        running = False
+                            log.info('-' * 100)
+                            log.info(f'Exited with message: {e}')
+                            log.info('-' * 100)
+                            log.info(f'JOB {run} FINISHED')
+                            log.info('-' * 100)
 
+                            ### Update t_wait and job status for finished job condition, exiting the loop
+                            t_wait = 0
+                            status = 'F'
+                            running = False
+
+                        else:
+                            log.info('-' * 100)
+                            log.info(f'Exited with message: {e}')
+                            log.info('-' * 100)
+                            raise e
+
+                    except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                        log.info(f"Authentication failed: {e}")
+                        raise e
+                
+                else:
+                    ### Status here is R and not jobconvert, performing convergence checks in HPC monitor
+                    n_checks = 60 # has to be larger than 0
+                    log.info('-' * 100)
+                    log.info(f'Job {run} with id: {jobid} has status {status}. Currently on check {chk_counter} out of {n_checks} checks during runtime.')
+                    log.info('-' * 100)
+
+                    ### Initializing run_t_wait with initial run time extracted
+                    if chk_counter == 0:
+                        run_t_wait = t_wait
+                        log.info('-' * 100)
+                        log.info('First check to be performed')
+
+                    ### Sleep extra after last check to guarantee job has finished at the end
+                    if run_t_wait > (t_wait)/(n_checks+1):
+                        log.info('-' * 100)
+                        log.info(f'Sleeping for {t_wait/(n_checks+1)/60} mins until next check')
+                        sleep(t_wait/(n_checks+1))
                     else:
                         log.info('-' * 100)
-                        log.info(f'Exited with message: {e}')
-                        log.info('-' * 100)
-                        raise e
+                        log.info(f'Final check done, sleeping for {run_t_wait/60} mins until completion')
+                        sleep((t_wait/(n_checks+1))* 1.05)
 
-                except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                    log.info(f"Authentication failed: {e}")
-                    raise e
+                    try:
+                        ### Execute monitor function in HPC to check job status
+                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                        _, run_t_wait, run_status, _ = self.execute_remote_command(
+                            command=command,search=0,log=log
+                            )
+                        
+                        status = run_status
+                        chk_counter += 1
+
+                        log.info('-' * 100)
+                        log.info(f'Run time remaining: {run_t_wait/60} mins')
+
+                        log.info('-' * 100)
+                        log.info(f'Job {run} with id {jobid} status is {status}. Continuing checks')
+                    except (JobStatError, ValueError, NameError, ConvergenceError) as e:  
+                        if isinstance(e, JobStatError):
+
+                            log.info('-' * 100)
+                            log.info(f'Exited with message: {e}')
+                            log.info('-' * 100)
+                            log.info(f'JOB {run} FINISHED')
+                            log.info('-' * 100)
+
+                            ### Update t_wait and job status for finished job condition, exiting the loop
+                            t_wait = 0
+                            status = 'F'
+                            running = False
+
+                        else:
+                            log.info('-' * 100)
+                            log.info(f'Exited with message: {e}')
+                            log.info('-' * 100)
+                            raise e
+
+                    except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                        log.info(f"Authentication failed: {e}")
+                        raise e
             else:
                 running = False
 
@@ -352,10 +422,13 @@ class SimScheduling:
                     if exc == "JobStatError":
                         raise JobStatError('qstat output empty, job finished or deleted from HPC run queue')
                     elif exc == "ValueError":
-                        raise ValueError('Exception raised from job sh creation, or qstat in job_wait \
-                                    or attempting to search restart in job_restart')
+                        raise ValueError('Exception raised from job sh creation, qstat in job_wait \
+                                         or attempting to search restart in job_restart')
                     elif exc == "FileNotFoundError":
-                        raise FileNotFoundError('Cannot execute restart procedure, either .out or .csv files not found')
+                        raise FileNotFoundError('File not found: either .out or .csv files not found when attempting restart \
+                                                or vtk/pvd/convert files not found when attempting to convert')
+                    elif exc == "ConvergenceError":
+                        raise ConvergenceError('Convergence checks on HPC failed, job killed as a result')
                     else:
                         raise NameError('Search for exception from log failed')
                     

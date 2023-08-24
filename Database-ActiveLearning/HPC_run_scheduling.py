@@ -115,15 +115,15 @@ class HPCScheduling:
         print('-' * 100)
 
         ### wait time to submit jobs, avoiding them to go all at once
-        init_wait_time = np.random.RandomState().randint(60,180)
-        sleep(init_wait_time)
+        #init_wait_time = np.random.RandomState().randint(60,180)
+        #sleep(init_wait_time)
 
         job_IDS = self.submit_job(self.path,self.run_name)
 
         print('-' * 100)
         print(f'Job {self.run_ID} submitted succesfully with ID {job_IDS}')
 
-        sleep(120)
+        #sleep(120)
 
         ### Check job status and assign waiting time accordingly
         try:
@@ -151,6 +151,7 @@ class HPCScheduling:
         self.jobID = mdict['jobID']
         self.run_ID = mdict['run_ID']
         self.run_path = mdict['run_path']
+        self.check = mdict['check']
 
 
         self.run_name = "run_"+str(self.run_ID)
@@ -158,13 +159,46 @@ class HPCScheduling:
 
         ### Call job waiting method and extract corresponding outputs
         try:
-            t_jobwait, status, newjobid = self.job_wait(int(self.jobID))
+            t_jobwait, status, newjobid = self.job_wait(
+                int(self.jobID))
             print("====JOB_IDS====")
             print(newjobid)
             print("====JOB_STATUS====")
             print(status)
             print("====WAIT_TIME====")
             print(t_jobwait)
+
+            ### If job running, start convergence checks
+            if status == 'R' and self.check:
+                chk_status = self.check_convergence()
+
+                ### Job likely to diverge, kill the job and raise the exception
+                if chk_status == 'D':
+                    print('-' * 100)
+                    print("====EXCEPTION====")
+                    print("ConvergenceError")
+                    print('-' * 100)
+                    print(f'Job from run {self.run_ID} is failing to converge')
+                    print(f'Killing Job ID {self.jobID} from run {self.run_ID}')
+                    print('-' * 100)
+                    Popen(['qdel', f"{self.jobID}"])
+
+                ### Convergence checks not needed at early stage in the run
+                elif chk_status == 'NR':
+                    print('-' * 100)
+                    print('Convergence check starting condition not met, trying again later...')
+                    print('-' * 100)
+                ### Csv does not exist, convergence checks skipped
+                elif chk_status == 'FNF':
+                    print('-' * 100)
+                    print('Warning: CSV file not found, cannot execute convergence checks, moving on...')
+                    print('-' * 100)
+
+                ### Job running and complying with all set checks
+                else:
+                    print('-' * 100)
+                    print(f'All convergence checks for job {self.run_ID} have passed successfully')
+                    print('-' * 100)
 
         except JobStatError:
             print("====EXCEPTION====")
@@ -387,7 +421,7 @@ class HPCScheduling:
                 wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
                 elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
                 delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
-                remaining = delta.total_seconds()+120
+                remaining = delta.total_seconds()+60
                 t_wait = remaining
                 newjobid = job_id
             else:
@@ -401,6 +435,82 @@ class HPCScheduling:
             raise ValueError('Existing job but doesnt belong to this account')
             
         return t_wait, status, newjobid
+
+    ### checking if the running job is diverging or not
+
+    def check_convergence(self):
+
+        ### Jumping to ephemeral to read csv and begin checks
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        os.chdir(ephemeral_path)
+        chk_status = None
+
+        ### Checking if the csv exists
+        if not os.path.exists(f'{self.run_name}.csv'):
+            chk_status = 'FNF'
+            return chk_status
+       
+        csv_to_check = pd.read_csv(f'{self.run_name}.csv')
+
+        # verify whether convergence checks can start
+        len_to_check = 2000
+        if len(csv_to_check) < len_to_check:
+            # let the job run for longer, return NotReady NR status
+            chk_status = 'NR'
+            return chk_status
+
+        else:
+            # check the CFL and time step: CFL < dt or CFL drops below a lower bound
+            lower_limit = csv_to_check['dt CFL'][5] * 1e-3
+            CFL_check = np.any(csv_to_check['dt CFL'] < lower_limit)
+
+            dt_CFL, dt = csv_to_check['dt CFL'].values, csv_to_check['dt'].values
+            dt_arr = dt_CFL - dt
+            dt_check = np.any(dt_arr < 0)
+
+            ts_check = CFL_check or dt_check
+                            
+            # check the Max(div): If Max div fluctuates outside a stability threshold
+            window_size = 50
+            recent = int(len_to_check * 0.5)
+            recent_data = csv_to_check.iloc[-recent:]
+            stable_threshold = 0.1
+            
+            moving_avg_div = recent_data['Max(div(V))'].rolling(window=window_size).mean()[::window_size].dropna().values
+            relchg_div = np.diff(moving_avg_div) / moving_avg_div[:-1]
+
+            stable_period = int(len(relchg_div) * 0.9)
+            stable_count_div = 0
+
+            for rate in relchg_div:
+                if abs(rate) < stable_threshold:
+                       stable_count_div += 1
+                else: 
+                       stable_count_div = 0
+            div_check = stable_count_div < stable_period
+            
+            # check the KE: if there is unstable increase (relative change larger than a threshold)
+            moving_avg_ke = recent_data['Kinetic Energy'].rolling(window=window_size).mean()[::window_size].dropna().values
+            relchg_ke = np.diff(moving_avg_ke) / moving_avg_ke[:-1]
+
+            stable_period = int(len(relchg_ke) * 0.9)
+            stable_count_ke = 0
+
+            for rate in relchg_ke:
+                if abs(rate) < stable_threshold:
+                       stable_count_ke += 1
+                else: 
+                       stable_count_ke = 0
+            ke_check = stable_count_ke < stable_period
+            
+            ### If all checks fail, raise a diverging D status
+            if ts_check and div_check and ke_check:
+                chk_status = 'D'
+            ### Else keep monitoring with converging status C
+            else:
+                chk_status = 'C'
+
+            return chk_status
 
     ### checking termination condition (PtxEast position or real time) 
 

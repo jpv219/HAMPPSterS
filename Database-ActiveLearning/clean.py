@@ -11,3 +11,4 @@ except:
     pass
 os.system('rm params/*csv')
 os.system('rm DOE/*pkl')
+os.system('rm surf_output.txt')
