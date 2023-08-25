@@ -70,6 +70,7 @@ class HPCScheduling:
         self.convert_path = pset_dict['convert_path']
         self.case_type = pset_dict['case']
         self.run_ID = pset_dict['run_ID']
+        self.run_name = pset_dict['run_name']
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
 
@@ -100,7 +101,6 @@ class HPCScheduling:
             self.diffs = format(float(pset_dict['D_s']),'.10f')
             self.beta = format(float(pset_dict['beta']),'.10f')
 
-        self.run_name = "run_"+str(self.run_ID)
         self.path = os.path.join(self.run_path, self.run_name)
         self.base_case_dir = os.path.join(self.base_path, self.case_type)
         self.mainpath = os.path.join(self.run_path,'..')
@@ -166,11 +166,11 @@ class HPCScheduling:
         self.mdict = mdict
         self.jobID = mdict['jobID']
         self.run_ID = mdict['run_ID']
+        self.run_name = mdict['run_name']
         self.run_path = mdict['run_path']
         self.check = mdict['check']
 
 
-        self.run_name = "run_"+str(self.run_ID)
         self.path = os.path.join(self.run_path, self.run_name)
 
         ### Call job waiting method and extract corresponding outputs
@@ -664,11 +664,11 @@ class HPCScheduling:
 
         self.pset_dict = pset_dict
         self.run_ID = pset_dict['run_ID']
+        self.run_name = pset_dict['run_name']
         self.cond_csv = pset_dict['cond_csv']
         self.conditional = pset_dict['conditional']
         self.cond_csv_limit = pset_dict['cond_csv_limit']
 
-        self.run_name = "run_"+str(self.run_ID)
         self.run_path = pset_dict['run_path']
         self.path = os.path.join(self.run_path, self.run_name)
         self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
@@ -738,7 +738,7 @@ class HPCScheduling:
         self.pset_dict = pset_dict
         self.run_path = pset_dict['run_path']
         self.run_ID = pset_dict['run_ID']
-        self.run_name = "run_"+str(self.run_ID)
+        self.run_name = pset_dict['run_name']
         self.convert_path = pset_dict['convert_path']
         self.path = os.path.join(self.run_path, self.run_name)
 

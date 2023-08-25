@@ -25,6 +25,7 @@ log.info('-' * 100)
 case = "surf"
 nruns = 2
 nruns_list = [str(i) for i in range(1, nruns + 1)]
+runname_list = ['run_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
 user = 'nkovalc1'
@@ -36,6 +37,7 @@ convert_path = ps.plist("convert_path",["/rds/general/user/nkovalc1/home/F_CONVE
 case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
+run_name = ps.plist("run_name",runname_list)
 
 local_path = ps.plist("local_path",["/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning"])
 save_path = ps.plist("save_path",["/Users/mfgmember/Downloads"])
@@ -124,7 +126,7 @@ beta = ps.plist("beta",beta_list)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
                   save_path,cond_csv,conditional,cond_csv_limit,
                   diff1,user_ps,pipe_radius,
-                  zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
+                  zip(run_ID,run_name,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################

@@ -97,7 +97,7 @@ class SimScheduling:
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
         self.run_path = pset_dict['run_path']
-        self.run_name = "run_"+str(self.run_ID)
+        self.run_name = pset_dict['run_name']
         self.usr = pset_dict['user']
 
         self.main_path = os.path.join(self.run_path,'..')
