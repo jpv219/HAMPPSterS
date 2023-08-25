@@ -2,6 +2,7 @@
 ### HPC scheduling and monitoring script
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
+### Contributors: Paula Pico, Fuyue Liang
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -18,7 +19,16 @@ import re
 import argparse
 import json
 import numpy as np
+import operator
 
+operator_map = {
+    "<": operator.lt,
+    ">": operator.gt,
+    "<=": operator.le,
+    ">=": operator.ge,
+    "==": operator.eq,
+    "!=": operator.ne
+}
 
 ######################## EXCEPTION CLASSES ######################
 
@@ -31,6 +41,12 @@ class JobStatError(Exception):
 class ConvergenceError(Exception):
     """Exception class for convergence error on job"""
     def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
+        self.message = message
+        super().__init__(self.message)
+
+class BadTerminationError(Exception):
+    """Exception class for bad termination error on job after running"""
+    def __init__(self, message="Job run ended on bad termination error"):
         self.message = message
         super().__init__(self.message)
 
@@ -437,6 +453,7 @@ class HPCScheduling:
         return t_wait, status, newjobid
 
     ### checking if the running job is diverging or not
+    ### Author: Fuyue Liang
 
     def check_convergence(self):
 
@@ -512,158 +529,207 @@ class HPCScheduling:
 
             return chk_status
 
-    ### checking termination condition (PtxEast position or real time) 
+    ### Function that performs multiple checks to decide if the simulation should restart
+    ### Author: Paula Pico
 
-    def stop_crit(self):
-        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
-        os.chdir(ephemeral_path)
-        radius = float(self.pipe_radius)
+    def condition_restart(self):
+        new_restart_num = 0
+        message = []
+    
+        # Check # 1: Does the .out file exist? If not raise exception and kill workflow --------------------------------------------------------------
+        if not os.path.exists(self.output_file_path):
+            message = ['-' * 100,"====EXCEPTION====","FileNotFoundError",f'File {self.run_name}.out does not exist','-' * 100]
+            return False, new_restart_num, message
 
-        if self.case_type == 'geom':
+        # Check # 2: Did the simulation diverge or were the .rst files deleted? If so, raise exception and kill workflow -----------------------------
+        os.chdir(self.path)
+        line_with_pattern = None
+        
+        ### Checking last restart file instance in output file
+        with open(f"{self.run_name}.out", 'r') as file:
+            pattern = 'BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES'
+            # Only read the last 50 lines of .out file
+            lines = file.readlines()[-50:]
+            for line in reversed(lines):
+                if pattern in line:
+                    line_with_pattern = line.strip()
+                    break
+            if line_with_pattern is not None:
+                message = ['-' * 100,"====EXCEPTION====","BadTerminationError",f'Simulation {self.run_name} diverged or .rst files deleted!','-' * 100]
+                return False, new_restart_num, message
+        
+        # Check # 3: Has the finishing condition been satisfied? If so, raise exception and kill workflow  -----------------------------------------------
+        os.chdir(self.ephemeral_path)
 
-            ### Checking if there is a csv file: if not, run cannot be restart in geom case
-            if os.path.exists(f'{self.run_name}.csv'):
-                ## Checking location of the interface in the x direction -- stopping criterion
-                ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
-                domain_x = math.ceil(4*radius*1000)/1000
-                min_lim = 0.90*domain_x
-                return ptxEast_f < min_lim
+        if os.path.exists(os.path.join(".", f'{self.run_name}.csv')):
+            csv_file = pd.read_csv(f'{self.run_name}.csv')
+            cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
+            cond_val_ini = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[0]
+            progress = 100*np.abs(((cond_val_last - cond_val_ini)/(float(self.cond_csv_limit) - cond_val_ini)))
+            comparison_func = operator_map[self.conditional]
 
-            ### Else returning none to print the exception in case of geom runs
-            else:
-                return None
+            if not comparison_func(cond_val_last, float(self.cond_csv_limit)):
+                message = ['-' * 100,f"Simulation {self.run_name} reached completion, no restarts required","====RETURN_BOOL====","False",'-' * 100]
+                return False, new_restart_num, message
         else:
+            print('-' * 100)
+            print("WARNING: No *csv file found. Cannot check finishing condition. Simulation progress not calculated")
+            progress = 0
+            print('-' * 100)
+            message.append(
+                f"{'-' * 100}\n"
+                f"WARNING: \n"
+                f" No *csv file found. Cannot check finishing condition.\n"
+                f"Simulation progress not calculated.\n"
+                f"{'-' * 100}\n"
+            )
 
-            if os.path.exists(f'{self.run_name}.csv'):
-                ## Checking location of the interface in the x direction -- stopping criterion
-                ptxEast_f = pd.read_csv(f'{self.run_name}.csv').iloc[:,63].iloc[-1]
-                domain_x = math.ceil(4*radius*1000)/1000
-                min_lim = 0.90*domain_x
-
-                ### option to consider an additional termination condition in case csv file does not exist or can't be read
-                ### Mainly for surf case with known time termination
-                VAR_file_list = glob.glob('VAR_*_*.vtk')
-                last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
-                t_n = last_vtk*5e-3 # based on the jobsh base file configuration
-                t_f = 0.3 # seconds based on high res SMX simulations
-
-                return ptxEast_f < min_lim and t_n<t_f
-
-            ### Else returning none to print the exception in case of geom runs
+        # Check # 4: Did the HPC kill the job due to lack of memory? If so, issue warning and continue -------------------------------------------------------
+        os.chdir(self.path)
+        line_with_pattern = None
+        
+        ### Checking last restart file instance in output file
+        with open(f"{self.run_name}.out", 'r') as file:
+            pattern = 'PBS: job killed: mem'
+            # Only read the last 50 lines of .out file
+            lines = file.readlines()[-50:]
+            for line in reversed(lines):
+                if pattern in line:
+                    line_with_pattern = line.strip()
+                    break
+            if line_with_pattern is not None:
+                message.append(
+                    f"{'-' * 100}\n"
+                    f"WARNING: \n"
+                    f"Simulation {self.run_name} was killed due to lack of memory.\n"
+                    f"Job will be re-submitted but please check.\n"
+                    f"{'-' * 100}\n"
+                )
+        
+        # Check # 5: Has it created .rst files? If not raise exception and kill workflow. Are they new files? If not, issue warning and continue -------------------
+        os.chdir(self.path)
+        line_with_pattern = None
+        
+        ### Checking last restart file instance in output file
+        with open(f"{self.run_name}.out", 'r') as file:
+            pattern = 'writing restart file'
+            lines = file.readlines()
+            for line in reversed(lines):
+                if pattern in line:
+                    line_with_pattern = line.strip()
+                    break
+            ### Extracting restart number from line
+            if line_with_pattern is None:
+                message = ['-' * 100,"====EXCEPTION====","ValueError",f'Restart file pattern in .out not found for simulation {self.run_name}','-' * 100]
+                return False, new_restart_num, message       
             else:
-                ### option to consider an additional termination condition in case csv file does not exist or can't be read
-                ### Mainly for surf case with known time termination
-                VAR_file_list = glob.glob('VAR_*_*.vtk')
-                last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
-                t_n = last_vtk*5e-3 # based on the jobsh base file configuration
-                t_f = 0.3 # seconds based on high res SMX simulations
+                ### searching with re a sequence of 1 or more digits '\d+' in between two word boundaries '\b'
+                match = re.search(r"\b\d+\b", line_with_pattern)
+                if match is None:
+                   message = ['-' * 100,"====EXCEPTION====","ValueError",f'No restart number match found in simulation {self.run_name}','-' * 100]
+                   return False, new_restart_num, message
+                else:
+                    new_restart_num = int(match.group())
+                with open(f"job_{self.run_name}.sh", 'r+') as file:
+                    lines = file.readlines()
+                    for line in reversed(lines):
+                        match = re.search(r'input_file_index=(\d+)', line)
+                        if match:
+                            old_restart_num = int(match.group(1))
+                            break
+                if new_restart_num == old_restart_num:
+                    message.append(
+                        f"{'-' * 100}\n"
+                        f"WARNING: \n"
+                        f"No new .rst files were created in the previous run.\n"
+                        f"Job will be re-submitted but please check.\n"
+                        f"{'-' * 100}\n"
+                    )
 
-                return t_n<t_f
+        message.append(
+            f"{'-' * 100}\n"
+            f"Simulation {self.run_name} passed all critical restarting checks!\n"
+            f"The restart index is {new_restart_num}\n"
+            f"The relative progress is {round(progress, 2)}%\n"
+            f"{'-' * 100}\n"
+        )
+
+        # If all checks have been passed, then return True to restart the job
+        return True, new_restart_num, message
 
     ### Restarting sh based on termination condition eval and last output restart reached
-
+    ### Authors: Juan Pablo Valdes, Paula Pico
+    
     def job_restart(self,pset_dict):
 
         self.pset_dict = pset_dict
         self.run_ID = pset_dict['run_ID']
-        self.case_type = pset_dict['case']
+        self.cond_csv = pset_dict['cond_csv']
+        self.conditional = pset_dict['conditional']
+        self.cond_csv_limit = pset_dict['cond_csv_limit']
+
         self.run_name = "run_"+str(self.run_ID)
         self.run_path = pset_dict['run_path']
         self.path = os.path.join(self.run_path, self.run_name)
-        output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
-        self.pipe_radius = pset_dict['pipe_radius']
+        # Calling the checking function to see if the the simulation can restart
+        ret_bool, new_restart_num, message = self.condition_restart()
 
-        ### Checking if there is an output file: if not, run did not start - complete correctly
-        if not os.path.exists(output_file_path):
-            print("====EXCEPTION====")
-            print("FileNotFoundError")
-            print(f'File {self.run_name}.out does not exist')
-            return False
-        
-        ### If it is case geom and there is no csv to check stop, exit with exception and stop run
-        if self.case_type == 'geom' and self.stop_crit() is None:
-            print("====EXCEPTION====")
-            print("FileNotFoundError")
-            print(f'File {self.run_name}.csv does not exist')
-            return False
-    
-
-        if self.stop_crit():
+        # If the output of the cheking function is True, being the restarting process
+        if ret_bool:
+            for line in message:
+                print(line)
             os.chdir(self.path)
-            line_with_pattern = None
-
-            ### Checking last restart file instance in output file
-            with open(f"{self.run_name}.out", 'r') as file:
+            ### Modifying .sh file accordingly
+            with open(f"job_{self.run_name}.sh", 'r+') as file:
                 lines = file.readlines()
-                pattern = 'writing restart file'
-                for line in reversed(lines):
-                    if pattern in line:
-                        line_with_pattern = line.strip()
+                for line in lines:
+                    if "input_file_index=" in line:
+                        restart_line = line
                         break
-            ### Extracting restart number from line
-            if line_with_pattern is not None:
-                ### searching with re a sequence of 1 or more digits '\d+' in between two word boundaries '\b'
-                match = re.search(r"\b\d+\b", line_with_pattern)
-                if match is not None:
-                    restart_num = int(match.group())
-                else:
-                    print("====EXCEPTION====")
-                    print("ValueError")
-                    print('No restart number match found')
-                    return False
-                ### Modifying .sh file accordingly
-                with open(f"job_{self.run_name}.sh", 'r+') as file:
-                    lines = file.readlines()
-                    restart_line = lines[384]
-                    modified_restart = re.sub('FALSE', 'TRUE', restart_line)
-                    ### modifying the restart number by searching dynamically with f-strings. 
-                    modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), 
-                                              '{}={}'.format('input_file_index', restart_num), 
-                                              modified_restart)
-                    lines[384] = modified_restart
-                    file.seek(0)
-                    file.writelines(lines)
-                    file.truncate()
+                modified_restart = re.sub('FALSE', 'TRUE', restart_line)
 
-                ### submitting job with restart modification
-                job_IDS = self.submit_job(self.path,self.run_name)
-                print('-' * 100)
-                print(f'Job {self.run_ID} re-submitted correctly with ID: {job_IDS}')
-                sleep(120)
+                ### modifying the restart number by searching dynamically with f-strings. 
+                modified_restart = re.sub(r'{}=\d+'.format('input_file_index'), '{}={}'.format('input_file_index', new_restart_num), modified_restart)
+                lines[lines.index(restart_line)] = modified_restart
+                file.seek(0)
+                file.writelines(lines)
+                file.truncate()
 
-                ### check status and waiting time for re-submitted job
-                try:
-                    t_jobwait, status, new_jobID = self.job_wait(job_IDS)
-                    print("====JOB_IDS====")
-                    print(new_jobID)
-                    print("====JOB_STATUS====")
-                    print(status)
-                    print("====WAIT_TIME====")
-                    print(t_jobwait)
-                    print("====RETURN_BOOL====")
-                    print("True")
-                    return True
-                except JobStatError:
-                    print(f'Restart job {self.run_ID} failed on initial re-submission')
-                    print("====EXCEPTION====")
-                    print("JobStatError")
-                except ValueError:
-                    print("====EXCEPTION====")
-                    print("ValueError")
+            ### submitting job with restart modification
+            job_IDS = self.submit_job(self.path,self.run_name)
+            print('-' * 100)
+            print(f'Job {self.run_name} re-submitted correctly with ID: {job_IDS}')
+            #sleep(120)
 
-            else:
+            ### check status and waiting time for re-submitted job
+            try:
+                t_jobwait, status, new_jobID = self.job_wait(job_IDS)
+                print("====JOB_IDS====")
+                print(new_jobID)
+                print("====JOB_STATUS====")
+                print(status)
+                print("====WAIT_TIME====")
+                print(t_jobwait)
+                print("====RETURN_BOOL====")
+                print("True")
+                return True
+            except JobStatError:
+                print(f'Restart job {self.run_ID} failed on initial re-submission')
+                print("====EXCEPTION====")
+                print("JobStatError")
+            except ValueError:
                 print("====EXCEPTION====")
                 print("ValueError")
-                print("Restart file pattern in .out not found or does not exist")
-                return False
             
         else:
             print('-' * 100)
-            print("Job reached completion, no restarts required")
-            print("====RETURN_BOOL====")
-            print("False")
+            for line in message:
+                print(line)
             return False
+
 
     ### Converting vtk to vtr
 

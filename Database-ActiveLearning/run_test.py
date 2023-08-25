@@ -40,6 +40,11 @@ run_ID = ps.plist("run_ID",nruns_list)
 local_path = ps.plist("local_path",["/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning"])
 save_path = ps.plist("save_path",["/Users/mfgmember/Downloads"])
 
+### Termination condition
+cond_csv = ps.plist("cond_csv",["Time"])
+conditional = ps.plist("conditional",["<"])
+cond_csv_limit = ps.plist("cond_csv_limit",["0.5"])
+
 ## Parameters to vary in the sample space
 Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [1,1e4],
              'Desorption Coeff (1/s)': [1e-3,10],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
@@ -105,7 +110,6 @@ else:
             beta_list.append(row['beta'])
  
 
-
 diff1 = ps.plist("D_d",["1.0"])
 pipe_radius = ps.plist("pipe_radius",["0.007875"])
 diff2 = ps.plist("D_b",diff2_list)
@@ -117,7 +121,10 @@ diffs = ps.plist("D_s",diffs_list)
 beta = ps.plist("beta",beta_list)
 
 #creates parameter grid (list of dictionarys)
-params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,diff1,user_ps,pipe_radius,zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
+                  save_path,cond_csv,conditional,cond_csv_limit,
+                  diff1,user_ps,pipe_radius,
+                  zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################

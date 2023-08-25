@@ -2,6 +2,7 @@
 ### CFD scheduling, monitoring and post-processing script
 ### to be run locally
 ### Author: Juan Pablo Valdes,
+### Contributors: Paula Pico, Fuyue Liang
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -29,6 +30,12 @@ class JobStatError(Exception):
 class ConvergenceError(Exception):
     """Exception class for convergence error on job"""
     def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
+        self.message = message
+        super().__init__(self.message)
+
+class BadTerminationError(Exception):
+    """Exception class for bad termination error on job after running"""
+    def __init__(self, message="Job run ended on bad termination error"):
         self.message = message
         super().__init__(self.message)
 
@@ -429,6 +436,8 @@ class SimScheduling:
                                                 or vtk/pvd/convert files not found when attempting to convert')
                     elif exc == "ConvergenceError":
                         raise ConvergenceError('Convergence checks on HPC failed, job killed as a result')
+                    elif exc == "BadTerminationError":
+                        raise BadTerminationError("Job run ended with a bad termination error message in the output file. Check convergence or setup issues")
                     else:
                         raise NameError('Search for exception from log failed')
                     
