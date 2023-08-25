@@ -2,6 +2,7 @@
 ### HPC scheduling and monitoring script
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
+### Version: 1.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 

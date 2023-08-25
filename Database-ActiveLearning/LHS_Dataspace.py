@@ -2,6 +2,7 @@
 ### LHS DOE Sample experiments generator
 ### to be run locally in psweep script
 ### Author: Juan Pablo Valdes,
+### Version: 1.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 

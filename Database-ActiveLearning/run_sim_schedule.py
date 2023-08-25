@@ -2,6 +2,7 @@
 ### Main parametric running script
 ### to be run locally
 ### Author: Juan Pablo Valdes,
+### Version: 1.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
