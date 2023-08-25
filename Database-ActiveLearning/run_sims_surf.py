@@ -23,8 +23,9 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "surf"
-nruns = 32
-nruns_list = [str(i)+'S' for i in range(1, nruns + 1)]
+nruns = 2
+nruns_list = [str(i) for i in range(1, nruns + 1)]
+runname_list = ['run_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
 user = 'nkahouad'
@@ -36,9 +37,16 @@ convert_path = ps.plist("convert_path",["/rds/general/user/nkahouad/home/F_CONVE
 case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
+run_name = ps.plist("run_name",runname_list)
 
 local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning"])
 save_path = ps.plist("save_path",["/media/jpv219/ML/Surf_Runs"])
+
+### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
+### cond_csv determines which condition to use as stopping criteria from the csv
+cond_csv = ps.plist("cond_csv",["Time"])
+conditional = ps.plist("conditional",["<"])
+cond_csv_limit = ps.plist("cond_csv_limit",["0.28"])
 
 ## Parameters to vary in the sample space
 Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [1,1e4],
@@ -105,9 +113,7 @@ else:
             beta_list.append(row['beta'])
  
 
-
 diff1 = ps.plist("D_d",["1.0"])
-pipe_radius = ps.plist("pipe_radius",["0.007875"])
 diff2 = ps.plist("D_b",diff2_list)
 ka = ps.plist("ka",ka_list)
 kd = ps.plist("kd",kd_list)
@@ -117,7 +123,10 @@ diffs = ps.plist("D_s",diffs_list)
 beta = ps.plist("beta",beta_list)
 
 #creates parameter grid (list of dictionarys)
-params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,diff1,user_ps,pipe_radius,zip(run_ID,diff2,ka,kd,ginf,gini,diffs,beta))
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
+                  save_path,cond_csv,conditional,cond_csv_limit,
+                  diff1,user_ps,
+                  zip(run_ID,run_name,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################

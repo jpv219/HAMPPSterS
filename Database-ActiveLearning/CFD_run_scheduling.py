@@ -251,6 +251,7 @@ class SimScheduling:
         log.info('-' * 100)
         log.info(f'Number of drops in this run: {Nd}')
         log.info(f'Drop size dist. {dfDSD}')
+        log.info(f'Interfacial Area : {IntA}')
             
         return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
     

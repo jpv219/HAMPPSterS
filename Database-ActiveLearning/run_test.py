@@ -42,7 +42,8 @@ run_name = ps.plist("run_name",runname_list)
 local_path = ps.plist("local_path",["/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning"])
 save_path = ps.plist("save_path",["/Users/mfgmember/Downloads"])
 
-### Termination condition
+### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
+### cond_csv determines which condition to use as stopping criteria from the csv
 cond_csv = ps.plist("cond_csv",["Time"])
 conditional = ps.plist("conditional",["<"])
 cond_csv_limit = ps.plist("cond_csv_limit",["0.5"])
@@ -113,7 +114,6 @@ else:
  
 
 diff1 = ps.plist("D_d",["1.0"])
-pipe_radius = ps.plist("pipe_radius",["0.007875"])
 diff2 = ps.plist("D_b",diff2_list)
 ka = ps.plist("ka",ka_list)
 kd = ps.plist("kd",kd_list)
@@ -125,7 +125,7 @@ beta = ps.plist("beta",beta_list)
 #creates parameter grid (list of dictionarys)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
                   save_path,cond_csv,conditional,cond_csv_limit,
-                  diff1,user_ps,pipe_radius,
+                  diff1,user_ps,
                   zip(run_ID,run_name,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################
