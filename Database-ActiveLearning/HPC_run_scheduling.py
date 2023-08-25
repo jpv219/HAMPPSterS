@@ -463,11 +463,11 @@ class HPCScheduling:
         chk_status = None
 
         ### Checking if the csv exists
-        if not os.path.exists(f'{self.run_name}.csv'):
+        if not os.path.exists(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv'):
             chk_status = 'FNF'
             return chk_status
        
-        csv_to_check = pd.read_csv(f'{self.run_name}.csv')
+        csv_to_check = pd.read_csv(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')
 
         # verify whether convergence checks can start
         len_to_check = 2000
@@ -561,8 +561,8 @@ class HPCScheduling:
         # Check # 3: Has the finishing condition been satisfied? If so, raise exception and kill workflow  -----------------------------------------------
         os.chdir(self.ephemeral_path)
 
-        if os.path.exists(os.path.join(".", f'{self.run_name}.csv')):
-            csv_file = pd.read_csv(f'{self.run_name}.csv')
+        if os.path.exists(os.path.join(".", f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')):
+            csv_file = pd.read_csv(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')
             cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
             cond_val_ini = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[0]
             progress = 100*np.abs(((cond_val_last - cond_val_ini)/(float(self.cond_csv_limit) - cond_val_ini)))
@@ -730,7 +730,6 @@ class HPCScheduling:
                 print(line)
             return False
 
-
     ### Converting vtk to vtr
 
     def vtk_convert(self,pset_dict):
@@ -791,7 +790,7 @@ class HPCScheduling:
         try:
             shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
             shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')
-            shutil.move(f'{self.run_name}.csv','RESULTS')
+            shutil.move(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv','RESULTS')
             shutil.move(f'{pvd_0file}', 'RESULTS')
             shutil.move(f'{pvd_ffile}', 'RESULTS')
             print('-' * 100)
@@ -835,7 +834,7 @@ class HPCScheduling:
 
         print('-' * 100)
         print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
-        sleep(120)
+        #sleep(120)
 
         try:
             t_jobwait, status, new_jobID = self.job_wait(jobid)

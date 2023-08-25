@@ -173,7 +173,7 @@ class SimScheduling:
                 status = new_status
                 restart = eval(ret_bool)
 
-            except (ValueError,FileNotFoundError,NameError) as e:
+            except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -585,7 +585,7 @@ class SimScheduling:
         pvdfiles = glob.glob('VAR_*_time=*.pvd')
         maxpvd_tf = max(float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles)
 
-        df_csv = pd.read_csv(os.path.join(self.save_path_runID,f'{self.run_name}.csv'))
+        df_csv = pd.read_csv(os.path.join(self.save_path_runID,f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv'))
         df_csv['diff'] = abs(df_csv['Time']-maxpvd_tf)
         log.info('Reading data from csv')
         log.info('-'*100)
