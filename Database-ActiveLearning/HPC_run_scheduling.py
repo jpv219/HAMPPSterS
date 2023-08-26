@@ -770,23 +770,36 @@ class HPCScheduling:
         files_to_convert = ISO_file_list + VAR_toconvert_list
         file_count = len(files_to_convert)
 
-        ### Moving files to RESULTS
-        for file in files_to_convert:
-            try:
-                shutil.move(file,'RESULTS')
-            except (FileNotFoundError, shutil.Error) as e:
-                print('-' * 100)
-                print("====EXCEPTION====")
-                print("FileNotFoundError")
-                print('-' * 100)
-                print(f"Exited with message :{e}, File or directory not found.")
-                print('-' * 100)
-                return
+        ### Check if the files to be converted exist
+
+        if (ISO_file_list and VAR_toconvert_list):
+
+            ### Moving files to RESULTS
+            for file in files_to_convert:
+                try:
+                    shutil.move(file,'RESULTS')
+                except (FileNotFoundError, shutil.Error) as e:
+                    print('-' * 100)
+                    print("====EXCEPTION====")
+                    print("FileNotFoundError")
+                    print('-' * 100)
+                    print(f"Exited with message :{e}, File or directory not found.")
+                    print('-' * 100)
+                    return
+        ### If files don't exist, exit function and terminate pipeline
+        else:
+            print('-' * 100)
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('-' * 100)
+            print("Either ISO or VAR files don't exist.")
+            print('-' * 100)
+            return
 
         print('-' * 100)
         print('Convert files copied to RESULTS')
 
-        ### Moving individual files of interest: pvd, csd
+        ### Moving individual files of interest: pvd, csv
         try:
             shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
             shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')

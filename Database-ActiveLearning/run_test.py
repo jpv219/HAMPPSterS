@@ -44,9 +44,9 @@ save_path = ps.plist("save_path",["/Users/mfgmember/Downloads"])
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
-cond_csv = ps.plist("cond_csv",["Time"])
+cond_csv = ps.plist("cond_csv",["ptx(EAST) "])
 conditional = ps.plist("conditional",["<"])
-cond_csv_limit = ps.plist("cond_csv_limit",["0.5"])
+cond_csv_limit = ps.plist("cond_csv_limit",["10"])
 
 ## Parameters to vary in the sample space
 Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [1,1e4],

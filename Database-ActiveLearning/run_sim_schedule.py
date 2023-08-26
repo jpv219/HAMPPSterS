@@ -70,7 +70,7 @@ with open('DOE/LHS_Geom.pkl', 'wb') as file:
 
 psdict['cond_csv_limit'] = psdict['Radius (mm)'].apply(lambda radius: math.ceil(4 * radius * 1000) / 1000)
 
-cond_csv = ps.plist("cond_csv",["ptx(EAST)"])
+cond_csv = ps.plist("cond_csv",["ptx(EAST) "])
 conditional = ps.plist("conditional",["<"])
 
 
