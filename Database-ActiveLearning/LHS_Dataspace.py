@@ -28,13 +28,23 @@ def apply_restrictions(DOE):
             
         W = min(W,Max_W)
 
+        ## Maintaining consistent width with the number of bars and the pipe diameter
         if W != OldW:
             print('W in row ' + str(i) + ' modified from ' + str(OldW) + ' to ' + str(W))
 
-        Re = 1364*(4*Q/((math.pi*((2*R)/1000))**2))*((2*R)/1000)/0.615
+        Re = 1364*(Q/(math.pi*(R/1000)**2))*((2*R)/1000)/0.615
+        We = 1364*((Q/(math.pi*(R/1000)**2))**2)*((2*R)/1000)/0.036
 
-        if Re >50:
-            Q = ((0.615*50/1364)/(4*((2*R)/1000)))*((math.pi*((2*R)/1000))**2)
+        ### Keeping laminar conditions
+        if Re > 50:
+            Q = (50*0.615/1364)*((math.pi*(R/1000)**2)/((2*R)/1000))
+            print('Re modification')
+            print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
+
+        ## Avoiding high Weber that slows down BLUE
+        if We > 10:
+            Q = math.sqrt(((10*0.036/1364)*(1/((2*R)/1000))))*(math.pi*(R/1000)**2)
+            print('We modification')
             print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
 
         DOE.loc[i,'Bar_Width (mm)'] = W
@@ -44,10 +54,13 @@ def apply_restrictions(DOE):
     return DOE
 
 def calcRe(row):
-    return 1364*(4*row['Flowrate (m3/s)']/((math.pi*2*(row['Radius (mm)']/1000))**2))*(2*row['Radius (mm)']/1000)/0.615
+    return 1364*(row['Flowrate']/(math.pi*(row['Radius (mm)']/1000)**2))*(2*row['Radius (mm)']/1000)/0.615
 
 def calcPos(row):
     return row['Radius (mm)']
+
+def calcWe(row):
+    return 1364*((row['Flowrate']/(math.pi*(row['Radius (mm)']/1000)**2))**2)*(2*row['Radius (mm)']/1000)/0.036
 
 def runDOE(SMX_dict,numsamples):
 
@@ -58,6 +71,7 @@ def runDOE(SMX_dict,numsamples):
 
     modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcRe(row), axis = 1)
     modifiedLHS['SMX_pos (mm)'] = modifiedLHS.apply(lambda row: calcPos(row), axis = 1)
+    modifiedLHS['We'] = modifiedLHS.apply(lambda row: calcWe(row), axis = 1)
     
     return modifiedLHS
 
