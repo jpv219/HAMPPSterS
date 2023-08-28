@@ -74,7 +74,7 @@ class HPCScheduling:
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
 
-        if self.case_type == 'geom' or self.case_type == 'spgeom':
+        if self.case_type == 'geom' or self.case_type == 'sp_geom':
 
             ### Geometry features
             self.bar_width = pset_dict['bar_width']
@@ -90,7 +90,7 @@ class HPCScheduling:
                 self.n_levels = pset_dict['n_levels']
                 self.d_radius = pset_dict['d_radius']
             # single-phase
-            elif self.case_type == 'spgeom':
+            elif self.case_type == 'sp_geom':
                 self.n_ele = pset_dict['n_ele']
 
         else:
@@ -240,7 +240,7 @@ class HPCScheduling:
         print('-' * 100)
         print(f'Run directory {self.path} created and base files copied')
 
-        if self.case_type == 'geom' or self.case_type == 'spgeom':
+        if self.case_type == 'geom' or self.case_type == 'sp_geom':
 
             ## Assign values to placeholders
             os.system(f'sed -i \"s/\'pipe_radius\'/{self.pipe_radius}/\" {self.path}/{self.run_name}_SMX.f90')
@@ -291,7 +291,7 @@ class HPCScheduling:
         os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
 
         ### If geometry variations are studied, construct domain and mesh specifications in job.sh accordingly
-        if self.case_type == 'geom' or self.case_type == 'spgeom':
+        if self.case_type == 'geom' or self.case_type == 'sp_geom':
 
             radius = float(self.pipe_radius)
             d_pipe = 2*radius
@@ -304,7 +304,7 @@ class HPCScheduling:
                     raise ValueError("Pipe diameter doesn't comply with min. res.")
             else:
                 min_res = 10000
-                n_ele = self.n_ele
+                n_ele = float(self.n_ele)
                 ### Resolution and domain size condition: highest res scenario depending on the number of elements and the limit of cpus pre node = 256
                 if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele<=8 and 128*3/d_pipe<min_res):
                     raise ValueError("Pipe diameter and n_elements doesn't comply with min. res.")
@@ -493,51 +493,64 @@ class HPCScheduling:
             return chk_status
 
         else:
-            # check the CFL and time step: CFL < dt or CFL drops below a lower bound
-            lower_limit = csv_to_check['dt CFL'][5] * 1e-3
+            # check the CFL and time step: CFL < dt or CFL drop below a lower bound
+            lower_limit = csv_to_check['dt CFL'].nlargest(5).iloc[-1] * 1e-3
             CFL_check = np.any(csv_to_check['dt CFL'] < lower_limit)
 
             dt_CFL, dt = csv_to_check['dt CFL'].values, csv_to_check['dt'].values
             dt_arr = dt_CFL - dt
             dt_check = np.any(dt_arr < 0)
-
             ts_check = CFL_check or dt_check
-                            
-            # check the Max(div): If Max div fluctuates outside a stability threshold
+
+            # check the Max(div): Max div fluctuate outside a threshold
             window_size = 50
             recent = int(len_to_check * 0.5)
             recent_data = csv_to_check.iloc[-recent:]
-            stable_threshold = 0.1
-            
+            relchg_thres = 0.1
+            grad_thres = 0.01
             moving_avg_div = recent_data['Max(div(V))'].rolling(window=window_size).mean()[::window_size].dropna().values
             relchg_div = np.diff(moving_avg_div) / moving_avg_div[:-1]
+            grad_div = np.gradient(moving_avg_div, 2)
 
-            stable_period = int(len(relchg_div) * 0.9)
-            stable_count_div = 0
+            stable_period_div = int(len(relchg_div) * 0.9)
+            stable_relchg_div = 0
+            stable_grad_div = 0
 
             for rate in relchg_div:
-                if abs(rate) < stable_threshold:
-                       stable_count_div += 1
-                else: 
-                       stable_count_div = 0
-            div_check = stable_count_div < stable_period
-            
-            # check the KE: if there is unstable increase (relative change larger than a threshold)
+                if abs(rate) < relchg_thres:
+                       stable_relchg_div += 1
+                else:
+                       stable_relchg_div = 0
+            for rate in grad_div:
+                if abs(rate) < grad_thres:
+                       stable_grad_div += 1
+                else:
+                       stable_grad_div = 0
+            div_check = stable_relchg_div < stable_period_div or stable_grad_div < stable_period_div
+
+            # check the KE: there exists an explosive increase (relative change larger than a threshold)
             moving_avg_ke = recent_data['Kinetic Energy'].rolling(window=window_size).mean()[::window_size].dropna().values
             relchg_ke = np.diff(moving_avg_ke) / moving_avg_ke[:-1]
+            grad_ke = np.gradient(moving_avg_ke, 2)
 
-            stable_period = int(len(relchg_ke) * 0.9)
-            stable_count_ke = 0
-
+            stable_period_ke = int(len(relchg_ke) * 0.9)
+            stable_relchg_ke = 0
+            stable_grad_ke = 0
+            
             for rate in relchg_ke:
-                if abs(rate) < stable_threshold:
-                       stable_count_ke += 1
-                else: 
-                       stable_count_ke = 0
-            ke_check = stable_count_ke < stable_period
+                if abs(rate) < relchg_thres:
+                       stable_relchg_ke += 1
+                else:
+                       stable_relchg_ke = 0
+            for rate in grad_ke:
+                if abs(rate) < grad_thres:
+                       stable_grad_ke += 1
+                else:
+                       stable_grad_ke = 0
+            ke_check = stable_relchg_ke < stable_period_ke or stable_grad_ke < stable_period_ke
             
             ### If all checks fail, raise a diverging D status
-            if ts_check and div_check and ke_check:
+            if (ts_check and div_check) or (ts_check and ke_check) or (div_check and ke_check):
                 chk_status = 'D'
             ### Else keep monitoring with converging status C
             else:

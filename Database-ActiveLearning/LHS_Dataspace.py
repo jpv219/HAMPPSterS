@@ -60,6 +60,7 @@ def apply_rest_sp(DOE):
         R = DOE.loc[i,'Radius (mm)']
         N = round(DOE.loc[i,'Nbars'])
         Q = DOE.loc[i,'Flowrate (m3/s)']
+        N_ele = round(DOE.loc[i,'NElements'])
         #W- N -D considerations
         OldW = W
         OldQ = Q
@@ -83,17 +84,18 @@ def apply_rest_sp(DOE):
         DOE.loc[i,'Bar_Width (mm)'] = W
         DOE.loc[i,'Flowrate (m3/s)']  = Q
         DOE.loc[i,'Nbars'] = N
+        DOE.loc[i,'NElements'] = N_ele
 
     return DOE
 
 def calcRe(row):
-    return 1364*(row['Flowrate']/(math.pi*(row['Radius (mm)']/1000)**2))*(2*row['Radius (mm)']/1000)/0.615
+    return 1364*(row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))*(2*row['Radius (mm)']/1000)/0.615
 
 def calcPos(row):
     return row['Radius (mm)']
 
 def calcWe(row):
-    return 1364*((row['Flowrate']/(math.pi*(row['Radius (mm)']/1000)**2))**2)*(2*row['Radius (mm)']/1000)/0.036
+    return 1364*((row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))**2)*(2*row['Radius (mm)']/1000)/0.036
 
 def runDOE(SMX_dict,numsamples):
 
