@@ -74,7 +74,7 @@ class HPCScheduling:
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
 
-        if self.case_type == 'geom':
+        if self.case_type == 'geom' or self.case_type == 'spgeom':
 
             ### Geometry features
             self.bar_width = pset_dict['bar_width']
@@ -84,10 +84,15 @@ class HPCScheduling:
             self.max_diameter = pset_dict['max_diameter']
             self.n_bars = pset_dict['n_bars']
             self.flowrate = pset_dict['flowrate']
-            self.d_per_level = pset_dict['d_per_level']
-            self.n_levels = pset_dict['n_levels']
-            self.d_radius = pset_dict['d_radius']
             self.smx_pos = pset_dict['smx_pos']
+            # two-phase
+            if self.case_type == 'geom':
+                self.d_per_level = pset_dict['d_per_level']
+                self.n_levels = pset_dict['n_levels']
+                self.d_radius = pset_dict['d_radius']
+            # single-phase
+            elif self.case_type == 'spgeom':
+                self.n_ele = pset_dict['n_ele']
 
         else:
 
@@ -236,7 +241,7 @@ class HPCScheduling:
         print('-' * 100)
         print(f'Run directory {self.path} created and base files copied')
 
-        if self.case_type == 'geom':
+        if self.case_type == 'geom' or self.case_type == 'spgeom':
 
             ## Assign values to placeholders
             os.system(f'sed -i \"s/\'pipe_radius\'/{self.pipe_radius}/\" {self.path}/{self.run_name}_SMX.f90')
@@ -245,13 +250,19 @@ class HPCScheduling:
             os.system(f'sed -i \"s/\'bar_thickness\'/{self.bar_thickness}/\" {self.path}/{self.run_name}_SMX.f90')
             os.system(f'sed -i \"s/\'bar_angle\'/{self.bar_angle}/\" {self.path}/{self.run_name}_SMX.f90')
             os.system(f'sed -i \"s/\'n_bars\'/{self.n_bars}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
+
+            if self.case_type == 'geom':
+                os.system(f'sed -i \"s/\'d_per_level\'/{self.d_per_level}/\" {self.path}/{self.run_name}_SMX.f90')
+                os.system(f'sed -i \"s/\'n_levels\'/{self.n_levels}/\" {self.path}/{self.run_name}_SMX.f90')
+                os.system(f'sed -i \"s/\'d_radius\'/{self.d_radius}/\" {self.path}/{self.run_name}_SMX.f90')
+
+            else:
+                os.system(f'sed -i \"s/\'n_elements\'/{self.n_ele}/\" {self.path}/{self.run_name}_SMX.f90')
 
 
-            os.system(f'sed -i \"s/\'d_per_level\'/{self.d_per_level}/\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'n_levels\'/{self.n_levels}/\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'d_radius\'/{self.d_radius}/\" {self.path}/{self.run_name}_SMX.f90')
-
-
+            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
+            
             os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
             print('-' * 100)
             print(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
@@ -281,19 +292,25 @@ class HPCScheduling:
         os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
 
         ### If geometry variations are studied, construct domain and mesh specifications in job.sh accordingly
-        if self.case_type == 'geom':
+        if self.case_type == 'geom' or self.case_type == 'spgeom':
 
             radius = float(self.pipe_radius)
             max_diameter = float(self.max_diameter)
             d_pipe = 2*radius
-            min_res = 18000
+
+            if self.case_type == 'geom':
+                min_res = 18000
+                n_ele = 1
+            else:
+                min_res = 10000
+                n_ele = self.n_ele
 
             ### Resolution and domain size condition
-            if min_res*(2*self.max_diameter)/128 > 16:
+            if min_res*((n_ele+1)*self.max_diameter)/128 > 16:
                 raise ValueError("Max p_diameter doesn't comply with min. res.")
 
-            ## x-subdomain is 2 times the pipe's diameter
-            box_2 = math.ceil(4*radius*1000)/1000
+            ## x-subdomain (length) is (n_ele+1)*diameter large
+            box_2 = math.ceil((n_ele+1)*2*radius*1000)/1000
             box_4 = math.ceil(2*radius*1000)/1000
             box_6 = math.ceil(2*radius*1000)/1000
 

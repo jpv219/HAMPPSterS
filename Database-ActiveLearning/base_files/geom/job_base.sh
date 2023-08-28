@@ -47,7 +47,7 @@ cat > Blue.nml <<'EOF'
 &TIME_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Number of time steps,                Real Time Limit (s),         run time limit in hours (if <0, run time limit has nolimit)
-  num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=47.9d0
+  num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=-1.0d0
 !
 ! Fixed time step,                     If fixed, set dt.
   fixed_time_step=.FALSE.             dt=1.0D-4
@@ -60,9 +60,9 @@ cat > Blue.nml <<'EOF'
 !
 ! Time step factor multipliers
   cfl_time_step_factor    =0.5d0
-  visc_time_step_factor   =50.0d0 
+  visc_time_step_factor   =500.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.2d0
+  int_time_step_factor    =0.25d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
   surf_time_step_factor   =2.0d0
@@ -334,7 +334,7 @@ cat > Blue.nml <<'EOF'
   output_box_selection=.FALSE.       output_box_coordinates=0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0
 !
 ! If ParaView,               Format,                Loop Frequency,          Time interval (s),             Prefix.
-  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=5.0d-3   paraview_file_prefix="RUN_NAME"
+  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=1.0d-3   paraview_file_prefix="RUN_NAME"
 !
 ! If tecplot,                Loop Frequency,        Time interval (s),        Prefix.
   tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="RUN_NAME"

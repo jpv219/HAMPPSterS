@@ -2,7 +2,7 @@
 #PBS -N RUN_NAME
 #PBS -o RUN_NAME.out
 #PBS -j oe
-#PBS -l select=1:ncpus=125:mem=256gb
+#PBS -l select='n_nodes':ncpus='n_cpus':mem='mem'gb
 #PBS -l walltime=8:00:00
 set -vx
 cd $PBS_O_WORKDIR
@@ -16,14 +16,14 @@ cat > Blue.nml <<'EOF'
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Size of the domain
   !   box(1),    box(2)     box(3),    box(4)    box(5),     box(6)
-  box=0.0d0   0.032d0   0.0d0  0.016d0   0.0d0  0.016d0
+  box=0.0d0   'box2'd0   0.0d0  'box4'd0   0.0d0  'box6'd0
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
 &MPI_PROCESS_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   ! Process grid dimensions (MPI will do the job if profile=(0,0,0)).
   !         profile(1), profile(2), profile(3)
-  profile = 5,          5,          5
+  profile = 'x_subd',          'y_subd',          'z_subd'
   !
   ! Process grid Periodicity (true means periodic BCs.)
   !         periodic(1), periodic(2), periodic(3)
@@ -34,7 +34,7 @@ cat > Blue.nml <<'EOF'
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Eulerian mesh size per subdomain (must be in power of two).
   !    cell(1), cell(2), cell(3)
-  cell=128,      64,      64
+  cell='cell1',      'cell2',      'cell3'
 !
 ! Guardcell size (ENO needs at least one in each direction).
   !         guardcell(1), guardcell(2), guardcell(3)
@@ -50,7 +50,7 @@ cat > Blue.nml <<'EOF'
   num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=-1.0d0
 !
 ! Fixed time step,                     If fixed, set dt.
-  fixed_time_step=.FALSE.             dt=4.0D-4
+  fixed_time_step=.FALSE.             dt=1.0D-4
 !
 ! Time integeration scheme ("GEAR" order(2) or "CRANK-NICHOLSON" order(2) or "EULER" order(1) scheme).
   time_integration_scheme="GEAR"
@@ -59,19 +59,19 @@ cat > Blue.nml <<'EOF'
   sl_runge_kutta_order    = 1      ! Semi-Lagrangian Runge-Kutta order: 1 or 2.
 !
 ! Time step factor multipliers
-  cfl_time_step_factor    =0.4d0
+  cfl_time_step_factor    =0.5d0
   visc_time_step_factor   =500.0d0 
-  capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.2d0
-  cond_time_step_factor   =2.0d0
-  diff_time_step_factor   =2.0d0
-  surf_time_step_factor   =6.0d0
+  capi_time_step_factor   =100.0d0
+  int_time_step_factor    =20.0d0
+  cond_time_step_factor   =20.0d0
+  diff_time_step_factor   =20.0d0
+  surf_time_step_factor   =20.0d0
   global_time_step_factor =1.0d0
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
 &SURFACE_TENSION_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
-  surface_tension                          =  0.036d0      ! Surface Tension (kg/s2).
+  surface_tension                          =  0.0d0      ! Surface Tension (kg/s2).
   !
   marangoni                                = .FALSE.       ! Marangoni approximation (on/off) => if true, set ENERGY_TRANSPORT=.true.
   marangoni_coeff                          = -3.6d-5       ! Marangoni Coefficient (kg/s2/K).    
@@ -80,7 +80,7 @@ cat > Blue.nml <<'EOF'
 &FLUID_DENSITY_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   density_phase_1                          =  1364.0d0     ! Density of phase_1  (kg/m3)
-  density_phase_2                          =  960.0d0     ! Density of phase_2  (kg/m3)
+  density_phase_2                          =  1364.0d0     ! Density of phase_2  (kg/m3)
   !
   boussinesq                               = .FALSE.       ! Boussinesq approximation (on/off) => if true, set ENERGY_TRANSPORT=.true.
   expan_phase_1                            = 1.0d-4        ! Expansion coeff. phase_1 (1/K)
@@ -91,7 +91,7 @@ cat > Blue.nml <<'EOF'
 &FLUID_VISCOSITY_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   viscosity_phase_1                        = 0.615d0        ! Default absolute viscosity of phase_1 (kg/m/s).
-  viscosity_phase_2                        = 0.0984d0        ! Default absolute viscosity of phase_2 (kg/m/s).
+  viscosity_phase_2                        = 0.615d0        ! Default absolute viscosity of phase_2 (kg/m/s).
   harmonic_viscosity                       = .FALSE.       ! if true, compute harmonic approximation of the viscosity for multiphase flow.
   !
   Non_Newtonian                            = .FALSE.       ! if true, Non-Newtonian vicosity model is assumed instead of Newtonian above (default).
@@ -182,9 +182,9 @@ cat > Blue.nml <<'EOF'
   !----------------------------
   ! SOLVER PARAMETERS
   ! Iterations.     Tolerance.        Relaxation.          Components (used by GMRES only).
-  u_max_iter=50     u_tol=1.D-12      u_relax=1.25D0       u_max_comp=10
-  v_max_iter=50     v_tol=1.D-12      v_relax=1.25D0       v_max_comp=10
-  w_max_iter=50     w_tol=1.D-12      w_relax=1.25D0       w_max_comp=10
+  u_max_iter=60     u_tol=1.D-12      u_relax=1.25D0       u_max_comp=10
+  v_max_iter=60     v_tol=1.D-12      v_relax=1.25D0       v_max_comp=10
+  w_max_iter=60     w_tol=1.D-12      w_relax=1.25D0       w_max_comp=10
 !--------------------------------------------------------------------------------------------------------------------------------
 /
 &PRESSURE_PROPERTIES
@@ -204,7 +204,7 @@ cat > Blue.nml <<'EOF'
   p_max_iter=100    p_tol=1.0D-10         p_relax=1.05D0     p_max_comp=30
   !
   ! Nb grid.       relax_max_grid      Nn max cycles     Nb sweeps down.    Nb sweeps down (used by MG only)
-  p_grids=5        p_relax_max=1.1d0  p_max_cycles=50   p_sweeps_down=20   p_sweeps_up=40
+  p_grids=5        p_relax_max=1.1d0  p_max_cycles=100   p_sweeps_down=20   p_sweeps_up=40
 !--------------------------------------------------------------------------------------------------------------------------------
 /
 &ENERGY_PROPERTIES
@@ -295,16 +295,16 @@ cat > Blue.nml <<'EOF'
 /
 &SURFACTANT_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
-  surfactant_transport                     = .TRUE.       ! Surfactant transport (true/false)
-  surf_phase_1                             =   'diff1'd-20      ! Mass diffusity phase_1 (m2/s)
-  surf_phase_2                             =   'diff2'd0    ! Mass diffusity phase_2 (m2/s)
-  surf_adsorpt                             =   'ka'd0     ! Adsorption coefficient
-  surf_desorpt                             =   'kd'd0    ! Desoprtion coefficient
-  surf_Gm_inf                              =   'ginf'd0       ! Maximum packing concentration (infinite concentration)
-  surf_Gm_ini                              =   'gini'd0       ! Initial surface concentration
-  surf_Gm_diff                             =   'diffs'd0    ! Diffusion coefficient along interface
+  surfactant_transport                     = .FALSE.       ! Surfactant transport (true/false)
+  surf_phase_1                             =   2.1d-6      ! Mass diffusity phase_1 (m2/s)
+  surf_phase_2                             =   1.687d-5    ! Mass diffusity phase_2 (m2/s)
+  surf_adsorpt                             =   0.008d0     ! Adsorption coefficient
+  surf_desorpt                             =   2.7778d0    ! Desoprtion coefficient
+  surf_Gm_inf                              =   9.0d0       ! Maximum packing concentration (infinite concentration)
+  surf_Gm_ini                              =   0.0d0       ! Initial surface concentration
+  surf_Gm_diff                             =   0.0014d0    ! Diffusion coefficient along interface
   surf_curv_option                         =   0           ! Surfactant curvature option (0:Langmuir, 1:Linear)
-  surf_Ela_Num                             =   'beta'd0       ! Elastic number (R*T*Gm_inf)
+  surf_Ela_Num                             =   4.5d0       ! Elastic number (R*T*Gm_inf)
   !----------------------------
   ! DEFAULT BOUNDARY CONDITIONS
   surfactant_bctype                        = "DDDDDD"      ! Default domain boundary condition types
@@ -395,7 +395,9 @@ cp $PROJECT.csv ~/../ephemeral/$PROJECT
 cd ~/../ephemeral/$PROJECT
 # Run the program.
 echo "... Run started @ $(date) ..."
-module load mpi/intel-2019.6.166 intel-suite/2019.4
+#module load mpi/intel-2019.8.254 intel-suite/2019.4
+module load mpi/intel-2019.8.254 intel-suite/2020.2
+#module load  mpi/intel-2019 intel-suite/2019.4
 #pbsexec -grace 55 mpiexec ./$PROGRAM ; OK=$?
 #mpirun -np $NBPROC ./$PROGRAM ; OK=$?
 mpiexec ./$PROGRAM ; OK=$?
