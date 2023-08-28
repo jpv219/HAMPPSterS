@@ -26,7 +26,7 @@ log.info('-' * 100)
 case = "geom"
 nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
-runname_list = ['run_' + item for item in nruns_list]
+runname_list = ['run_geom_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
 user = 'jpv219'
@@ -44,7 +44,7 @@ local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/
 save_path = ps.plist("save_path",["/media/jpv219/ML/Runs"])
 
 ## Parameters to vary in the sample space
-max_diameter = 0.02
+max_diameter = 0.032
 SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-4],'Angle':[20,80]}
 
 captured_output = io.StringIO()
@@ -129,7 +129,6 @@ bar_width = ps.plist("bar_width",bar_width_list)
 bar_thickness = ps.plist("bar_thickness",bar_thickness_list)
 bar_angle = ps.plist("bar_angle",bar_angle_list)
 pipe_radius = ps.plist("pipe_radius",radius_list)
-max_diameter = ps.plist("max_diameter",[max_diameter])
 n_bars = ps.plist("n_bars",nbars_list)
 flowrate = ps.plist("flowrate",flowrate_list)
 d_per_level = ps.plist("d_per_level",["6"])
@@ -142,7 +141,7 @@ cond_csv_limit = ps.plist("cond_csv_limit",cond_csv_limit_list)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
                   cond_csv,conditional,user_ps,
                   zip(run_ID,run_name,bar_width,bar_thickness,bar_angle,pipe_radius,
-                      n_bars,flowrate,smx_pos,cond_csv_limit),max_diameter,d_per_level,n_levels,d_radius)
+                      n_bars,flowrate,smx_pos,cond_csv_limit),d_per_level,n_levels,d_radius)
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################

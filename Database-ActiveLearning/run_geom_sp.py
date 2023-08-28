@@ -26,7 +26,7 @@ log.info('-' * 100)
 case = "spgeom"
 nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
-runname_list = ['run_' + item for item in nruns_list]
+runname_list = ['run_sp_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
 user = 'nkovalc1'
@@ -44,10 +44,10 @@ local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/
 save_path = ps.plist("save_path",["/media/jpv219/ML/SP_Runs"])
 
 ## Parameters to vary in the sample space
-max_diameter = 0.03
+max_diameter = 0.04
 SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],
             'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],
-            'Flowrate (m3/s)': [1e-6,1e-2],'Angle':[20,80], 'NElements': [2,6]}
+            'Flowrate (m3/s)': [1e-6,1e-2],'Angle':[20,80], 'NElements': [2,8]}
 
 captured_output = io.StringIO()
 
@@ -135,7 +135,6 @@ bar_width = ps.plist("bar_width",bar_width_list)
 bar_thickness = ps.plist("bar_thickness",bar_thickness_list)
 bar_angle = ps.plist("bar_angle",bar_angle_list)
 pipe_radius = ps.plist("pipe_radius",radius_list)
-max_diameter = ps.plist("max_diameter",[max_diameter])
 n_bars = ps.plist("n_bars",nbars_list)
 flowrate = ps.plist("flowrate",flowrate_list)
 smx_pos = ps.plist("smx_pos",smx_pos_list)
@@ -146,7 +145,7 @@ cond_csv_limit = ps.plist("cond_csv_limit",cond_csv_limit_list)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
                   cond_csv,conditional,user_ps,
                   zip(run_ID,run_name,bar_width,bar_thickness,bar_angle,pipe_radius,
-                      n_bars,flowrate,smx_pos,n_ele,cond_csv_limit),max_diameter)
+                      n_bars,flowrate,smx_pos,n_ele,cond_csv_limit))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################

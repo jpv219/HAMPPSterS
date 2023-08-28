@@ -81,7 +81,6 @@ class HPCScheduling:
             self.bar_thickness = pset_dict['bar_thickness']
             self.bar_angle = pset_dict['bar_angle']
             self.pipe_radius = pset_dict['pipe_radius']
-            self.max_diameter = pset_dict['max_diameter']
             self.n_bars = pset_dict['n_bars']
             self.flowrate = pset_dict['flowrate']
             self.smx_pos = pset_dict['smx_pos']
@@ -295,19 +294,20 @@ class HPCScheduling:
         if self.case_type == 'geom' or self.case_type == 'spgeom':
 
             radius = float(self.pipe_radius)
-            max_diameter = float(self.max_diameter)
             d_pipe = 2*radius
 
             if self.case_type == 'geom':
                 min_res = 18000
                 n_ele = 1
+                ### Resolution and domain size condition: highest res scenario is with 6^3 and 128^3 cells
+                if 128*5/d_pipe<min_res:
+                    raise ValueError("Pipe diameter doesn't comply with min. res.")
             else:
                 min_res = 10000
                 n_ele = self.n_ele
-
-            ### Resolution and domain size condition
-            if min_res*((n_ele+1)*self.max_diameter)/128 > 16:
-                raise ValueError("Max p_diameter doesn't comply with min. res.")
+                ### Resolution and domain size condition: highest res scenario depending on the number of elements and the limit of cpus pre node = 256
+                if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele<=8 and 128*3/d_pipe<min_res):
+                    raise ValueError("Pipe diameter and n_elements doesn't comply with min. res.")
 
             ## x-subdomain (length) is (n_ele+1)*diameter large
             box_2 = math.ceil((n_ele+1)*2*radius*1000)/1000
@@ -317,79 +317,78 @@ class HPCScheduling:
             os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
-        
-            ## first cut for 64 cells per subd considering max x-subd as 10. ELSE added to consider 128 cells for x-subd and decrease ncpus.
-            first_d_cut = (64*10/(2*min_res))/max_diameter
-            
-            ## Below second cut taking 6 for all subdomains and 128 cells for x-subd.
-            second_d_cut = ((6*64)/min_res)/max_diameter 
 
-            ## Above second cut, all subdomains must have 128 cells and set with multiple nodes.
+            ### High and low cell number cases
+            yz_cpus_l = (min_res*d_pipe)/64
 
-            if d_pipe < first_d_cut*max_diameter:
-                cpus = min_res*(2*d_pipe)/64
-                if cpus <= 6:
-                    xsub = math.ceil(cpus / 2) * 2
+            yz_cpus_h = (min_res*d_pipe)/128
+
+            ### Two phase case with only one element
+            # Settings designed to operate with only one node in the short queue in the HPC
+            if n_ele == 1:
+                
+                if yz_cpus_l <= 5:
+                    xsub = math.ceil(yz_cpus_l)*2
                     ysub = zsub = int(xsub/2)
                     mem = 128 
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
-                ### GENERAL QUEUE OPTION
-                
-                # elif cpus < 8:
-                #     xsub = math.ceil(cpus / 2) * 2
-                #     ysub = zsub = int(xsub/2)
-                #     mem = 124 
-                #     cell1 = cell2 = cell3 = 64
-                #     ncpus = int(xsub*ysub*zsub/4)
-                #     n_nodes = 4   
-                
-                else:
-                    xsub = ysub = zsub = math.ceil(min_res*(2*d_pipe)/128)
-                    mem = 256
+
+                elif yz_cpus_l <=6:
+                    xsub = math.ceil(yz_cpus_l)
+                    ysub = zsub = int(xsub)
+                    mem = 256 
+                    cell1 = 128
+                    cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
-                    n_nodes=1
-                    cell1= 128
-                    cell2 = cell3 = 64            
-            elif d_pipe > second_d_cut*max_diameter:
-                cpus = min_res*(2*d_pipe)/128
-                if cpus <= 10:
-                    xsub = math.ceil(cpus / 2) * 2
-                    ysub = zsub = int(xsub/2)
+                    n_nodes = 1
+
+                else:
+                    xsub = math.ceil(yz_cpus_h)
+                    ysub = zsub = int(xsub)
                     mem = 512
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
-                elif cpus >10 and cpus <= 12:
-                    xsub = 12
-                    ysub = zsub = int(xsub/2)
-                    cell1 = cell2 = cell3 = 128
-                    n_nodes = 4
-                    ncpus = int(xsub*ysub*zsub/n_nodes)
-                    mem = 100
-                elif cpus >12 and cpus <= 14:
-                    xsub = 14
-                    ysub = zsub = int(xsub/2)
-                    cell1 = cell2 = cell3 = 128
-                    n_nodes = 7
-                    ncpus = int(xsub*ysub*zsub/n_nodes)
-                    mem = 100
-                elif cpus > 14 and cpus <=16:
-                    xsub = 16
-                    ysub = zsub = int(xsub/2)
-                    cell1 = cell2 = cell3 = 128
-                    n_nodes = 8
-                    ncpus = int(xsub*ysub*zsub/n_nodes)
-                    mem = 256
 
-            else:
-                xsub = ysub = zsub = 6
-                mem = 256
-                ncpus = int(xsub*ysub*zsub)
-                n_nodes=1
-                cell1= 128
-                cell2 = cell3 = 64
+            ### Single phase case with multiple elements
+            ### First if looking for 64 cells and second if augmenting to 128 cell cases
+            elif n_ele <=3:
+
+                if yz_cpus_l<=4:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 128
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = math.ceil(yz_cpus_h)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 512
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+            elif n_ele<=8:
+                
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 128
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = math.ceil(yz_cpus_h)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 512
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
 
             ### Replacing placeholders in job.sh file after resolution calculations
             os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/job_{self.run_name}.sh')

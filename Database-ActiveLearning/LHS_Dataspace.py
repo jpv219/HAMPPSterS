@@ -73,7 +73,6 @@ def apply_rest_sp(DOE):
             print('W in row ' + str(i) + ' modified from ' + str(OldW) + ' to ' + str(W))
 
         Re = 1364*(Q/(math.pi*(R/1000)**2))*((2*R)/1000)/0.615
-        We = 1364*((Q/(math.pi*(R/1000)**2))**2)*((2*R)/1000)/0.036
 
         ### Keeping laminar conditions
         if Re > 500:

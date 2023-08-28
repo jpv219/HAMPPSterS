@@ -25,7 +25,7 @@ log.info('-' * 100)
 case = "surf"
 nruns = 2
 nruns_list = [str(i) for i in range(1, nruns + 1)]
-runname_list = ['run_' + item for item in nruns_list]
+runname_list = ['run_surf_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
 user = 'nkahouad'
