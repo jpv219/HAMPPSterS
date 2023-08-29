@@ -217,7 +217,7 @@ class HPCScheduling:
                 ### Job running and complying with all set checks
                 else:
                     print('-' * 100)
-                    print(f'All convergence checks for job {self.run_ID} have passed successfully')
+                    print(f'Required convergence checks for job {self.run_ID} have passed successfully')
                     print('-' * 100)
 
         except JobStatError:
@@ -548,13 +548,30 @@ class HPCScheduling:
                 else:
                        stable_grad_ke = 0
             ke_check = stable_relchg_ke < stable_period_ke or stable_grad_ke < stable_period_ke
+
+            checks = {
+                'time step check':ts_check,
+                'divergence check':div_check,
+                'kinetic energy check':ke_check
+            }
             
-            ### If all checks fail, raise a diverging D status
-            if (ts_check and div_check) or (ts_check and ke_check) or (div_check and ke_check):
+            ### Counting failed checks with True = 1 and False = 0
+            failed_checks = sum(value for value in checks.values())
+            ### Adding failed checks if value = True
+            failed_keys = [key for key, value in checks.items() if value]
+
+            ### If 2/3 checks fail, raise a diverging D status
+            if failed_checks >=2:
                 chk_status = 'D'
-            ### Else keep monitoring with converging status C
+                print(f'Job seems to be diverging or unstable since it does not pass {failed_checks} checks: {failed_keys}.')
+            ### Else keep monitoring with converging status C, issuing warnings where appropiate
+            elif failed_checks == 1:
+                chk_status = 'C'
+                print(f'WARNING: Check: {failed_keys} has failed to pass, job will continue')
+            
             else:
                 chk_status = 'C'
+                print('All checks have passed successfully')
 
             return chk_status
 
