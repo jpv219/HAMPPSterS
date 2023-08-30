@@ -3,6 +3,7 @@
 ### to be run locally in psweep script
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
+### Version: 2.0
 ### Department of Chemical Engineering, Imperial College London
 
 from doepy import build

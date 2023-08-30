@@ -3,6 +3,7 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
+### Version: 2.0
 ### Department of Chemical Engineering, Imperial College London
 
 import psweep as ps

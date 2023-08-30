@@ -3,6 +3,7 @@
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
+### Version: 2.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -135,15 +136,15 @@ class HPCScheduling:
         print('-' * 100)
 
         ### wait time to submit jobs, avoiding them to go all at once
-        #init_wait_time = np.random.RandomState().randint(60,180)
-        #sleep(init_wait_time)
+        init_wait_time = np.random.RandomState().randint(60,180)
+        sleep(init_wait_time)
 
         job_IDS = self.submit_job(self.path,self.run_name)
 
         print('-' * 100)
         print(f'Job {self.run_ID} submitted succesfully with ID {job_IDS}')
 
-        #sleep(120)
+        sleep(120)
 
         ### Check job status and assign waiting time accordingly
         try:
@@ -745,7 +746,7 @@ class HPCScheduling:
             job_IDS = self.submit_job(self.path,self.run_name)
             print('-' * 100)
             print(f'Job {self.run_name} re-submitted correctly with ID: {job_IDS}')
-            #sleep(120)
+            sleep(120)
 
             ### check status and waiting time for re-submitted job
             try:
@@ -890,7 +891,7 @@ class HPCScheduling:
 
         print('-' * 100)
         print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
-        #sleep(120)
+        sleep(120)
 
         try:
             t_jobwait, status, new_jobID = self.job_wait(jobid)

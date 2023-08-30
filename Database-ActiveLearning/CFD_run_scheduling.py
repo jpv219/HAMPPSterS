@@ -3,6 +3,7 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
+### Version: 2.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 
@@ -119,8 +120,8 @@ class SimScheduling:
         log.info('-' * 100)
 
         ### wait time to connect at first, avoiding multiple simultaneuous connections
-        #init_wait_time = np.random.RandomState().randint(0,180)
-        #sleep(init_wait_time)
+        init_wait_time = np.random.RandomState().randint(0,180)
+        sleep(init_wait_time)
 
         try:
             command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
@@ -293,7 +294,7 @@ class SimScheduling:
                     log.info('-' * 100)
                     log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
                     log.info('-' * 100)
-                    sleep(t_wait-3570)
+                    sleep(t_wait)
                     try:
                         ### Execute monitor function in HPC to check job status
                         command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
