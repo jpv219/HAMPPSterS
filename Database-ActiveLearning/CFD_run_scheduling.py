@@ -622,7 +622,7 @@ class SimScheduling:
                 log.info('-' * 100)
 
                 #sleep(t_wait)
-                sleep(60)
+                sleep(3600)
 
                 try:
                     ### Execute monitor function in HPC to check job status
@@ -689,7 +689,7 @@ class SimScheduling:
 
             try:
                 ssh.connect(login, username=user, password=key)
-
+                print('')
                 stdin, stdout, stderr = ssh.exec_command(command)
                 out_lines = []
                 for line in stdout:
