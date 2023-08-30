@@ -243,17 +243,30 @@ class SimScheduling:
             pvpyactive, pid = self.is_pvpython_running()
 
         ### Exectuing post-processing
-        dfDSD, IntA = self.post_process(log)
-        Nd = dfDSD.size
+        if self.case_type == 'spgeom':
+            emax, Q, ediss, gamma, P, u, L = self.post_process_SP(log)
 
-        log.info('-' * 100)
-        log.info('Post processing completed succesfully')
-        log.info('-' * 100)
-        log.info(f'Number of drops in this run: {Nd}')
-        log.info(f'Drop size dist. {dfDSD}')
-        log.info(f'Interfacial Area : {IntA}')
+            log.info('-' * 100)
+            log.info('Post processing completed succesfully')
+            log.info('-' * 100)
+            log.info('Extracted relevant hydrodynamic data')
+
+            return {'L': L, 'e_max':emax, 
+            'Q': Q, 'E_diss':ediss, 'Gamma': gamma, 
+            'Pressure': P, 'Velocity': u}
+
+        else:
+            dfDSD, IntA = self.post_process(log)
+            Nd = dfDSD.size
+
+            log.info('-' * 100)
+            log.info('Post processing completed succesfully')
+            log.info('-' * 100)
+            log.info(f'Number of drops in this run: {Nd}')
+            log.info(f'Drop size dist. {dfDSD}')
+            log.info(f'Interfacial Area : {IntA}')
             
-        return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
+            return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
     
     ### calling monitoring and restart function to check in on jobs
 
@@ -577,7 +590,7 @@ class SimScheduling:
             log.info('-' * 100)
             log.info('-' * 100)
 
-    ### Post-processing function extracting relevant outputs from sim's final timestep.
+    ### Post-processing function for two-phase cases extracting relevant outputs from sim's final timestep.
 
     def post_process(self,log):
 
@@ -628,3 +641,52 @@ class SimScheduling:
             df_DSD = None
 
         return df_DSD, IntA
+    
+    ### Post-processing function for single-phase cases extracting relevant outputs from sim's final timestep.
+
+    def post_process_SP(self,log):
+
+        os.chdir(self.local_path)
+
+        self.n_ele = self.pset_dict['n_ele']
+        self.pipe_radius = self.pset_dict['pipe_radius']
+        domain_length = (1 + float(self.n_ele))*float(self.pipe_radius)*2
+
+        ### Running pvpython script for Nd and DSD
+        script_path = os.path.join(self.local_path,'PV_ps_PP.py')
+
+        log.info('-'*100)
+        log.info('Executing pvpython script')
+        log.info('-'*100)
+
+        try:
+            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name, domain_length, self.pipe_radius], 
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
+            outlines= []
+            for i, line in enumerate(captured_stdout):
+                stripline = line.strip()
+                outlines.append(stripline)
+                if i < len(captured_stdout) - 1:
+                    log.info(stripline)
+            
+            df_hyd = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
+
+            L = df_hyd['Length']
+            emax = df_hyd['e_max']
+            Q = df_hyd['Q']
+            ediss =  df_hyd['E_diss']
+            gamma = df_hyd['Gamma']
+            P = df_hyd['Pressure']
+            u = df_hyd['Velocity']
+
+
+        except subprocess.CalledProcessError as e:
+            log.info(f"Error executing the script with pvpython: {e}")
+            emax, Q, ediss, gamma, P, u, L = [None] * 7
+        except FileNotFoundError:
+            log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+            emax, Q, ediss, gamma, P, u, L = [None] * 7
+
+        return emax, Q, ediss, gamma, P, u, L

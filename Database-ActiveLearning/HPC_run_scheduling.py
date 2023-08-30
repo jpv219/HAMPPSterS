@@ -259,9 +259,6 @@ class HPCScheduling:
             else:
                 os.system(f'sed -i \"s/\'n_elements\'/{self.n_ele}/\" {self.path}/{self.run_name}_SMX.f90')
 
-
-            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
-            
             os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
             print('-' * 100)
             print(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')

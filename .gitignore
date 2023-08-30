@@ -4,3 +4,4 @@ __pycache__/
 *csv
 calc/
 *pkl
+.DS_Store

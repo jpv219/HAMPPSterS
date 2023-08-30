@@ -24,7 +24,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "sp_geom"
-nruns = 32
+nruns = 2
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_sp_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -156,6 +156,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params,save=True,tmpsave=True,skip_dups=True)   
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)   
 
 

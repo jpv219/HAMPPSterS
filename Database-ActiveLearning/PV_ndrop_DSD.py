@@ -65,7 +65,7 @@ def pvdropDSD(HDpath,case_name):
     # find lower and upper bound indices of droplet list
     region_range = connectivity.CellData.GetArray(0).GetRange()
 
-    print('Merge blocks, clip and connectivity perform correctly')
+    print('Merge blocks, clip and connectivity performed correctly')
 
     lower_bound = int(region_range[0])
     upper_bound = int(region_range[1])
