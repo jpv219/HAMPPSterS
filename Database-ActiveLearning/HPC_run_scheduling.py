@@ -303,7 +303,7 @@ class HPCScheduling:
                 min_res = 10000
                 n_ele = float(self.n_ele)
                 ### Resolution and domain size condition: highest res scenario depending on the number of elements and the limit of cpus pre node = 256
-                if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele<=8 and 128*3/d_pipe<min_res):
+                if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele>3 and 128*3/d_pipe<min_res):
                     raise ValueError("Pipe diameter and n_elements doesn't comply with min. res.")
 
             ## x-subdomain (length) is (n_ele+1)*diameter large
@@ -369,7 +369,7 @@ class HPCScheduling:
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
 
-            elif n_ele<=8:
+            elif n_ele>3:
                 
                 if yz_cpus_l<=3:
                     ysub = zsub = math.ceil(yz_cpus_l)

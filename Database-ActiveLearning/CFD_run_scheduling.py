@@ -243,7 +243,7 @@ class SimScheduling:
             pvpyactive, pid = self.is_pvpython_running()
 
         ### Exectuing post-processing
-        if self.case_type == 'spgeom':
+        if self.case_type == 'sp_geom':
             emax, Q, ediss, gamma, P, u, L = self.post_process_SP(log)
 
             log.info('-' * 100)
@@ -653,14 +653,14 @@ class SimScheduling:
         domain_length = (1 + float(self.n_ele))*float(self.pipe_radius)*2
 
         ### Running pvpython script for Nd and DSD
-        script_path = os.path.join(self.local_path,'PV_ps_PP.py')
+        script_path = os.path.join(self.local_path,'PV_sp_PP.py')
 
         log.info('-'*100)
         log.info('Executing pvpython script')
         log.info('-'*100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name, domain_length, self.pipe_radius], 
+            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name, str(domain_length), str(self.pipe_radius)], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')

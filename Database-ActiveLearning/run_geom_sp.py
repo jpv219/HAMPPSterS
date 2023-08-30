@@ -70,7 +70,12 @@ with open('DOE/LHS_Geom.pkl', 'wb') as file:
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
 
-psdict['cond_csv_limit'] = psdict['Radius (mm)'].apply(lambda radius: math.ceil(4 * radius * 1000) / 1000)
+n0 = 0.0063
+ninf = 0.00086
+k = 0.4585
+m = 0.577
+
+psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: ninf + ((n0-ninf)/(1+(k*Re)**m)))
 
 
 cond_csv = ps.plist("cond_csv",["Time"])
@@ -156,6 +161,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)   
+    df = ps.run_local(simulator.localrun, params, poolsize=1,save=True,tmpsave=True,skip_dups=True)   
 
 

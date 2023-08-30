@@ -77,7 +77,7 @@ def apply_rest_sp(DOE):
 
         ### Keeping laminar conditions
         if Re > 500:
-            Q = (50*0.615/1364)*((math.pi*(R/1000)**2)/((2*R)/1000))
+            Q = (np.random.uniform(5,500)*0.615/1364)*((math.pi*(R/1000)**2)/((2*R)/1000))
             print('Re modification')
             print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
 
