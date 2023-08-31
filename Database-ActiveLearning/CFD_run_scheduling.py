@@ -174,7 +174,7 @@ class SimScheduling:
                 status = new_status
                 restart = eval(ret_bool)
 
-            except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError) as e:
+            except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError,TypeError,KeyError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -335,7 +335,7 @@ class SimScheduling:
                 
                 else:
                     ### Status here is R and not jobconvert, performing convergence checks in HPC monitor
-                    n_checks = 60 # has to be larger than 0
+                    n_checks = 16 # has to be larger than 0
                     log.info('-' * 100)
                     log.info(f'Job {run} with id: {jobid} has status {status}. Currently on check {chk_counter} out of {n_checks} checks during runtime.')
                     log.info('-' * 100)
@@ -453,6 +453,8 @@ class SimScheduling:
                         raise ConvergenceError('Convergence checks on HPC failed, job killed as a result')
                     elif exc == "BadTerminationError":
                         raise BadTerminationError("Job run ended with a bad termination error message in the output file. Check convergence or setup issues")
+                    elif exc == 'KeyError':
+                        raise KeyError('Error while attempting to restart: Stop condition key name does not exist in the CSV file checked')
                     else:
                         raise NameError('Search for exception from log failed')
                     

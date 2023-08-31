@@ -301,7 +301,7 @@ class HPCScheduling:
                 if 128*5/d_pipe<min_res:
                     raise ValueError("Pipe diameter doesn't comply with min. res.")
             else:
-                min_res = 10000
+                min_res = 9000
                 n_ele = float(self.n_ele)
                 ### Resolution and domain size condition: highest res scenario depending on the number of elements and the limit of cpus pre node = 256
                 if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele>3 and 128*3/d_pipe<min_res):
@@ -607,6 +607,11 @@ class HPCScheduling:
 
         if os.path.exists(os.path.join(".", f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')):
             csv_file = pd.read_csv(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')
+
+            ### Check if the key supplied as cond_csv acutally exists in the csv file before carrying on
+            if self.cond_csv not in csv_file.columns:
+                raise KeyError('Stop condition parameter defined does not exist in the csv file')
+            
             cond_val_last = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[-1]
             cond_val_ini = csv_file.iloc[:,csv_file.columns.get_loc(self.cond_csv)].iloc[0]
             progress = 100*np.abs(((cond_val_last - cond_val_ini)/(float(self.cond_csv_limit) - cond_val_ini)))
@@ -718,8 +723,14 @@ class HPCScheduling:
         self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
         self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
-        # Calling the checking function to see if the the simulation can restart
-        ret_bool, new_restart_num, message = self.condition_restart()
+        # Calling the checking function to see if the simulation can restart, verifying cond_csv key exists condition in csv file
+        try:
+            ret_bool, new_restart_num, message = self.condition_restart()
+        except KeyError as e:
+            print(f'Exited with message: {e}')
+            print("====EXCEPTION====")
+            print("KeyError")
+            return False
 
         # If the output of the cheking function is True, being the restarting process
         if ret_bool:

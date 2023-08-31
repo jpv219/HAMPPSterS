@@ -45,7 +45,7 @@ save_path = ps.plist("save_path",["/media/jpv219/ML/Surf_Runs"])
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
-cond_csv = ps.plist("cond_csv",["Time"])
+cond_csv = ps.plist("cond_csv",["Time(s)"])
 conditional = ps.plist("conditional",["<"])
 cond_csv_limit = ps.plist("cond_csv_limit",["0.28"])
 

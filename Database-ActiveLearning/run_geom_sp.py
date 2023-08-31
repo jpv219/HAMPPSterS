@@ -25,7 +25,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "sp_geom"
-nruns = 2
+nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_sp_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -76,10 +76,10 @@ ninf = 0.00086
 k = 0.4585
 m = 0.577
 
-psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: ninf + ((n0-ninf)/(1+(k*Re)**m)))
+psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: 1e-4 + ninf + ((n0-ninf)/(1+(k*Re)**m)))
 
 
-cond_csv = ps.plist("cond_csv",["Time"])
+cond_csv = ps.plist("cond_csv",["Time(s)"])
 conditional = ps.plist("conditional",["<"])
 
 
@@ -108,7 +108,7 @@ if not re_run:
     # Save the combined data into a CSV file
     with open('params/parameters.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements'])
+        writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
         writer.writerows(data)
 
 else:
@@ -162,6 +162,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=1,save=True,tmpsave=True,skip_dups=True)   
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)   
 
 
