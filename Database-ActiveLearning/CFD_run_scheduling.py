@@ -19,6 +19,7 @@ import numpy as np
 import logging
 import psutil
 import glob
+from datetime import datetime
 
 ######################## EXCEPTION CLASSES ######################
 
@@ -42,13 +43,211 @@ class BadTerminationError(Exception):
 
 #################################################################
 
+### Author: Paula Pico
+class SimMonitoring:
+    
+    ### Init function
+     
+    def __init__(self,pset_dict) -> None:
+        
+        ### Initialising class attributes
+        self.pset_dict = pset_dict
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.save_path_csv = pset_dict['save_path_csv']
+        self.run_path = pset_dict['run_path']
+        self.jobID = pset_dict['jobID']
+        self.run_name = pset_dict['run_name']
+        self.run_ID = pset_dict['run_ID']
+        self.usr = pset_dict['user']
+
+        self.main_path = os.path.join(self.run_path,'..')
+        self.path = os.path.join(self.run_path)
+
+        ### SimScheduling class instance, to call the required methods
+        self.simulation = SimScheduling(pset_dict)
+
+        ### Function shortcuts
+        self.convert_to_json = self.simulation.convert_to_json
+        self.set_log = self.simulation.set_log
+        self.jobmonitor = self.simulation.jobmonitor
+        self.execute_remote_command = self.simulation.execute_remote_command
+
+    ### Local monitoring of existing jobs in HPC and performing overall BLUE workflow
+    
+    def localmonitor(self,pset_dict):
+
+        ### Logger set-up
+        log_filename = f"output_{self.run_name}.txt"
+        log = self.set_log(log_filename)
+        dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
+
+        HPC_script = 'HPC_run_scheduling.py'
+
+        ##Initial values
+        t_wait = 1
+        status = 'I'
+        jobid = self.jobID
+
+        restart = True
+        while restart:
+
+            ### job monitoring loop
+
+            log.info('-' * 100)
+            log.info('JOB MONITORING')
+            log.info('-' * 100)
+
+            try:
+                self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            except (ValueError, FileNotFoundError,NameError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"Authentication failed: {e}")
+                return {}
+            
+
+            ### Downloading csv file
+
+            log.info('-' * 100)
+            log.info('DOWNLOADING .csv FILE')
+            log.info('-' * 100)
+
+            try:
+                self.copy_csv(log)
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"SSH ERROR: Authentication failed: {e}")
+                return {}
+
+            ### Job restart execution
+
+            log.info('-' * 100)
+            log.info('JOB RESTARTING')
+            log.info('-' * 100)
+
+            try:
+                log.info('-' * 100)
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
+                    command=command, search=2, log=log
+                    )
+
+                log.info('-' * 100)
+
+                ### updating
+                jobid = new_jobID
+                t_wait = new_t_wait
+                status = new_status
+                restart = eval(ret_bool)
+
+            except (ValueError,FileNotFoundError,NameError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"Authentication failed: {e}")
+                return {}
+            
+    ### Function to copy the csv file. To be executed at the end of every run
+
+    def copy_csv(self,log):
+
+        ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
+
+        ### Config file with keys to login to the HPC
+        config = configparser.ConfigParser()
+        config.read(f'config_{self.usr}.ini')
+        user = config.get('SSH', 'username')
+        key = config.get('SSH', 'password')
+        try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
+
+        for login in try_logins:
+            
+            ### Establish an SSH connection using a context manager
+            ssh = paramiko.SSHClient()
+            ssh.load_system_host_keys()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            warnings.filterwarnings("ignore", category=ResourceWarning)
+
+            try:
+                ssh.connect(login, username=user, password=key)
+                stdin, _, _ = ssh.exec_command("echo 'SSH connection test'")
+                transport = ssh.get_transport()
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                remote_path = os.path.join(ephemeral_path,self.run_name)
+                remote_files = sftp.listdir(remote_path)
+
+                # Trying to Find .csv file in EPHEMERAL
+                try:
+                    remote_files = sftp.listdir(remote_path)
+                    csv_files = [file for file in remote_files if 
+                                 file.endswith(f'{self.run_name}.csv' 
+                                               if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')]
+
+                    # If csv is found. Create a directory named with current date in "temporal", copy the csv there and rename it to: *_{today_date}.csv
+                    if csv_files:
+                        log.info('-' * 100)
+                        log.info(f"*.csv file found in remote directory")
+                        log.info('-' * 100)
+                        today_date = datetime.now().strftime("%d%m%y")
+                        target_directory = os.path.join(self.save_path_csv, today_date)
+                        os.makedirs(target_directory, exist_ok=True)
+                        log.info(f"Directory {today_date} created")
+
+                        for csv_file in csv_files:
+                            new_csv_file_name = f"{os.path.splitext(csv_file)[0]}_{today_date}.csv"
+                            remote_file_path = os.path.join(remote_path, csv_file)
+                            local_file_path = os.path.join(target_directory, new_csv_file_name)
+                            sftp.get(remote_file_path, local_file_path)
+                            log.info(f"File {new_csv_file_name} copied and renamed")
+                    else:
+                        # If no csv file is found. Continue with the job restarting process and issue a warning
+                        log.info('-' * 100)
+                        log.info("WARNING: No csv files found to copy. Simulation will be restarted but please check")
+                        log.info('-' * 100)
+                finally:
+                    log.info('-' * 100)
+                    log.info("Restarting process will begin")
+                    log.info('-' * 100)
+
+                if stdin is not None:
+                    break
+
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                if login == try_logins[-1]:
+                    raise e
+                else:
+                    log.info(f'SSH connection failed with login {login}, trying again ...')
+                    continue
+
+            ### closing HPC session
+            finally:
+                if 'sftp' in locals():
+                    sftp.close()
+                if 'stdin' in locals():
+                    stdin.close()
+                if 'ssh' in locals():
+                    ssh.close()
+        return True
 
 class SimScheduling:
 
     ### Init function
      
-    def __init__(self) -> None:
-        pass
+    def __init__(self,pset_dict) -> None:
+
+        ### Initialising class attributes
+        self.pset_dict = pset_dict
+        self.case_type = pset_dict['case']
+        self.run_ID = pset_dict['run_ID']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.run_path = pset_dict['run_path']
+        self.run_name = pset_dict['run_name']
+        self.usr = pset_dict['user']
+
+        self.save_path_runID = os.path.join(self.save_path,self.run_name)
+        self.main_path = os.path.join(self.run_path,'..')
 
     ### Defining individual logging files for each run.
 
@@ -90,24 +289,13 @@ class SimScheduling:
 
     ### local run assigning parametric study to HPC handling script and performing overall BLUE workflow
 
-    def localrun(self,pset_dict):
-        ###Path and running attributes
-        self.pset_dict = pset_dict
-        self.case_type = pset_dict['case']
-        self.run_ID = pset_dict['run_ID']
-        self.local_path = pset_dict['local_path']
-        self.save_path = pset_dict['save_path']
-        self.run_path = pset_dict['run_path']
-        self.run_name = pset_dict['run_name']
-        self.usr = pset_dict['user']
-
-        self.main_path = os.path.join(self.run_path,'..')
+    def localrun(self):
 
         ### Logger set-up
         log_filename = f"output_{self.case_type}/output_{self.run_name}.txt"
         log = self.set_log(log_filename)
 
-        dict_str = json.dumps(pset_dict, default=self.convert_to_json, ensure_ascii=False)
+        dict_str = json.dumps(self.pset_dict, default=self.convert_to_json, ensure_ascii=False)
 
         ### First job creation and submission
 
@@ -280,7 +468,7 @@ class SimScheduling:
         while running:
             
             ### Setting updated dictionary with jobid from submitted job and csv_check logical gate
-            mdict = self.pset_dict   
+            mdict = self.pset_dict
             mdict['jobID'] = jobid
             mdict['check'] = csv_check
             mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
@@ -294,7 +482,8 @@ class SimScheduling:
                     log.info('-' * 100)
                     log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
                     log.info('-' * 100)
-                    sleep(t_wait)
+                    #sleep(t_wait)
+                    sleep(60)
                     try:
                         ### Execute monitor function in HPC to check job status
                         command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
@@ -526,8 +715,6 @@ class SimScheduling:
 
     def scp_download(self,log):
 
-        ###Create run local directory to store data
-        self.save_path_runID = os.path.join(self.save_path,self.run_name)
         ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
 
         try:
@@ -536,7 +723,7 @@ class SimScheduling:
         except:
             pass
 
-        ### Config faile with keys to login to the HPC
+        ### Config file with keys to login to the HPC
         config = configparser.ConfigParser()
         config.read(f'config_{self.usr}.ini')
         user = config.get('SSH', 'username')
@@ -651,6 +838,7 @@ class SimScheduling:
 
         os.chdir(self.local_path)
 
+        ### Attributes not defined in class constructor as they are case-specific
         self.n_ele = self.pset_dict['n_ele']
         self.pipe_radius = self.pset_dict['pipe_radius']
         domain_length = (1 + float(self.n_ele))*float(self.pipe_radius)*2
