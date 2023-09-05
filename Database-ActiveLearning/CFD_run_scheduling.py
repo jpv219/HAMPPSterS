@@ -234,6 +234,9 @@ class SimScheduling:
         log.info('PVPYTHON POSTPROCESSING')
         log.info('-' * 100)
 
+        # CSV backup saving file for post-processed variables
+        csvbkp_file_path = os.path.join(self.local_path,'CSV_BKP',f'{self.case_type}.csv')
+
         ### Checking if a pvpython is operating on another process, if so sleeps.
 
         pvpyactive, pid = self.is_pvpython_running()
@@ -243,31 +246,86 @@ class SimScheduling:
             sleep(600)
             pvpyactive, pid = self.is_pvpython_running()
 
-        ### Exectuing post-processing
+        ### Exectuing post-processing instructions depending on single or two-phase case type
         if self.case_type == 'sp_geom':
-            emax, Q, ediss, gamma, P, u, L = self.post_process_SP(log)
 
-            log.info('-' * 100)
-            log.info('Post processing completed succesfully')
-            log.info('-' * 100)
-            log.info('Extracted relevant hydrodynamic data')
+            ### pvpython execution
+            df_hyd = self.post_process_SP(log)
 
-            return {'L': L, 'e_max':emax, 
-            'Q': Q, 'E_diss':ediss, 'Gamma': gamma, 
-            'Pressure': P, 'Velocity': u}
+            if df_hyd is not None:
+                L = df_hyd['Length']
+                emax = df_hyd['e_max']
+                Q = df_hyd['Q']
+                ediss =  df_hyd['E_diss']
+                gamma = df_hyd['Gamma']
+                P = df_hyd['Pressure']
+                u = df_hyd['Velocity']
+
+                log.info('-' * 100)
+                log.info('Post processing completed succesfully')
+                log.info('-' * 100)
+                log.info('Extracted relevant hydrodynamic data')
+
+                df_hyd.insert(0,'Run', self.run_name)
+
+                # Check if the CSV file already exists
+                if not os.path.exists(csvbkp_file_path):
+                    # If it doesn't exist, create a new CSV file with a header
+                    df = pd.DataFrame({'Run_ID': [], 'Length': [], 'E_max': [], 
+                                       'Q': [], 'E_diss': [], 'Gamma': [], 'Pressure': [], 'Velocity':[]})
+                    df.to_csv(csvbkp_file_path, index=False)
+                
+                ### Append data to csvbkp file
+                df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+                log.info('-' * 100)
+                log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+                log.info('-' * 100)
+
+                return {'L': L, 'e_max':emax, 
+                        'Q': Q, 'E_diss':ediss, 'Gamma': gamma, 
+                        'Pressure': P, 'Velocity': u}
+
+            else:
+                return {'L': 0, 'e_max':0, 
+                        'Q': 0, 'E_diss':ediss, 'Gamma': 0, 
+                        'Pressure': 0, 'Velocity': 0}
 
         else:
-            dfDSD, IntA = self.post_process(log)
-            Nd = dfDSD.size
 
-            log.info('-' * 100)
-            log.info('Post processing completed succesfully')
-            log.info('-' * 100)
-            log.info(f'Number of drops in this run: {Nd}')
-            log.info(f'Drop size dist. {dfDSD}')
-            log.info(f'Interfacial Area : {IntA}')
-            
-            return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
+            ### pvpython execution
+            dfDSD, IntA = self.post_process(log)
+
+            if dfDSD is not None:
+
+                Nd = dfDSD.size
+
+                df_drops = pd.DataFrame({'Run':self.run_name,'IA': IntA, 'Nd': Nd, 'DSD': dfDSD})
+
+                log.info('-' * 100)
+                log.info('Post processing completed succesfully')
+                log.info('-' * 100)
+                log.info(f'Number of drops in this run: {Nd}')
+                log.info(f'Drop size dist. {dfDSD}')
+                log.info(f'Interfacial Area : {IntA}')
+
+                # Check if the CSV file already exists
+                if not os.path.exists(csvbkp_file_path):
+                    # If it doesn't exist, create a new CSV file with a header
+                    df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
+                                        'DSD': []})
+                    df.to_csv(csvbkp_file_path, index=False)
+                
+                ### Append data to csvbkp file
+                df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+                log.info('-' * 100)
+                log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+                log.info('-' * 100)
+
+                
+                return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
+            else:
+
+                return{"Nd":0, "DSD":0, "IntA":0}
     
     ### calling monitoring and restart function to check in on jobs
 
@@ -676,20 +734,11 @@ class SimScheduling:
             
             df_hyd = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
 
-            L = df_hyd['Length']
-            emax = df_hyd['e_max']
-            Q = df_hyd['Q']
-            ediss =  df_hyd['E_diss']
-            gamma = df_hyd['Gamma']
-            P = df_hyd['Pressure']
-            u = df_hyd['Velocity']
-
-
         except subprocess.CalledProcessError as e:
             log.info(f"Error executing the script with pvpython: {e}")
-            emax, Q, ediss, gamma, P, u, L = [None] * 7
+            return None 
         except FileNotFoundError:
             log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
-            emax, Q, ediss, gamma, P, u, L = [None] * 7
+            return None
 
-        return emax, Q, ediss, gamma, P, u, L
+        return df_hyd

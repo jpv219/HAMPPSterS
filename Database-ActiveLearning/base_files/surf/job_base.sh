@@ -2,7 +2,7 @@
 #PBS -N RUN_NAME
 #PBS -o RUN_NAME.out
 #PBS -j oe
-#PBS -l select=1:ncpus=125:mem=256gb
+#PBS -l select=1:ncpus=128:mem=256gb
 #PBS -l walltime=8:00:00
 set -vx
 cd $PBS_O_WORKDIR
@@ -23,7 +23,7 @@ cat > Blue.nml <<'EOF'
 !--------------------------------------------------------------------------------------------------------------------------------
   ! Process grid dimensions (MPI will do the job if profile=(0,0,0)).
   !         profile(1), profile(2), profile(3)
-  profile = 5,          5,          5
+  profile = 8,          4,          4
   !
   ! Process grid Periodicity (true means periodic BCs.)
   !         periodic(1), periodic(2), periodic(3)
@@ -34,7 +34,7 @@ cat > Blue.nml <<'EOF'
 !--------------------------------------------------------------------------------------------------------------------------------
 ! Eulerian mesh size per subdomain (must be in power of two).
   !    cell(1), cell(2), cell(3)
-  cell=128,      64,      64
+  cell=64,      64,      64
 !
 ! Guardcell size (ENO needs at least one in each direction).
   !         guardcell(1), guardcell(2), guardcell(3)
@@ -50,7 +50,7 @@ cat > Blue.nml <<'EOF'
   num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=-1.0d0
 !
 ! Fixed time step,                     If fixed, set dt.
-  fixed_time_step=.FALSE.             dt=4.0D-4
+  fixed_time_step=.TRUE.             dt=4.0D-4
 !
 ! Time integeration scheme ("GEAR" order(2) or "CRANK-NICHOLSON" order(2) or "EULER" order(1) scheme).
   time_integration_scheme="GEAR"
@@ -59,13 +59,13 @@ cat > Blue.nml <<'EOF'
   sl_runge_kutta_order    = 1      ! Semi-Lagrangian Runge-Kutta order: 1 or 2.
 !
 ! Time step factor multipliers
-  cfl_time_step_factor    =0.4d0
+  cfl_time_step_factor    =1.0d0
   visc_time_step_factor   =500.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.2d0
+  int_time_step_factor    =0.5d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
-  surf_time_step_factor   =6.0d0
+  surf_time_step_factor   =10.0d0
   global_time_step_factor =1.0d0
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
@@ -379,7 +379,7 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=1.0d-4     output_restart_file_prefix="RUN_NAME"
+  output_restart_frequency=0     output_restart_time_interval=5.0d-4     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
   restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"

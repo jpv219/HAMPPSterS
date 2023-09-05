@@ -25,7 +25,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "geom"
-nruns = 32
+nruns = 8
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_geom_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -113,7 +113,7 @@ else:
     cond_csv_limit_list = []
 
     # Load data from CSV file
-    with open('params/parameters.csv', 'r') as csvfile:
+    with open('params/parameters_geom.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             bar_width_list.append(row['bar_width'])

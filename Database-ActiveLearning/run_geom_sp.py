@@ -14,7 +14,6 @@ import io
 import contextlib
 import csv
 import pickle
-import math
 
 log = configure_logger("sp_geom")
 
@@ -64,7 +63,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_Geom.pkl', 'wb') as file:
+with open('DOE/LHS_SP_Geom.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 
@@ -106,7 +105,7 @@ if not re_run:
                     cond_csv_limit_list))
 
     # Save the combined data into a CSV file
-    with open('params/parameters.csv', 'w', newline='') as csvfile:
+    with open('params/parameters_SP.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
         writer.writerows(data)

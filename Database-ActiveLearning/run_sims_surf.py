@@ -24,7 +24,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "surf"
-nruns = 2
+nruns = 4
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_surf_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -45,12 +45,12 @@ save_path = ps.plist("save_path",["/media/jpv219/ML/Surf_Runs"])
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
-cond_csv = ps.plist("cond_csv",["Time(s)"])
+cond_csv = ps.plist("cond_csv",["Time"])
 conditional = ps.plist("conditional",["<"])
 cond_csv_limit = ps.plist("cond_csv_limit",["0.28"])
 
 ## Parameters to vary in the sample space
-Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [1,1e4],
+Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
              'Desorption Coeff (1/s)': [1e-3,10],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
              'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[1e-4,1e-8],'Elasticity Coeff':[0.05,0.95]}
 

@@ -224,9 +224,10 @@ class HPCScheduling:
         except JobStatError:
             print("====EXCEPTION====")
             print("JobStatError")
-        except ValueError:
+        except ValueError as e:
             print("====EXCEPTION====")
             print("ValueError")
+            print(f'Exited with message: {e}')
            
     ### creating f90 instance and executable
 
@@ -328,7 +329,7 @@ class HPCScheduling:
                 if yz_cpus_l <= 5:
                     xsub = math.ceil(yz_cpus_l)*2
                     ysub = zsub = int(xsub/2)
-                    mem = 128 
+                    mem = 200 
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -336,7 +337,7 @@ class HPCScheduling:
                 elif yz_cpus_l <=6:
                     xsub = math.ceil(yz_cpus_l)
                     ysub = zsub = int(xsub)
-                    mem = 256 
+                    mem = 300 
                     cell1 = 128
                     cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
@@ -345,7 +346,7 @@ class HPCScheduling:
                 else:
                     xsub = math.ceil(yz_cpus_h)
                     ysub = zsub = int(xsub)
-                    mem = 512
+                    mem = 768
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -357,7 +358,7 @@ class HPCScheduling:
                 if yz_cpus_l<=4:
                     ysub = zsub = math.ceil(yz_cpus_l)
                     xsub = int(ysub*(n_ele+1))
-                    mem = 128
+                    mem = 200
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -365,7 +366,7 @@ class HPCScheduling:
                 else:
                     ysub = zsub = math.ceil(yz_cpus_h)
                     xsub = int(ysub*(n_ele+1))
-                    mem = 512
+                    mem = 768
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -375,7 +376,7 @@ class HPCScheduling:
                 if yz_cpus_l<=3:
                     ysub = zsub = math.ceil(yz_cpus_l)
                     xsub = int(ysub*(n_ele+1))
-                    mem = 128
+                    mem = 200
                     cell1 = cell2 = cell3 = 64
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -383,7 +384,7 @@ class HPCScheduling:
                 else:
                     ysub = zsub = math.ceil(yz_cpus_h)
                     xsub = int(ysub*(n_ele+1))
-                    mem = 512
+                    mem = 768
                     cell1 = cell2 = cell3 = 128
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
@@ -484,7 +485,13 @@ class HPCScheduling:
         csv_to_check = pd.read_csv(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')
 
         # verify whether convergence checks can start
-        len_to_check = 2000
+        len_to_check = 300
+        recent = int(len_to_check * 0.95)
+        window_size = max(10,int(len_to_check * 0.05))
+        window_step = max(10, int(window_size * 0.5))
+        recent_data = csv_to_check.iloc[-recent:]
+        relchg_thres = 0.15
+        grad_thres = 0.01
         if len(csv_to_check) < len_to_check:
             # let the job run for longer, return NotReady NR status
             chk_status = 'NR'
@@ -501,12 +508,7 @@ class HPCScheduling:
             ts_check = CFL_check or dt_check
 
             # check the Max(div): Max div fluctuate outside a threshold
-            window_size = 50
-            recent = int(len_to_check * 0.5)
-            recent_data = csv_to_check.iloc[-recent:]
-            relchg_thres = 0.1
-            grad_thres = 0.01
-            moving_avg_div = recent_data['Max(div(V))'].rolling(window=window_size).mean()[::window_size].dropna().values
+            moving_avg_div = recent_data['Max(div(V))'].rolling(window=window_size).mean()[::window_step].dropna().values
             relchg_div = np.diff(moving_avg_div) / moving_avg_div[:-1]
             grad_div = np.gradient(moving_avg_div, 2)
 
@@ -527,10 +529,9 @@ class HPCScheduling:
             div_check = stable_relchg_div < stable_period_div or stable_grad_div < stable_period_div
 
             # check the KE: there exists an explosive increase (relative change larger than a threshold)
-            moving_avg_ke = recent_data['Kinetic Energy'].rolling(window=window_size).mean()[::window_size].dropna().values
+            moving_avg_ke = recent_data['Kinetic Energy'].rolling(window=window_size).mean()[::window_step].dropna().values
             relchg_ke = np.diff(moving_avg_ke) / moving_avg_ke[:-1]
-            grad_ke = np.gradient(moving_avg_ke, 2)
-
+            grad_ke = np.gradient(moving_avg_ke,2)
             stable_period_ke = int(len(relchg_ke) * 0.9)
             stable_relchg_ke = 0
             stable_grad_ke = 0
@@ -546,7 +547,7 @@ class HPCScheduling:
                 else:
                        stable_grad_ke = 0
             ke_check = stable_relchg_ke < stable_period_ke or stable_grad_ke < stable_period_ke
-
+            # check all the conditions
             checks = {
                 'time step check':ts_check,
                 'divergence check':div_check,
@@ -560,7 +561,7 @@ class HPCScheduling:
 
             ### If 2/3 checks fail, raise a diverging D status
             if failed_checks >=2:
-                chk_status = 'D'
+                chk_status ='D'
                 print(f'Job seems to be diverging or unstable since it does not pass {failed_checks} checks: {failed_keys}.')
             ### Else keep monitoring with converging status C, issuing warnings where appropiate
             elif failed_checks == 1:
@@ -859,8 +860,13 @@ class HPCScheduling:
             shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
             shutil.move(f'ISO_static_1_{self.run_name}.pvd','RESULTS')
             shutil.move(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv','RESULTS')
-            shutil.move(f'{pvd_0file}', 'RESULTS')
-            shutil.move(f'{pvd_ffile}', 'RESULTS')
+            if pvd_0file == pvd_ffile:
+
+                shutil.move(f'{pvd_0file}', 'RESULTS')
+                print('Warning: No vtk timesteps were generated, adjust vtk timestep save. Pvpython calculatons will be performed from the initial state')
+            else:
+                shutil.move(f'{pvd_0file}', 'RESULTS')
+                shutil.move(f'{pvd_ffile}', 'RESULTS')
             print('-' * 100)
             print('VAR, ISO and csv files moved to RESULTS')
         except (FileNotFoundError, shutil.Error) as e:
@@ -873,7 +879,6 @@ class HPCScheduling:
             return
 
         ### Cleaning previous restart and vtk from ephemeral
-        os.system('rm *vtk')
         os.system('rm *rst')
 
         os.chdir('RESULTS')
@@ -902,7 +907,7 @@ class HPCScheduling:
 
         print('-' * 100)
         print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
-        sleep(120)
+        sleep(60)
 
         try:
             t_jobwait, status, new_jobID = self.job_wait(jobid)

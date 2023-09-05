@@ -7,14 +7,14 @@
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
-from LHS_Dataspace import runSurfDOE
+from LHS_Dataspace import runDOESP
 from logger import configure_logger
 import io
 import contextlib
 import csv
 import pickle
 
-log = configure_logger("surf")
+log = configure_logger("test")
 
 log.info('-' * 100)
 log.info('-' * 100)
@@ -22,111 +22,134 @@ log.info('Parametric study launch')
 log.info('-' * 100)
 log.info('-' * 100)
 
-case = "surf"
-nruns = 2
+case = "sp_geom"
+nruns = 4
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
-user = 'nkovalc1'
+user = 'jpv219'
 
-run_path = ps.plist("run_path",["/rds/general/user/nkovalc1/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
-base_path = ps.plist("base_path",["/rds/general/user/nkovalc1/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
-convert_path = ps.plist("convert_path",["/rds/general/user/nkovalc1/home/F_CONVERT"])
+run_path = ps.plist("run_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
+base_path = ps.plist("base_path",["/rds/general/user/jpv219/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
+convert_path = ps.plist("convert_path",["/rds/general/user/jpv219/home/F_CONVERT"])
 
 case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
 
-local_path = ps.plist("local_path",["/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning"])
-save_path = ps.plist("save_path",["/Users/mfgmember/Downloads"])
-
-### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
-### cond_csv determines which condition to use as stopping criteria from the csv
-cond_csv = ps.plist("cond_csv",["ptx(EAST) "])
-conditional = ps.plist("conditional",["<"])
-cond_csv_limit = ps.plist("cond_csv_limit",["10"])
+local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning"])
+save_path = ps.plist("save_path",["/media/jpv219/ML/"])
 
 ## Parameters to vary in the sample space
-Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [1,1e4],
-             'Desorption Coeff (1/s)': [1e-3,10],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
-             'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[1e-4,1e-8],'Elasticity Coeff':[0.05,0.95]}
+max_diameter = 0.04
+SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],
+            'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],
+            'Flowrate (m3/s)': [1e-6,1e-2],'Angle':[20,80], 'NElements': [2,8]}
 
 captured_output = io.StringIO()
 
 with contextlib.redirect_stdout(captured_output):
-    psdict = runSurfDOE(Surf_dict,nruns)
+    psdict = runDOESP(SMX_dict,nruns)
     log.info('-' * 100)
     log.info('Modifications to the DOE')
     log.info(captured_output.getvalue())
 
-dict_print = psdict.iloc[:,5:13]
 
 log.info('-' * 100)
-log.info('\n'+ dict_print.to_string())
+log.info('\n'+ psdict.to_string())
+log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_Surf.pkl', 'wb') as file:
+with open('DOE/LHS_test.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
-## Surfactant parameters
+### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
+### cond_csv determines which condition to use as stopping criteria from the csv
+
+n0 = 0.0063
+ninf = 0.00086
+k = 0.4585
+m = 0.577
+
+psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: 1e-4 + ninf + ((n0-ninf)/(1+(k*Re)**m)))
+
+
+cond_csv = ps.plist("cond_csv",["Time(s)"])
+conditional = ps.plist("conditional",["<"])
+
+
+## Geometry parameters
 
 if not re_run:
 
-    diff2_list = list(map(str,psdict['Bulk Diffusivity (m2/s)']))
-    ka_list = list(map(str,psdict['Adsorption Coeff (m3/mol s)']))
-    kd_list = list(map(str,psdict['Desorption Coeff (1/s)']))
-    ginf_list = list(map(str,psdict['Maximum packing conc (mol/ m2)']))
-    gini_list = list(map(str,psdict['Initial surface conc (mol/m2)']))
-    diffs_list = list(map(str,psdict['Surface diffusivity (m2/s)']))
-    beta_list = list(map(str,psdict['Elasticity Coeff']))
+    bar_width_list = list(map(str,psdict['Bar_Width (mm)'] / 1000))
+    bar_thickness_list = list(map(str,psdict['Bar_Thickness (mm)'] / 1000))
+    bar_angle_list = list(map(str,psdict['Angle']))
+    radius_list = list(map(str,psdict['Radius (mm)'] / 1000))
+    nbars_list = list(map(str,psdict['Nbars']))
+    flowrate_list = list(map(str,psdict['Flowrate (m3/s)']))
+    smx_pos_list = list(map(str,psdict['SMX_pos (mm)'] / 1000))
+    nele_list = list(map(str,psdict['NElements']))
+
+    # Dynamically changing termination condition
+    cond_csv_limit_list = list(map(str,psdict['cond_csv_limit']*0.9/1000))
 
     # Combine the lists
-    data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
+    data = list(zip(bar_width_list, bar_thickness_list, 
+                    bar_angle_list, radius_list, nbars_list, 
+                    flowrate_list, smx_pos_list,nele_list,
+                    cond_csv_limit_list))
 
     # Save the combined data into a CSV file
-    with open('params/parameters_surf.csv', 'w', newline='') as csvfile:
+    with open('params/parameters_test.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['D_b', 'ka', 'kd', 'ginf', 'gini', 'D_s', 'beta'])
+        writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
         writer.writerows(data)
+
 else:
-    diff2_list = []
-    ka_list = []
-    kd_list = []
-    ginf_list = []
-    gini_list = []
-    diffs_list = []
-    beta_list = []
+    # Initialize empty lists for each parameter
+    bar_width_list = []
+    bar_thickness_list = []
+    bar_angle_list = []
+    radius_list = []
+    nbars_list = []
+    flowrate_list = []
+    smx_pos_list = []
+    nele_list = []
+    cond_csv_limit_list = []
 
     # Load data from CSV file
-    with open('params/parameters_surf.csv', 'r') as csvfile:
+    with open('params/parameters_test.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            diff2_list.append(row['D_b'])
-            ka_list.append(row['ka'])
-            kd_list.append(row['kd'])
-            ginf_list.append(row['ginf'])
-            gini_list.append(row['gini'])
-            diffs_list.append(row['D_s'])
-            beta_list.append(row['beta'])
- 
+            bar_width_list.append(row['bar_width'])
+            bar_thickness_list.append(row['bar_thickness'])
+            bar_angle_list.append(row['bar_angle'])
+            radius_list.append(row['radius'])
+            nbars_list.append(row['nbars'])
+            flowrate_list.append(row['flowrate'])
+            smx_pos_list.append(row['smx_pos'])
+            nele_list.append(row['NElements'])
+            cond_csv_limit_list.append(row['cond_csv_limit'])
 
-diff1 = ps.plist("D_d",["1.0"])
-diff2 = ps.plist("D_b",diff2_list)
-ka = ps.plist("ka",ka_list)
-kd = ps.plist("kd",kd_list)
-ginf = ps.plist("ginf",ginf_list)
-gini = ps.plist("gini",gini_list)
-diffs = ps.plist("D_s",diffs_list)
-beta = ps.plist("beta",beta_list)
+bar_width = ps.plist("bar_width",bar_width_list)
+bar_thickness = ps.plist("bar_thickness",bar_thickness_list)
+bar_angle = ps.plist("bar_angle",bar_angle_list)
+pipe_radius = ps.plist("pipe_radius",radius_list)
+n_bars = ps.plist("n_bars",nbars_list)
+flowrate = ps.plist("flowrate",flowrate_list)
+smx_pos = ps.plist("smx_pos",smx_pos_list)
+n_ele = ps.plist("n_ele",nele_list)
+cond_csv_limit = ps.plist("cond_csv_limit",cond_csv_limit_list)
 
-#creates parameter grid (list of dictionarys)
-params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
-                  save_path,cond_csv,conditional,cond_csv_limit,
-                  diff1,user_ps,
-                  zip(run_ID,run_name,diff2,ka,kd,ginf,gini,diffs,beta))
+## creates parameter grid (list of dictionarys)
+params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
+                  cond_csv,conditional,user_ps,
+                  zip(run_ID,run_name,bar_width,bar_thickness,bar_angle,pipe_radius,
+                      n_bars,flowrate,smx_pos,n_ele,cond_csv_limit))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
@@ -137,6 +160,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params,save=True,tmpsave=True,skip_dups=True)    
+    df = ps.run_local(simulator.localrun, params, poolsize=2,save=True,tmpsave=True,skip_dups=True)   
 
 

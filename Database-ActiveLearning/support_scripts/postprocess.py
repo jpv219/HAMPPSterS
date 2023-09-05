@@ -8,7 +8,7 @@ def post_process():
 
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
-    save_path = '/media/jpv219/ML/Runs/'
+    save_path = '/media/jpv219/ML/'
     run_name = 'run_1'
     save_path_runID = os.path.join(save_path,run_name)
 
@@ -54,8 +54,8 @@ def post_process_SP():
 
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_sp_PP.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
-    save_path = '/media/jpv219/ML/SP_Runs/'
-    run_name = 'run_sp_1'
+    save_path = '/media/jpv219/ML/'
+    run_name = 'run_1'
 
     os.chdir(local_path)
 
@@ -83,6 +83,56 @@ def post_process_SP():
         
         df_hyd = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
 
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing the script with pvpython: {e}")
+        return None 
+    except FileNotFoundError:
+        print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+        return None
+
+    return df_hyd
+
+def main():
+
+    run_name = 'run_1'          
+### pvpython execution
+    # dfDSD, IntA = post_process()
+
+    # if dfDSD is not None:
+
+    #     Nd = dfDSD.size
+
+    #     df_drops = pd.DataFrame({'Run':run_name,'IA': IntA, 'Nd': Nd, 'DSD': dfDSD})
+
+    #     print('-' * 100)
+    #     print('Post processing completed succesfully')
+    #     print('-' * 100)
+    #     print(f'Number of drops in this run: {Nd}')
+    #     print(f'Drop size dist. {dfDSD}')
+    #     print(f'Interfacial Area : {IntA}')
+
+    #     csvbkp_file_path = f'/media/jpv219/ML/PP.csv'
+
+
+    #     # Check if the CSV file already exists
+    #     if not os.path.exists(csvbkp_file_path):
+    #         # If it doesn't exist, create a new CSV file with a header
+    #         df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
+    #                             'DSD': []})
+    #         df.to_csv(csvbkp_file_path, index=False)
+        
+    #     ### Append data to csvbkp file
+    #     df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+    #     print('-' * 100)
+    #     print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+    #     print('-' * 100)
+
+
+        ### pvpython execution
+        
+    df_hyd = post_process_SP()
+
+    if df_hyd is not None:
         L = df_hyd['Length']
         emax = df_hyd['e_max']
         Q = df_hyd['Q']
@@ -91,36 +141,28 @@ def post_process_SP():
         P = df_hyd['Pressure']
         u = df_hyd['Velocity']
 
-
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing the script with pvpython: {e}")
-        emax, Q, ediss, gamma, P, u, L = [None] * 7
-    except FileNotFoundError:
-        print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
-        emax, Q, ediss, gamma, P, u, L = [None] * 7
-
-    return emax, Q, ediss, gamma, P, u, L
-
-def main():
-        # dfDSD, IntA = post_process()
-        # Nd = dfDSD.size
-
-        # print('-' * 100)
-        # print('Post processing completed succesfully')
-        # print(Nd)
-        # print(dfDSD)
-        # print(IntA)
-
-        emax, Q, ediss, gamma, P, u, L = post_process_SP()
-
         print('-' * 100)
         print('Post processing completed succesfully')
         print('-' * 100)
         print('Extracted relevant hydrodynamic data')
-        print(emax)
-        # print(ediss)
-        # print(P)
-        # print(u)
+
+        df_hyd.insert(0,'Run', run_name)
+
+        csvbkp_file_path = f'/media/jpv219/ML/PP.csv'
+
+        # Check if the CSV file already exists
+        if not os.path.exists(csvbkp_file_path):
+            # If it doesn't exist, create a new CSV file with a header
+            df = pd.DataFrame({'Run_ID': [], 'Length': [], 'E_max': [], 
+                                'Q': [], 'E_diss': [], 'Gamma': [], 'Pressure': [], 'Velocity':[]})
+            df.to_csv(csvbkp_file_path, index=False)
+        
+        ### Append data to csvbkp file
+        df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+        print('-' * 100)
+        print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+        print('-' * 100)
+
 
 if __name__ == "__main__":
     main()

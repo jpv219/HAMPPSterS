@@ -62,7 +62,7 @@ cat > Blue.nml <<'EOF'
   cfl_time_step_factor    =0.5d0
   visc_time_step_factor   =500.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.25d0
+  int_time_step_factor    =0.5d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
   surf_time_step_factor   =2.0d0
@@ -334,7 +334,7 @@ cat > Blue.nml <<'EOF'
   output_box_selection=.FALSE.       output_box_coordinates=0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0
 !
 ! If ParaView,               Format,                Loop Frequency,          Time interval (s),             Prefix.
-  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=1.0d-3   paraview_file_prefix="RUN_NAME"
+  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=5.0d-4   paraview_file_prefix="RUN_NAME"
 !
 ! If tecplot,                Loop Frequency,        Time interval (s),        Prefix.
   tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="RUN_NAME"
@@ -379,7 +379,7 @@ cat > Blue.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=1.0d-4     output_restart_file_prefix="RUN_NAME"
+  output_restart_frequency=0     output_restart_time_interval=5.0d-4     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
   restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"
