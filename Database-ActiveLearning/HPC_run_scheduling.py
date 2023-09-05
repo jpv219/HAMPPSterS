@@ -58,22 +58,22 @@ class HPCScheduling:
 
     ### Init function
      
-    def __init__(self) -> None:
-        pass
-
-    ### assigning input parametric values as attributes of the SimScheduling class and submitting jobs
-
-    def run(self,pset_dict):
-        ###Path and running attributes
+    def __init__(self,pset_dict) -> None:
+                
+        ### Initialising class attributes
         self.pset_dict = pset_dict
         self.run_path = pset_dict['run_path']
-        self.base_path = pset_dict['base_path']
         self.convert_path = pset_dict['convert_path']
         self.case_type = pset_dict['case']
         self.run_ID = pset_dict['run_ID']
         self.run_name = pset_dict['run_name']
         self.local_path = pset_dict['local_path']
         self.save_path = pset_dict['save_path']
+        self.convert_path = pset_dict['convert_path']
+
+        self.cond_csv = pset_dict['cond_csv']
+        self.conditional = pset_dict['conditional']
+        self.cond_csv_limit = pset_dict['cond_csv_limit']
 
         if self.case_type == 'geom' or self.case_type == 'sp_geom':
 
@@ -94,7 +94,7 @@ class HPCScheduling:
             elif self.case_type == 'sp_geom':
                 self.n_ele = pset_dict['n_ele']
 
-        else:
+        elif self.case_type == 'surf':
 
             ### Surfactant features
             self.diff1 = pset_dict['D_d']
@@ -105,10 +105,17 @@ class HPCScheduling:
             self.gini = format(float(pset_dict['gini']),'.10f')
             self.diffs = format(float(pset_dict['D_s']),'.10f')
             self.beta = format(float(pset_dict['beta']),'.10f')
+        else:
+            pass
 
         self.path = os.path.join(self.run_path, self.run_name)
-        self.base_case_dir = os.path.join(self.base_path, self.case_type)
         self.mainpath = os.path.join(self.run_path,'..')
+        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+
+    ### assigning input parametric values as attributes of the SimScheduling class and submitting jobs
+
+    def run(self):
 
         ### Creating f90
         print('-' * 100)
@@ -166,17 +173,12 @@ class HPCScheduling:
 
     ### checking jobstate and sleeping until completion or restart commands
 
-    def monitor(self,mdict):
+    def monitor(self):
+
         ### Read dictionary with job_ID to monitor
-        self.mdict = mdict
-        self.jobID = mdict['jobID']
-        self.run_ID = mdict['run_ID']
-        self.run_name = mdict['run_name']
-        self.run_path = mdict['run_path']
-        self.check = mdict['check']
+        self.jobID = self.pset_dict['jobID']
+        self.check = self.pset_dict['check']
 
-
-        self.path = os.path.join(self.run_path, self.run_name)
 
         ### Call job waiting method and extract corresponding outputs
         try:
@@ -235,9 +237,11 @@ class HPCScheduling:
 
         ## Create run_ID directory
         os.mkdir(self.path)
+        base_path = self.pset_dict['base_path']
+        base_case_dir = os.path.join(base_path, self.case_type)
 
         ## Copy base files and rename to current run accordingly
-        os.system(f'cp -r {self.base_case_dir}/* {self.path}')
+        os.system(f'cp -r {base_case_dir}/* {self.path}')
         os.system(f'mv {self.path}/base_SMX.f90 {self.path}/{self.run_name}_SMX.f90')
         print('-' * 100)
         print(f'Run directory {self.path} created and base files copied')
@@ -710,19 +714,7 @@ class HPCScheduling:
     ### Restarting sh based on termination condition eval and last output restart reached
     ### Authors: Juan Pablo Valdes, Paula Pico
     
-    def job_restart(self,pset_dict):
-
-        self.pset_dict = pset_dict
-        self.run_ID = pset_dict['run_ID']
-        self.run_name = pset_dict['run_name']
-        self.cond_csv = pset_dict['cond_csv']
-        self.conditional = pset_dict['conditional']
-        self.cond_csv_limit = pset_dict['cond_csv_limit']
-
-        self.run_path = pset_dict['run_path']
-        self.path = os.path.join(self.run_path, self.run_name)
-        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
-        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+    def job_restart(self):
 
         # Calling the checking function to see if the simulation can restart, verifying cond_csv key exists condition in csv file
         try:
@@ -788,14 +780,7 @@ class HPCScheduling:
 
     ### Converting vtk to vtr
 
-    def vtk_convert(self,pset_dict):
-
-        self.pset_dict = pset_dict
-        self.run_path = pset_dict['run_path']
-        self.run_ID = pset_dict['run_ID']
-        self.run_name = pset_dict['run_name']
-        self.convert_path = pset_dict['convert_path']
-        self.path = os.path.join(self.run_path, self.run_name)
+    def vtk_convert(self):
 
         ### Move to ephemeral and create RESULTS saving folder
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
@@ -962,11 +947,11 @@ def main():
 
     args = parser.parse_args()
 
-    simulator = HPCScheduling()
+    simulator = HPCScheduling(args.pdict)
 
     if hasattr(simulator, args.function):
         func = getattr(simulator, args.function)
-        func(args.pdict)
+        func()
     else:
         print("Invalid function name")
 
