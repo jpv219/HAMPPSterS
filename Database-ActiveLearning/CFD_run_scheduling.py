@@ -43,7 +43,11 @@ class BadTerminationError(Exception):
 
 #################################################################
 
-### Author: Paula Pico
+################################################################################### JOB MONITORING ###########################################################################
+
+################################################################################# Author: Paula Pico #########################################################################
+
+################################################################################# General Application for BLUE 12 onwards #####################################################
 class SimMonitoring:
     
     ### Init function
@@ -230,11 +234,20 @@ class SimMonitoring:
                     ssh.close()
         return True
 
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Juan Pablo Valdes #########################################################################
+
+################################################################################# Tailored for SMX static mixer study ###############################################################
+
 class SimScheduling:
 
     ### Init function
      
-    def __init__(self,pset_dict) -> None:
+    def __init__(self) -> None:
+        pass
+
+    def __construct__(self,pset_dict):
 
         ### Initialising class attributes
         self.pset_dict = pset_dict
@@ -248,6 +261,7 @@ class SimScheduling:
 
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
         self.main_path = os.path.join(self.run_path,'..')
+
 
     ### Defining individual logging files for each run.
 
@@ -289,7 +303,10 @@ class SimScheduling:
 
     ### local run assigning parametric study to HPC handling script and performing overall BLUE workflow
 
-    def localrun(self):
+    def localrun(self,pset_dict):
+
+        ### constructor
+        self.__construct__(pset_dict)
 
         ### Logger set-up
         log_filename = f"output_{self.case_type}/output_{self.run_name}.txt"
