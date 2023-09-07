@@ -53,6 +53,89 @@ class BadTerminationError(Exception):
 
 #################################################################
 
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Fuyue Liang #########################################################################
+
+################################################################################# Tailored for stirred vessel study ###############################################################
+
+class fuYUE:
+
+        ### Init function
+    def __init__(self,pset_dict) -> None:
+                
+        ### Initialising class attributes
+        self.pset_dict = pset_dict
+        self.run_path = pset_dict['run_path']
+        self.convert_path = pset_dict['convert_path']
+        self.case_type = pset_dict['case']
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = pset_dict['run_name']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.convert_path = pset_dict['convert_path']
+
+        self.cond_csv = pset_dict['cond_csv']
+        self.conditional = pset_dict['conditional']
+        self.cond_csv_limit = pset_dict['cond_csv_limit']
+
+        self.path = os.path.join(self.run_path, self.run_name)
+        self.mainpath = os.path.join(self.run_path,'..')
+        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+
+        self.juan = HPCScheduling(pset_dict)
+
+            ### Function shortcuts
+        self.monitor = self.juan.monitor
+        self.jobwait = self.juan.job_wait
+
+    def __construct__(self,pset_dict):
+        if self.case_type == 'geom' or self.case_type == 'sp_geom':
+
+            ### Geometry features
+            self.bar_width = pset_dict['bar_width']
+            self.bar_thickness = pset_dict['bar_thickness']
+            self.bar_angle = pset_dict['bar_angle']
+            self.pipe_radius = pset_dict['pipe_radius']
+            self.n_bars = pset_dict['n_bars']
+            self.flowrate = pset_dict['flowrate']
+            self.smx_pos = pset_dict['smx_pos']
+            # two-phase
+            if self.case_type == 'geom':
+                self.d_per_level = pset_dict['d_per_level']
+                self.n_levels = pset_dict['n_levels']
+                self.d_radius = pset_dict['d_radius']
+            # single-phase
+            elif self.case_type == 'sp_geom':
+                self.n_ele = pset_dict['n_ele']
+
+        elif self.case_type == 'surf':
+
+            ### Surfactant features
+            self.diff1 = pset_dict['D_d']
+            self.diff2 = format(float(pset_dict['D_b']),'.10f')
+            self.ka = format(float(pset_dict['ka']),'.10f')
+            self.kd = format(float(pset_dict['kd']),'.10f')
+            self.ginf = format(float(pset_dict['ginf']),'.10f')
+            self.gini = format(float(pset_dict['gini']),'.10f')
+            self.diffs = format(float(pset_dict['D_s']),'.10f')
+            self.beta = format(float(pset_dict['beta']),'.10f')
+        else:
+            pass
+
+
+    def run(self):
+
+        pass
+    ### checking jobstate and sleeping until completion or restart commands
+
+    def f90(self):
+        pass
+
+    def sh(self):
+        pass
+
 
 ################################################################################### PARAMETRIC STUDY ################################################################################
 
