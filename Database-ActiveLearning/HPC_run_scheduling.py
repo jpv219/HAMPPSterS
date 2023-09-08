@@ -491,72 +491,90 @@ class HPCScheduling:
         if not os.path.exists(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv'):
             chk_status = 'FNF'
             return chk_status
-       
+        
         csv_to_check = pd.read_csv(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')
-
+        
         # verify whether convergence checks can start
-        len_to_check = 300
+        len_to_check = 250
         recent = int(len_to_check * 0.95)
+        print(recent)
         window_size = max(10,int(len_to_check * 0.05))
         window_step = max(10, int(window_size * 0.5))
+        print('window size and step', (window_size, window_step))
         recent_data = csv_to_check.iloc[-recent:]
-        relchg_thres = 0.15
-        grad_thres = 0.01
+        relchg_thres = 0.1
+        grad_thres = 0.1
         if len(csv_to_check) < len_to_check:
             # let the job run for longer, return NotReady NR status
             chk_status = 'NR'
             return chk_status
-
+        
         else:
-            # check the CFL and time step: CFL < dt or CFL drop below a lower bound
+            ### Time CFL ###
+            # check the CFL and time step: over half of time steps CFL < dt or CFL drop below a lower bound
             lower_limit = csv_to_check['dt CFL'].nlargest(5).iloc[-1] * 1e-3
             CFL_check = np.any(csv_to_check['dt CFL'] < lower_limit)
 
-            dt_CFL, dt = csv_to_check['dt CFL'].values, csv_to_check['dt'].values
+            dt_CFL, dt = recent_data['dt CFL'].values, recent_data['dt'].values
             dt_arr = dt_CFL - dt
-            dt_check = np.any(dt_arr < 0)
+            bad_steps = 0
+            for item in dt_arr:
+                if item < 0:
+                    bad_steps += 1
+            bad_steps_percent = bad_steps / recent
+
+            dt_check = bad_steps_percent > 0.5
             ts_check = CFL_check or dt_check
 
-            # check the Max(div): Max div fluctuate outside a threshold
+            ### Divergence ###
             moving_avg_div = recent_data['Max(div(V))'].rolling(window=window_size).mean()[::window_step].dropna().values
-            relchg_div = np.diff(moving_avg_div) / moving_avg_div[:-1]
-            grad_div = np.gradient(moving_avg_div, 2)
+            highest_order = np.log10(moving_avg_div).max()
+            div_check = False
 
-            stable_period_div = int(len(relchg_div) * 0.9)
-            stable_relchg_div = 0
-            stable_grad_div = 0
+            if highest_order > -1:
+                relchg_div = np.diff(moving_avg_div) / moving_avg_div[:-1]
+                grad_div = np.gradient(moving_avg_div, 2)
 
-            for rate in relchg_div:
-                if abs(rate) < relchg_thres:
-                       stable_relchg_div += 1
-                else:
-                       stable_relchg_div = 0
-            for rate in grad_div:
-                if abs(rate) < grad_thres:
-                       stable_grad_div += 1
-                else:
-                       stable_grad_div = 0
-            div_check = stable_relchg_div < stable_period_div or stable_grad_div < stable_period_div
+                stable_period_div = int(len(relchg_div) * 0.8)
+                stable_relchg_div = 0
+                stable_grad_div = 0
 
-            # check the KE: there exists an explosive increase (relative change larger than a threshold)
+                for rate in relchg_div:
+                    if rate < 0 or abs(rate) < relchg_thres:
+                        stable_relchg_div += 1
+                    else:
+                        stable_relchg_div = 0
+                for rate in grad_div:
+                    if rate < 0 or abs(rate) < grad_thres:
+                        stable_grad_div += 1
+                    else:
+                        stable_grad_div = 0
+                
+                div_check = stable_relchg_div < stable_period_div or stable_grad_div < stable_period_div
+            
+            ### Kinetic Energy ###
+            # check the KE: there is no relative change higher than the initial ones
             moving_avg_ke = recent_data['Kinetic Energy'].rolling(window=window_size).mean()[::window_step].dropna().values
             relchg_ke = np.diff(moving_avg_ke) / moving_avg_ke[:-1]
             grad_ke = np.gradient(moving_avg_ke,2)
+
             stable_period_ke = int(len(relchg_ke) * 0.9)
             stable_relchg_ke = 0
             stable_grad_ke = 0
-            
+
             for rate in relchg_ke:
                 if abs(rate) < relchg_thres:
-                       stable_relchg_ke += 1
+                    stable_relchg_ke += 1
                 else:
-                       stable_relchg_ke = 0
+                    stable_relchg_ke = 0
             for rate in grad_ke:
                 if abs(rate) < grad_thres:
-                       stable_grad_ke += 1
+                    stable_grad_ke += 1
                 else:
-                       stable_grad_ke = 0
+                    stable_grad_ke = 0
+
             ke_check = stable_relchg_ke < stable_period_ke or stable_grad_ke < stable_period_ke
+
             # check all the conditions
             checks = {
                 'time step check':ts_check,
@@ -571,17 +589,18 @@ class HPCScheduling:
 
             ### If 2/3 checks fail, raise a diverging D status
             if failed_checks >=2:
-                chk_status ='D'
+                chk_status = 'D'
                 print(f'Job seems to be diverging or unstable since it does not pass {failed_checks} checks: {failed_keys}.')
+            
             ### Else keep monitoring with converging status C, issuing warnings where appropiate
             elif failed_checks == 1:
                 chk_status = 'C'
                 print(f'WARNING: Check: {failed_keys} has failed to pass, job will continue')
-            
+
             else:
                 chk_status = 'C'
                 print('All checks have passed successfully')
-
+                
             return chk_status
 
     ### Function that performs multiple checks to decide if the simulation should restart

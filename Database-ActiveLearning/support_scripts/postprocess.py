@@ -9,7 +9,7 @@ def post_process():
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
     save_path = '/media/jpv219/ML/'
-    run_name = 'run_1'
+    run_name = 'run_2'
     save_path_runID = os.path.join(save_path,run_name)
 
     os.chdir(save_path_runID)
@@ -55,12 +55,12 @@ def post_process_SP():
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_sp_PP.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
     save_path = '/media/jpv219/ML/'
-    run_name = 'run_1'
+    run_name = 'run_4'
 
     os.chdir(local_path)
 
-    n_ele = 1
-    pipe_radius = 0.0078
+    n_ele = 4
+    pipe_radius = 0.02
     domain_length = (1 + float(n_ele))*float(pipe_radius)*2
 
     ### Running pvpython script for Nd and DSD
@@ -94,7 +94,7 @@ def post_process_SP():
 
 def main():
 
-    run_name = 'run_1'          
+    run_name = 'run_4'          
 ### pvpython execution
     # dfDSD, IntA = post_process()
 

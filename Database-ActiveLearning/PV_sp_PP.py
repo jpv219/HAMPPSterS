@@ -138,8 +138,8 @@ output.PointData.append(u,'u')"""
 
     # create a new 'Threshold' to remove domain occupied by solids
     threshold1 = Threshold(registrationName='Threshold1', Input=clip1)
-    threshold1.Scalars = ['POINTS', 'emax']
-    threshold1.LowerThreshold = 0.0
+    threshold1.Scalars = ['POINTS', 'Q']
+    threshold1.LowerThreshold = -1.0
     threshold1.UpperThreshold = 1.0
     threshold1.ThresholdMethod = 'Between'
     threshold1.AllScalars = 1
@@ -152,10 +152,10 @@ output.PointData.append(u,'u')"""
 
     n_datap = 100
     ini = L/n_datap
-    L_range = np.linspace(ini,L,n_datap)
+    L_range = np.linspace(ini,L-ini,n_datap)
 
     # Slice 1 to extract cross-sectional hydrodynamic values
-    slice1 = Slice(registrationName='Slice1', Input=clip1)
+    slice1 = Slice(registrationName='Slice1', Input=threshold1)
     slice1.SliceType = 'Plane'
     slice1.HyperTreeGridSlicer = 'Plane'
     slice1.UseDual = 0
