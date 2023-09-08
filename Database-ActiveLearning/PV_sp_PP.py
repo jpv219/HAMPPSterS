@@ -1,3 +1,12 @@
+### SMX_Automation_simulation_run, tailored for Paraview 5.10
+### Single phase hydrodynamics post-processing script
+### to be run locally
+### Author: Juan Pablo Valdes,
+### First commit: July, 2023
+### Version: 3.0
+### Department of Chemical Engineering, Imperial College London
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
 from paraview.simple import *
 import os
 import glob

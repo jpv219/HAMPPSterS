@@ -3,9 +3,11 @@
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 2.0
+### Version: 3.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
 
 import os
 from subprocess import Popen, PIPE
@@ -31,7 +33,7 @@ operator_map = {
     "!=": operator.ne
 }
 
-######################## EXCEPTION CLASSES ######################
+############################################################################ EXCEPTION CLASSES  #######################################################################################
 
 class JobStatError(Exception):
     """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
@@ -51,7 +53,7 @@ class BadTerminationError(Exception):
         self.message = message
         super().__init__(self.message)
 
-#################################################################
+#####################################################################################################################################################################################
 
 
 ################################################################################### PARAMETRIC STUDY ################################################################################
@@ -581,7 +583,7 @@ class HPCScheduling:
                 'divergence check':div_check,
                 'kinetic energy check':ke_check
             }
-            
+
             ### Counting failed checks with True = 1 and False = 0
             failed_checks = sum(value for value in checks.values())
             ### Adding failed checks if value = True
