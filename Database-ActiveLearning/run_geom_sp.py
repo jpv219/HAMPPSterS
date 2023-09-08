@@ -3,8 +3,10 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
-### Version: 2.0
+### Version: 3.0
 ### Department of Chemical Engineering, Imperial College London
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
@@ -47,7 +49,7 @@ save_path = ps.plist("save_path",["/media/jpv219/ML/SP_Runs"])
 max_diameter = 0.04
 SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],
             'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],
-            'Flowrate (m3/s)': [1e-6,1e-2],'Angle':[20,80], 'NElements': [2,8]}
+            'Flowrate (m3/s)': [1e-6,1e-2],'Angle':[20,70], 'NElements': [2,8]}
 
 captured_output = io.StringIO()
 

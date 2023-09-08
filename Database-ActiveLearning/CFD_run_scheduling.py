@@ -3,9 +3,11 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 2.0
+### Version: 3.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
 
 import os
 from time import sleep
@@ -21,7 +23,7 @@ import psutil
 import glob
 from datetime import datetime
 
-######################## EXCEPTION CLASSES ######################
+############################################################################ EXCEPTION CLASSES  ###################################################################################
 
 class JobStatError(Exception):
     """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
@@ -41,7 +43,7 @@ class BadTerminationError(Exception):
         self.message = message
         super().__init__(self.message)
 
-#################################################################
+################################################################################################################################################################################
 
 ################################################################################### JOB MONITORING ###########################################################################
 
@@ -247,6 +249,8 @@ class SimScheduling:
     def __init__(self) -> None:
         pass
 
+    ### Constructor function to be initialized through localrun via psweep call
+
     def __construct__(self,pset_dict):
 
         ### Initialising class attributes
@@ -261,7 +265,6 @@ class SimScheduling:
 
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
         self.main_path = os.path.join(self.run_path,'..')
-
 
     ### Defining individual logging files for each run.
 
@@ -314,6 +317,13 @@ class SimScheduling:
 
         dict_str = json.dumps(self.pset_dict, default=self.convert_to_json, ensure_ascii=False)
 
+        ### Exception return mapped by case type, to guarantee correct psweep completion
+        return_from_casetype = {
+            'sp_geom': {'L': 0, 'e_max': 0, 'Q': 0, 'E_diss': 0, 'Gamma': 0, 'Pressure': 0, 'Velocity': 0},
+            'surf': {"Nd": 0, "DSD": 0, "IntA": 0},
+            'geom' : {"Nd": 0, "DSD": 0, "IntA": 0}
+                                }
+
         ### First job creation and submission
 
         HPC_script = 'HPC_run_scheduling.py'
@@ -333,10 +343,10 @@ class SimScheduling:
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
-            return {}
+            return return_from_casetype.get(self.case_type,{})
         except (ValueError, JobStatError, NameError) as e:
             log.info(f'Exited with message: {e}')
-            return {}
+            return return_from_casetype.get(self.case_type,{})
             
         ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
 
@@ -353,10 +363,10 @@ class SimScheduling:
                 self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
             except (ValueError, NameError, ConvergenceError) as e:
                 log.info(f'Exited with message: {e}')
-                return {}
+                return return_from_casetype.get(self.case_type,{})
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
                 log.info(f"SSH ERROR: Authentication failed: {e}")
-                return {}
+                return return_from_casetype.get(self.case_type,{})
 
             ### Job restart execution
 
@@ -381,10 +391,10 @@ class SimScheduling:
 
             except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError,TypeError,KeyError) as e:
                 log.info(f'Exited with message: {e}')
-                return {}
+                return return_from_casetype.get(self.case_type,{})
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
                 log.info(f"SSH ERROR: Authentication failed: {e}")
-                return {}
+                return return_from_casetype.get(self.case_type,{})
 
         ### vtk convert job creation and submission
 
@@ -401,10 +411,10 @@ class SimScheduling:
             log.info('-' * 100)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
-            return {}
+            return return_from_casetype.get(self.case_type,{})
         except (FileNotFoundError, JobStatError, ValueError, NameError) as e:
             log.info(f'Exited with message: {e}')
-            return {}
+            return return_from_casetype.get(self.case_type,{})
         
         conv_name = 'Convert' + str(self.run_ID)
 
@@ -418,10 +428,10 @@ class SimScheduling:
             self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
         except (ValueError, NameError) as e:
             log.info(f'Exited with message: {e}')
-            return {}
+            return return_from_casetype.get(self.case_type,{})
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
-            return {}
+            return return_from_casetype.get(self.case_type,{})
 
         ### Downloading files and local Post-processing
 
@@ -433,7 +443,7 @@ class SimScheduling:
             self.scp_download(log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
-            return {}
+            return return_from_casetype.get(self.case_type,{})
 
         log.info('-' * 100)
         log.info('PVPYTHON POSTPROCESSING')
@@ -492,7 +502,7 @@ class SimScheduling:
 
             else:
                 return {'L': 0, 'e_max':0, 
-                        'Q': 0, 'E_diss':ediss, 'Gamma': 0, 
+                        'Q': 0, 'E_diss':0, 'Gamma': 0, 
                         'Pressure': 0, 'Velocity': 0}
 
         else:
@@ -557,8 +567,7 @@ class SimScheduling:
                     log.info('-' * 100)
                     log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/60} mins')
                     log.info('-' * 100)
-                    #sleep(t_wait)
-                    sleep(60)
+                    sleep(t_wait)
                     try:
                         ### Execute monitor function in HPC to check job status
                         command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''

@@ -3,8 +3,10 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
-### Version: 2.0
+### Version: 3.0
 ### Department of Chemical Engineering, Imperial College London
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
@@ -24,7 +26,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "surf"
-nruns = 4
+nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_surf_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -47,7 +49,7 @@ save_path = ps.plist("save_path",["/media/jpv219/ML/Surf_Runs"])
 ### cond_csv determines which condition to use as stopping criteria from the csv
 cond_csv = ps.plist("cond_csv",["Time"])
 conditional = ps.plist("conditional",["<"])
-cond_csv_limit = ps.plist("cond_csv_limit",["0.28"])
+cond_csv_limit = ps.plist("cond_csv_limit",["0.35"])
 
 ## Parameters to vary in the sample space
 Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [0.1,1e3],

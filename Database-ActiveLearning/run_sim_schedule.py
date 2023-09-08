@@ -3,8 +3,10 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
-### Version: 2.0
+### Version: 3.0
 ### Department of Chemical Engineering, Imperial College London
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
@@ -25,7 +27,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "geom"
-nruns = 8
+nruns = 32
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_geom_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -45,7 +47,7 @@ local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/
 save_path = ps.plist("save_path",["/media/jpv219/ML/Runs"])
 
 ## Parameters to vary in the sample space
-max_diameter = 0.032
+max_diameter = 0.03
 SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-4],'Angle':[20,80]}
 
 captured_output = io.StringIO()
