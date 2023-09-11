@@ -501,6 +501,7 @@ class SimScheduling:
                         'Pressure': P, 'Velocity': u}
 
             else:
+                log.info('Pvpython postprocessing failed, returning empty dictionary')
                 return {'L': 0, 'e_max':0, 
                         'Q': 0, 'E_diss':0, 'Gamma': 0, 
                         'Pressure': 0, 'Velocity': 0}
@@ -539,7 +540,7 @@ class SimScheduling:
                 
                 return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
             else:
-
+                log.info('Pvpython postprocessing failed, returning empty dictionary')
                 return{"Nd":0, "DSD":0, "IntA":0}
     
     ### calling monitoring and restart function to check in on jobs
@@ -954,5 +955,9 @@ class SimScheduling:
         except FileNotFoundError:
             log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
             return None
+        except ValueError as e:
+            log.info(f'ValueError, Exited with message: {e}')
+            return None
+
 
         return df_hyd

@@ -314,7 +314,7 @@ class HPCScheduling:
                 if 128*5/d_pipe<min_res:
                     raise ValueError("Pipe diameter doesn't comply with min. res.")
             else:
-                min_res = 9000
+                min_res = 6400
                 n_ele = float(self.n_ele)
                 ### Resolution and domain size condition: highest res scenario depending on the number of elements and the limit of cpus pre node = 256
                 if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele>3 and 128*3/d_pipe<min_res):
@@ -364,7 +364,7 @@ class HPCScheduling:
                     n_nodes = 1
 
             ### Single phase case with multiple elements
-            ### First if looking for 64 cells and second if augmenting to 128 cell cases
+            ### First if looking for 64 cells and second else augmenting to 128 cell cases or moving the queue to capability to keep 64 as resolution
             elif n_ele <=3:
 
                 if yz_cpus_l<=4:
@@ -383,8 +383,62 @@ class HPCScheduling:
                     ncpus = int(xsub*ysub*zsub)
                     n_nodes = 1
 
-            elif n_ele>3:
+            elif n_ele==4:
                 
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = math.ceil(yz_cpus_h)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = 80
+                    n_nodes = 4
+
+            elif n_ele==5:
+                
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = math.ceil(yz_cpus_h)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = 128
+                    n_nodes = 3
+
+            elif n_ele==6:
+                
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = math.ceil(yz_cpus_h)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = 112
+                    n_nodes = 4
+
+            elif n_ele>=7:
+
                 if yz_cpus_l<=3:
                     ysub = zsub = math.ceil(yz_cpus_l)
                     xsub = int(ysub*(n_ele+1))
@@ -499,10 +553,10 @@ class HPCScheduling:
         # verify whether convergence checks can start
         len_to_check = 250
         recent = int(len_to_check * 0.95)
-        print(recent)
+
         window_size = max(10,int(len_to_check * 0.05))
         window_step = max(10, int(window_size * 0.5))
-        print('window size and step', (window_size, window_step))
+
         recent_data = csv_to_check.iloc[-recent:]
         relchg_thres = 0.1
         grad_thres = 0.1

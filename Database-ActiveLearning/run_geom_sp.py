@@ -77,7 +77,7 @@ ninf = 0.00086
 k = 0.4585
 m = 0.577
 
-psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: 1e-4 + ninf + ((n0-ninf)/(1+(k*Re)**m)))
+psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: 2.5e-4 + ninf + ((n0-ninf)/(1+(k*Re)**m)))
 
 
 cond_csv = ps.plist("cond_csv",["Time(s)"])
