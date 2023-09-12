@@ -77,7 +77,7 @@ ninf = 0.00086
 k = 0.4585
 m = 0.577
 
-psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: 2.5e-4 + ninf + ((n0-ninf)/(1+(k*Re)**m)))
+psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: (1-Re/500)*ninf + ((n0-ninf)/(1+(k*Re)**m)))
 
 
 cond_csv = ps.plist("cond_csv",["Time(s)"])
@@ -98,7 +98,7 @@ if not re_run:
     nele_list = list(map(str,psdict['NElements']))
 
     # Dynamically changing termination condition
-    cond_csv_limit_list = list(map(str,psdict['cond_csv_limit']*0.9/1000))
+    cond_csv_limit_list = list(map(str,psdict['cond_csv_limit']))
 
     # Combine the lists
     data = list(zip(bar_width_list, bar_thickness_list, 
