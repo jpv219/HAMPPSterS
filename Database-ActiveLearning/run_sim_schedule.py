@@ -98,7 +98,7 @@ if not re_run:
                     cond_csv_limit_list))
 
     # Save the combined data into a CSV file
-    with open('params/parameters.csv', 'w', newline='') as csvfile:
+    with open('params/parameters_geom.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','cond_csv_limit'])
         writer.writerows(data)
