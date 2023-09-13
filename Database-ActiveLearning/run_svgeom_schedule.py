@@ -60,7 +60,7 @@ SV_dict = {'Impeller_Diameter (m)': [0.15*tank_diameter,0.85*tank_diameter],
             'Frequency (1/s)': [5,8],
             'Clearance (m)': [0.15*tank_diameter,0.85*tank_diameter],
             'Blade_width (m)':[0.001, 0.036], # [0.1D, 0.9D], D=[0.2T, 0.8T]
-            'Balde_thickness (m)': [0.001,0.005],
+            'Blade_thickness (m)': [0.001,0.005],
             'Nblades':[1,6],
             'Inclination': [0,180]
             }
