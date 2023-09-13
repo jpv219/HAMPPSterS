@@ -8,8 +8,8 @@ def post_process():
 
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
-    save_path = '/media/jpv219/ML/'
-    run_name = 'run_2'
+    save_path = '/media/ijpv219/ML/SP_Runs'
+    run_name = 'run_sp_9'
     save_path_runID = os.path.join(save_path,run_name)
 
     os.chdir(save_path_runID)
@@ -54,13 +54,13 @@ def post_process_SP():
 
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_sp_PP.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
-    save_path = '/media/jpv219/ML/'
-    run_name = 'run_4'
+    save_path = '/media/jpv219/ML/SP_Runs'
+    run_name = 'run_sp_9'
 
     os.chdir(local_path)
 
-    n_ele = 4
-    pipe_radius = 0.02
+    n_ele = 5
+    pipe_radius = 0.01467741935483871
     domain_length = (1 + float(n_ele))*float(pipe_radius)*2
 
     ### Running pvpython script for Nd and DSD
@@ -89,12 +89,15 @@ def post_process_SP():
     except FileNotFoundError:
         print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
         return None
+    except ValueError as e:
+        print(f'ValueError, Exited with message: {e}')
+        return None
 
     return df_hyd
 
 def main():
 
-    run_name = 'run_4'          
+    run_name = 'run_sp_9'          
 ### pvpython execution
     # dfDSD, IntA = post_process()
 
@@ -148,7 +151,7 @@ def main():
 
         df_hyd.insert(0,'Run', run_name)
 
-        csvbkp_file_path = f'/media/jpv219/ML/PP.csv'
+        csvbkp_file_path = f'/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP/sp_geom.csv'
 
         # Check if the CSV file already exists
         if not os.path.exists(csvbkp_file_path):
@@ -162,6 +165,8 @@ def main():
         print('-' * 100)
         print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
         print('-' * 100)
+    else:
+        print('Pvpython postprocessing failed')
 
 
 if __name__ == "__main__":
