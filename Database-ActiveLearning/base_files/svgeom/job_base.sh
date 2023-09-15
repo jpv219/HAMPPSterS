@@ -1,13 +1,13 @@
 #!/bin/bash
-#PBS -N EMU_test_LAYER
-#PBS -o EMU_test_LAYER.out
+#PBS -N RUN_NAME
+#PBS -o RUN_NAME.out
 #PBS -j oe
 #PBS -lselect=1:ncpus=8:mem=100gb
 #PBS -lwalltime=48:00:00
 set -vx
 
 cd $PBS_O_WORKDIR
-PROJECT="emu_test_layer"
+PROJECT="RUN_NAME"
 PROGRAM=$PROJECT.x
 
 # Build input data in Blue.nml file
@@ -334,16 +334,16 @@ cat > $PROJECT.nml <<'EOF'
   output_box_selection=.FALSE.       output_box_coordinates=0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0
 !
 ! If ParaView,               Format,                Loop Frequency,          Time interval (s),             Prefix.
-  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=0.00625d0   paraview_file_prefix="emu_test_layer"
+  paraview_output=.TRUE.    paraview_format="vtk"   paraview_frequency=0    paraview_time_interval=0.00625d0   paraview_file_prefix="RUN_NAME"
 !
 ! If tecplot,                Loop Frequency,        Time interval (s),        Prefix.
-  tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="emu_test_layer"
+  tecplot_output=.FALSE.     tecplot_frequency=50  tecplot_time_interval=0.0d0   tecplot_file_prefix="RUN_NAME"
 !
 ! If interface,              Format (raw/stl)         Loop Frequency,        Time interval (s),        Prefix.
-  interface_output=.FALSE.    interface_format="stl"   interface_frequency=10   interface_time_interval=0.0d0    interface_file_prefix="emu_test_layer"
+  interface_output=.FALSE.    interface_format="stl"   interface_frequency=10   interface_time_interval=0.0d0    interface_file_prefix="RUN_NAME"
 !
 ! If history,         Loop Frequency,        Time interval (s),        Prefix.
-  history_output=.TRUE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="emu_test_layer"
+  history_output=.TRUE.     history_frequency=1   history_time_interval=0.0d0   history_file_prefix="RUN_NAME"
                       !                       X,          Y,          Z
                       center_reference_point= 0.07505d0,      0.0d0,      -0.0225d0        ! Center reference.
                       axis_reference_point  = 0.0d0,      0.0d0                    ! z-axis reference.
@@ -351,7 +351,7 @@ cat > $PROJECT.nml <<'EOF'
                       axis_segment          = -0.025d0,      0.01d0                   ! z-segment reference.
 !
 ! If signal,          Number of points,      Loop Frequency,      Time interval (s),     Prefix,
-  signal_output=.FALSE.     num_signal_points=1   signal_frequency=1  signal_time_interval=0.0d0 signal_file_prefix="emu_test_layer"
+  signal_output=.FALSE.     num_signal_points=1   signal_frequency=1  signal_time_interval=0.0d0 signal_file_prefix="RUN_NAME"
                                    !   X,       Y,       Z
                       signal_points=0.000D0, 0.000D0, 0.000D0,
                                     0.000D0, 0.000D0, 0.000D0,
@@ -365,7 +365,7 @@ cat > $PROJECT.nml <<'EOF'
                                     0.000D0, 0.000D0, 0.000D0
 !
 ! If shape,           Number of points,      Frequency,             Prefix,
-  shape_output=.FALSE.      num_shape_points=1    shape_frequency=1  shape_time_interval=0.0d0   shape_file_prefix="emu_test_layer"
+  shape_output=.FALSE.      num_shape_points=1    shape_frequency=1  shape_time_interval=0.0d0   shape_file_prefix="RUN_NAME"
                                   !   X,       Y,       Z
                       shape_points=0.000D0, 0.000D0, 0.000D0,
                                    0.000D0, 0.000D0, 0.000D0,
@@ -379,10 +379,10 @@ cat > $PROJECT.nml <<'EOF'
                                    0.000D0, 0.000D0, 0.000D0
 !
 ! Restart Output Frequency,   Output time interval (s)      Output File Prefix.
-  output_restart_frequency=0     output_restart_time_interval=0.00625d0     output_restart_file_prefix="emu_test_layer"
+  output_restart_frequency=0     output_restart_time_interval=0.00625d0     output_restart_file_prefix="RUN_NAME"
 !
 ! Restart (true/false),        Input File Index,        Input File Prefix.
-  restart=.FALSE.              input_file_index=0       input_file_prefix="emu_test_layer"
+  restart=.FALSE.              input_file_index=0       input_file_prefix="RUN_NAME"
 !--------------------------------------------------------------------------------------------------------------------------------  
 /
 EOF

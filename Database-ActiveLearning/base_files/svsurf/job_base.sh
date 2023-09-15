@@ -296,15 +296,15 @@ cat > $PROJECT.nml <<'EOF'
 &SURFACTANT_PROPERTIES
 !--------------------------------------------------------------------------------------------------------------------------------
   surfactant_transport                     = .TRUE.                    ! Surfactant transport (true/false)
-  surf_phase_1                             =   1.0d-20                 ! Mass diffusity phase_1 (m2/s)
-  surf_phase_2                             =   1.963495408493621d-5    ! Mass diffusity phase_2 (m2/s)
-  surf_adsorpt                             =   5d-2     ! Adsorption coefficient
-  surf_desorpt                             =   5d-3     ! Desoprtion coefficient
-  surf_Gm_inf                              =  1.00d-5                  ! Maximum packing concentration (infinite concentration)
-  surf_Gm_ini                              =  0.9090909090909090909d-5 ! Initial surface concentration
-  surf_Gm_diff                             =   1.963495408493621d-5    ! Diffusion coefficient along interface
-  surf_curv_option                         =   0                       ! Surfactant curvature option (0:Langmuir, 1:Linear)
-  surf_Ela_Num                             =   0.7d0                   ! Elastic number (R*T*Gm_inf)
+  surf_phase_1                             =   'diff1'd-20      ! Mass diffusity phase_1 (m2/s)
+  surf_phase_2                             =   'diff2'd0        ! Mass diffusity phase_2 (m2/s)
+  surf_adsorpt                             =   'ka'd0           ! Adsorption coefficient
+  surf_desorpt                             =   'kd'd0           ! Desoprtion coefficient
+  surf_Gm_inf                              =   'ginf'd0         ! Maximum packing concentration (infinite concentration)
+  surf_Gm_ini                              =   'gini'd0         ! Initial surface concentration
+  surf_Gm_diff                             =   'diffs'd0        ! Diffusion coefficient along interface
+  surf_curv_option                         =   0                ! Surfactant curvature option (0:Langmuir, 1:Linear)
+  surf_Ela_Num                             =   'beta'd0         ! Elastic number (R*T*Gm_inf)
   !----------------------------
   ! DEFAULT BOUNDARY CONDITIONS
   surfactant_bctype                        = "NNNNNN"      ! Default domain boundary condition types

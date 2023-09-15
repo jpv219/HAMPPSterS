@@ -961,3 +961,82 @@ class SimScheduling:
 
 
         return df_hyd
+
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Fuyue Liang #########################################################################
+
+################################################################################# Tailored for stirred mixer study ###############################################################
+
+class SVSimScheduling(SimScheduling):
+
+    ### Ini Function ###
+    def __init__(self) -> None:
+        pass
+
+    ### Constructor function to be initilized through localrun via psweep call ###
+    def __construct__(self, pset_dict):
+        ### Initialising class attributes ###
+        self.pset_dict = pset_dict
+        self.case_type = pset_dict['case']
+        self.run_ID = pset_dict['run_ID']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.run_path = pset_dict['run_path']
+        self.run_name = pset_dict['run_name']
+        self.usr = pset_dict['user']
+
+        self.save_path_runID = os.path.join(self.save_path,self.run_name)
+        self.main_path = os.path.join(self.run_path,'..')
+        
+    
+    def localrun(self, pset_dict):
+        ### constructor ###
+        self.__construct__(pset_dict)
+
+        ### Logger setup ###
+        log_filename = f"output_{self.case_type}/output_{self.run_name}.txt"
+        log = self.set_log(log_filename)
+
+        # convert the dictionary to strings for HPC
+        dict_str = json.dumps(self.pset_dict, default=self.convert_to_json, ensure_ascii=False)
+
+        ### Exception return mapped by case type, to guarantee correct psweep completion ###
+        return_from_casetype = {
+            'svsurf': {"Nd": 0, "DSD": 0, "IntA": 0},
+            'svgeom': {"Nd": 0, "DSD": 0, "IntA": 0}
+        }
+
+        ### First job creation and submission ###
+
+        HPC_script = 'HPC_run_schedule.py'
+
+        log.info('-' * 100)
+        log.info('-' * 100)
+        log.info('NEW RUN')
+        log.info('-' * 100)
+        log.info('-' * 100)
+
+        ### wait time to connect at first, avoiding multiple simultaneuous connection ###
+        init_wait_time = np.random.RandomState().randint(0,180)
+        sleep(init_wait_time)
+
+        try:
+            command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
+            jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
+        except (paramiko.AuthenticationException,paramiko.SSHException) as e:
+            log.info(f'SSH EEROR: Authentication failed: {e}')
+            return return_from_casetype.get(self.case_type, {})
+        except (ValueError, JobStatError, NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return return_from_casetype.get(self.case_type,{})
+        
+        ### Job monitor and restart nested loop ###
+        ### Checks job status and restarts if needed ###
+
+        restart = True
+        while restart:
+            ### job monitoring loop ###
+            log.info('-' * 100)
+            log.info('JOB MONITORING')
+            log.info('-' * 100)            

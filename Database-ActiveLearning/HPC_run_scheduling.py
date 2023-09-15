@@ -53,91 +53,6 @@ class BadTerminationError(Exception):
         self.message = message
         super().__init__(self.message)
 
-#####################################################################################################################################################################################
-
-################################################################################### PARAMETRIC STUDY ################################################################################
-
-################################################################################# Author: Fuyue Liang #########################################################################
-
-################################################################################# Tailored for stirred vessel study ###############################################################
-
-class fuYUE:
-
-        ### Init function
-    def __init__(self,pset_dict) -> None:
-                
-        ### Initialising class attributes
-        self.pset_dict = pset_dict
-        self.run_path = pset_dict['run_path']
-        self.convert_path = pset_dict['convert_path']
-        self.case_type = pset_dict['case']
-        self.run_ID = pset_dict['run_ID']
-        self.run_name = pset_dict['run_name']
-        self.local_path = pset_dict['local_path']
-        self.save_path = pset_dict['save_path']
-        self.convert_path = pset_dict['convert_path']
-
-        self.cond_csv = pset_dict['cond_csv']
-        self.conditional = pset_dict['conditional']
-        self.cond_csv_limit = pset_dict['cond_csv_limit']
-
-        self.path = os.path.join(self.run_path, self.run_name)
-        self.mainpath = os.path.join(self.run_path,'..')
-        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
-        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
-
-        self.juan = HPCScheduling(pset_dict)
-
-            ### Function shortcuts
-        self.monitor = self.juan.monitor
-        self.jobwait = self.juan.job_wait
-
-    def __construct__(self,pset_dict):
-        if self.case_type == 'geom' or self.case_type == 'sp_geom':
-
-            ### Geometry features
-            self.bar_width = pset_dict['bar_width']
-            self.bar_thickness = pset_dict['bar_thickness']
-            self.bar_angle = pset_dict['bar_angle']
-            self.pipe_radius = pset_dict['pipe_radius']
-            self.n_bars = pset_dict['n_bars']
-            self.flowrate = pset_dict['flowrate']
-            self.smx_pos = pset_dict['smx_pos']
-            # two-phase
-            if self.case_type == 'geom':
-                self.d_per_level = pset_dict['d_per_level']
-                self.n_levels = pset_dict['n_levels']
-                self.d_radius = pset_dict['d_radius']
-            # single-phase
-            elif self.case_type == 'sp_geom':
-                self.n_ele = pset_dict['n_ele']
-
-        elif self.case_type == 'surf':
-
-            ### Surfactant features
-            self.diff1 = pset_dict['D_d']
-            self.diff2 = format(float(pset_dict['D_b']),'.10f')
-            self.ka = format(float(pset_dict['ka']),'.10f')
-            self.kd = format(float(pset_dict['kd']),'.10f')
-            self.ginf = format(float(pset_dict['ginf']),'.10f')
-            self.gini = format(float(pset_dict['gini']),'.10f')
-            self.diffs = format(float(pset_dict['D_s']),'.10f')
-            self.beta = format(float(pset_dict['beta']),'.10f')
-        else:
-            pass
-
-
-    def run(self):
-
-        pass
-    ### checking jobstate and sleeping until completion or restart commands
-
-    def f90(self):
-        pass
-
-    def sh(self):
-        pass
-
 
 ################################################################################### PARAMETRIC STUDY ################################################################################
 
@@ -1094,7 +1009,102 @@ class HPCScheduling:
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
         return jobid
-    
+
+#####################################################################################################################################################################################
+
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Fuyue Liang #########################################################################
+
+################################################################################# Tailored for stirred vessel study ###############################################################
+
+class SVHPCScheduling(HPCScheduling):
+
+        ### Init function
+    def __init__(self,pset_dict) -> None:
+                
+        ### Initialising class attributes
+        self.pset_dict = pset_dict
+        self.run_path = pset_dict['run_path']
+        self.convert_path = pset_dict['convert_path']
+        self.case_type = pset_dict['case']
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = pset_dict['run_name']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.convert_path = pset_dict['convert_path']
+
+        self.cond_csv = pset_dict['cond_csv']
+        self.conditional = pset_dict['conditional']
+        self.cond_csv_limit = pset_dict['cond_csv_limit']
+
+        ### Geometry parametric study ###
+        if self.case_type == 'svgeom':
+            self.impeller_d = pset_dict['impeller_d']
+            self.frequency = pset_dict['frequency']
+            self.clearance = pset_dict['clearance']
+            self.blade_width = pset_dict['blade_width']
+            self.blade_thick = pset_dict['blade_thick']
+            self.nblades = pset_dict['nblades']
+            self.inclination = pset_dict['inclination']
+
+        ### Surfactant parametric study ###
+        elif self.case_type == 'svsurf':
+            self.diff1 = pset_dict['D_d']
+            self.diff2 = format(float(pset_dict['D_b']),'.10f')
+            self.ka = format(float(pset_dict['ka']),'.10f')
+            self.kd = format(float(pset_dict['kd']),'.10f')
+            self.ginf = format(float(pset_dict['ginf']),'.10f')
+            self.gini = format(float(pset_dict['gini']),'.10f')
+            self.diffs = format(float(pset_dict['D_s']),'.10f')
+            self.beta = format(float(pset_dict['beta']),'.10f')
+
+
+        self.path = os.path.join(self.run_path, self.run_name)
+        self.mainpath = os.path.join(self.run_path,'..')
+        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+
+    def run(self):
+
+        pass
+    ### checking jobstate and sleeping until completion or restart commands ###
+
+    def makef90(self):
+        ### create run_ID directory ###
+        os.mkdir(self.path)
+        base_path = self.pset_dict['base_path']
+        base_case_dir = os.path.join(base_path, self.case_type)
+
+        ### Copy base files and rename to current run accordingly ###
+        os.system(f'cp -r {base_case_dir}/* {self.path}')
+        os.system(f'mv {self.path}/base_SV.f90 {self.path}/{self.run_name}_SV.f90')
+        print('-' * 100)
+        print(f'Run directory {self.path} created and base files copied')
+
+        if self.case_type == 'svgeom':
+            ### Assign values to placeholders ###
+            os.system(f'sed -i \"s/\'impeller_d\'/{self.impeller_d}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'frequency\'/{self.frequency}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'clearance\'/{self.clearance}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'blade_width\'/{self.blade_width}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'blade_thick\'/{self.blade_thick}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'nblades\'/{self.nblades}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'inclination\'/{self.inclination}/\" {self.path}/{self.run_name}_SV.f90')
+
+        ### modify the Makefile ###
+        os.system(f'sed -i s/file/{self.run_name}_SV/g {self.path}/Makefile')
+
+
+
+
+
+
+    def sh(self):
+        pass
+
+
+
 def main():
     ### Argument parser to specify function to run
     parser = argparse.ArgumentParser()
