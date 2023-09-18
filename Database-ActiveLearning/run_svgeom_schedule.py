@@ -10,7 +10,7 @@
 #######################################################################################################################################################################################
 
 import psweep as ps
-from CFD_run_scheduling import SimScheduling
+from CFD_run_scheduling import SVSimScheduling
 from LHS_Dataspace import runSVDOE
 from logger import configure_logger
 import io
@@ -55,7 +55,8 @@ if __name__ == '__main__':
     cond_csv = ps.plist("cond_csv",["Time"])
     conditional = ps.plist("conditional",["<"])
     cond_csv_limit = ps.plist("cond_csv_limit",["4.5"])
-
+    ### convert vtk to vtr: last or all ###
+    vtk_conv_mode = ps.plist("vtk_conv_mode", ["last"])
 
     ## Parameters to vary in the sample space
     tank_diameter = 0.05 # (m)
@@ -89,13 +90,13 @@ if __name__ == '__main__':
 
     if not re_run:
 
-        impeller_d_list = list(map(str,psdict['Impeller_Diameter (m)']))
-        frequency_list = list(map(str,psdict['Frequency (1/s)']))
-        clearance_list = list(map(str,psdict['Clearance (m)']))
-        blade_width_list = list(map(str,psdict['Blade_width (m)']))
-        blade_thick_list = list(map(str,psdict['Blade_thickness (m)']))
-        nblades_list = list(map(str,psdict['Nblades']))
-        inclination_list = list(map(str,psdict['Inclination']))
+        impeller_d_list = list(map(str,psdict["Impeller_Diameter (m)"]))
+        frequency_list = list(map(str,psdict["Frequency (1/s)"]))
+        clearance_list = list(map(str,psdict["Clearance (m)"]))
+        blade_width_list = list(map(str,psdict["Blade_width (m)"]))
+        blade_thick_list = list(map(str,psdict["Blade_thickness (m)"]))
+        nblades_list = list(map(str,psdict["Nblades"]))
+        inclination_list = list(map(str,psdict["Inclination"]))
 
         # Combine the lists
         data = list(zip(impeller_d_list, frequency_list, clearance_list, 
@@ -104,8 +105,8 @@ if __name__ == '__main__':
         # Save the combined data into a CSV file
         with open('params/parameters_svgeom.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['impeller_d', 'frequency', 'clearance', 'blade_width', 'blade_thick', 
-                            'nblades', 'inclination'])
+            writer.writerow(["impeller_d", "frequency", "clearance", "blade_width", "blade_thick", 
+                            "nblades", "inclination"])
             writer.writerows(data)
 
     else:
@@ -122,13 +123,13 @@ if __name__ == '__main__':
         with open('params/parameters_svgeom.csv', 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                impeller_d_list.append(row['impeller_d'])
-                frequency_list.append(row['frequency'])
-                clearance_list.append(row['clearance'])
-                blade_width_list.append(row['blade_width'])
-                blade_thick_list.append(row['blade_thick'])
-                nblades_list.append(row['nblades'])
-                inclination_list.append(row['inclination'])
+                impeller_d_list.append(row["impeller_d"])
+                frequency_list.append(row["frequency"])
+                clearance_list.append(row["clearance"])
+                blade_width_list.append(row["blade_width"])
+                blade_thick_list.append(row["blade_thick"])
+                nblades_list.append(row["nblades"])
+                inclination_list.append(row["inclination"])
 
 
     impeller_d = ps.plist("impeller_d",impeller_d_list)
@@ -141,17 +142,17 @@ if __name__ == '__main__':
 
     ## creates parameter grid (list of dictionarys)
     params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
-                    cond_csv,conditional,user_ps,
+                    cond_csv,conditional,vtk_conv_mode,user_ps,
                     zip(run_ID,run_name,impeller_d,frequency,clearance,blade_width,
                         blade_thick,nblades,inclination))
 
     ######################################################################################################################################################################################
     ######################################################################################################################################################################################
     log.info('-' * 100)
-    log.info('' * 100)
+    log.info('-' * 100)
 
 
-    simulator = SimScheduling()
+    simulator = SVSimScheduling()
 
 
     df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)   

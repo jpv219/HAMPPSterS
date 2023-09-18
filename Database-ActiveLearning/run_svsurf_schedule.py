@@ -52,6 +52,8 @@ if __name__ == '__main__':
     cond_csv = ps.plist("cond_csv",["Time"])
     conditional = ps.plist("conditional",["<"])
     cond_csv_limit = ps.plist("cond_csv_limit",["4.5"])
+    ### convert vtk to vtr: last or all ###
+    vtk_conv_mode = ps.plist("vtk_conv_mode", ["all"])
 
     ## Parameters to vary in the sample space
     Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-8,1e-4],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
@@ -83,13 +85,13 @@ if __name__ == '__main__':
 
     if not re_run:
 
-        diff2_list = list(map(str,psdict['Bulk Diffusivity (m2/s)']))
-        ka_list = list(map(str,psdict['Adsorption Coeff (m3/mol s)']))
-        kd_list = list(map(str,psdict['Desorption Coeff (1/s)']))
-        ginf_list = list(map(str,psdict['Maximum packing conc (mol/ m2)']))
-        gini_list = list(map(str,psdict['Initial surface conc (mol/m2)']))
-        diffs_list = list(map(str,psdict['Surface diffusivity (m2/s)']))
-        beta_list = list(map(str,psdict['Elasticity Coeff']))
+        diff2_list = list(map(str,psdict["Bulk Diffusivity (m2/s)"]))
+        ka_list = list(map(str,psdict["Adsorption Coeff (m3/mol s)"]))
+        kd_list = list(map(str,psdict["Desorption Coeff (1/s)"]))
+        ginf_list = list(map(str,psdict["Maximum packing conc (mol/ m2)"]))
+        gini_list = list(map(str,psdict["Initial surface conc (mol/m2)"]))
+        diffs_list = list(map(str,psdict["Surface diffusivity (m2/s)"]))
+        beta_list = list(map(str,psdict["Elasticity Coeff"]))
 
         # Combine the lists
         data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
@@ -97,7 +99,7 @@ if __name__ == '__main__':
         # Save the combined data into a CSV file
         with open('params/parameters_svsurf.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['D_b', 'ka', 'kd', 'ginf', 'gini', 'D_s', 'beta'])
+            writer.writerow(["D_b", "ka", "kd", "ginf", "gini", "D_s", "beta"])
             writer.writerows(data)
     else:
         diff2_list = []
@@ -112,13 +114,13 @@ if __name__ == '__main__':
         with open('params/parameters_svsurf.csv', 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                diff2_list.append(row['D_b'])
-                ka_list.append(row['ka'])
-                kd_list.append(row['kd'])
-                ginf_list.append(row['ginf'])
-                gini_list.append(row['gini'])
-                diffs_list.append(row['D_s'])
-                beta_list.append(row['beta'])
+                diff2_list.append(row["D_b"])
+                ka_list.append(row["ka"])
+                kd_list.append(row["kd"])
+                ginf_list.append(row["ginf"])
+                gini_list.append(row["gini"])
+                diffs_list.append(row["D_s"])
+                beta_list.append(row["beta"])
     
 
     diff1 = ps.plist("D_d",["1.0"])
@@ -132,14 +134,15 @@ if __name__ == '__main__':
 
     #creates parameter grid (list of dictionarys)
     params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
-                    save_path,cond_csv,conditional,cond_csv_limit,
+                    save_path,cond_csv,conditional,cond_csv_limit,vtk_conv_mode,
                     diff1,user_ps,
                     zip(run_ID,run_name,diff2,ka,kd,ginf,gini,diffs,beta))
+        
 
     ######################################################################################################################################################################################
     ######################################################################################################################################################################################
     log.info('-' * 100)
-    log.info('' * 100)
+    log.info('-' * 100)
 
     simulator = SVSimScheduling()
 

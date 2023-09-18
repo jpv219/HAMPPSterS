@@ -1037,6 +1037,7 @@ class SVHPCScheduling(HPCScheduling):
         self.cond_csv = pset_dict['cond_csv']
         self.conditional = pset_dict['conditional']
         self.cond_csv_limit = pset_dict['cond_csv_limit']
+        self.vtk_conv_mode = pset_dict['vtk_conv_mode']
 
         ### Geometry parametric study ###
         if self.case_type == 'svgeom':
@@ -1065,10 +1066,6 @@ class SVHPCScheduling(HPCScheduling):
         self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
         self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
-    def run(self):
-
-        pass
-    ### checking jobstate and sleeping until completion or restart commands ###
 
     def makef90(self):
         ### create run_ID directory ###
@@ -1095,14 +1092,183 @@ class SVHPCScheduling(HPCScheduling):
         ### modify the Makefile ###
         os.system(f'sed -i s/file/{self.run_name}_SV/g {self.path}/Makefile')
 
+        ### compile the f90 into an executable ###
+        os.chdir(self.path)
+        subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
+        print('-' * 100)
+        print('Makefile created succesfully')
+        os.system(f'mv {self.run_name}_SV.x {self.run_name}.x')
+        subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
+        os.chdir('..')
+
+    def setjobsh(self):
+        ### rename job with current run ###
+        os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
+
+        ### assign values to placeholders
+        os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
+        
+        ### replace placeholders for surfactant parametric study with fixed geometry ###
+        if self.case_type == 'svsurf':
+            os.system(f'sed -i \"s/\'diff1\'/{self.diff1}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diff2\'/{self.diff2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ka\'/{self.ka}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'kd\'/{self.kd}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ginf\'/{self.ginf}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'gini\'/{self.gini}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diffs\'/{self.diffs}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
+
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
 
 
+    ### Convert last vtk to vtr ###
+    def vtk_convert(self):
+        ### vtk convert mode: last or all ###
+        vtk_conv_mode = self.vtk_conv_mode
 
+        ### Move to ephemeral and create RESULTS saing folder ###
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        os.chdir(ephemeral_path)
 
+        try:
+            os.mkdir('RESULTS')
+            print('-' * 100)
+            print(f'RESULTS folder created in {ephemeral_path}')
+        except FileExistsError:
+            pass
+        
+        ### Listing VAR vtks and pvds ###
+        VAR_file_list = glob.glob('VAR_*_*.vtk')
+        PVD_file_list = glob.glob('VAR_*_time=*.pvd')
+        sorted_PVDs = sorted(PVD_file_list, key = lambda filename: 
+                    float(filename.split('=')[-1].split('.pvd')[0]))
+        last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
 
-    def sh(self):
-        pass
+        ### First and last pvd file for pvpython processing ###
+        pvd_0file = glob.glob(f'VAR_{self.run_name}_time=0.00000E+00.pvd')[0]
+        pvd_ffile = sorted_PVDs[-1]
 
+        if vtk_conv_mode == 'last':
+            ### Files to be converted, last time step in VAR
+            VAR_toconvert_list = glob.glob(f'VAR_*_{last_vtk}.vtk')
+            file_count = len(VAR_toconvert_list)
+        
+        else:
+            ### Files to be converted, all time step in VAR
+            VAR_toconvert_list = VAR_file_list
+            file_count = len(glob.glob(f'VAR_*_{last_vtk}.vtk'))
+            print(file_count, len(VAR_toconvert_list))
+
+        ### Check if the files to be converted exist ###
+        if VAR_toconvert_list:
+            ### Moving files to RESULTS ###
+            for file in VAR_toconvert_list:
+                try:
+                    shutil.move(file, 'RESULTS')
+                except (FileNotFoundError, shutil.Error) as e:
+                    print('-' * 100)
+                    print("====EXCEPTION====")
+                    print("FileNotFoundError")
+                    print('-' * 100)
+                    print(f"Exited with message :{e}, File or directory not found.")
+                    print('-' * 100)
+                    return
+        ### If files don't exit, exit function and terminate pipeline ###
+        else:
+            print('-' * 100)
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('-' * 100)
+            print("VAR files don't exist.")
+            print('-' * 100)
+            return
+
+        print('-' * 100)
+        print('Convert files copied to RESULTS')
+
+        ### Moving individual files of interest: pvd, csv
+        try:
+            shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
+            shutil.move(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv','RESULTS')
+            
+            if pvd_0file == pvd_ffile:
+                shutil.move(f'{pvd_0file}', 'RESULTS')
+                print('Warning: No vtk timesteps were generated, adjust vtk timestep save. Pvpython calculatons will be performed from the initial state')
+            
+            elif file_count == len(VAR_toconvert_list): # last time step
+                shutil.move(f'{pvd_0file}', 'RESULTS')
+                shutil.move(f'{pvd_ffile}', 'RESULTS')
+                print("First and last pvd copied to RESULTS")
+            
+            else:
+                [shutil.move(file, 'RESULTS') for file in PVD_file_list]
+                print("pvd for ALL time steps copied to RESULTS")
+
+            print('-' * 100)
+            print('VAR and csv files moved to RESULTS')
+        except (FileNotFoundError, shutil.Error) as e:
+            print('-' * 100)
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('-' * 100)
+            print(f"Exited with message :{e}, File or directory not found.")
+            print('-' * 100)
+            return
+        
+        ### Cleaning previous restart and vtk from ephemeral
+        os.system('rm *rst')
+
+        os.chdir('RESULTS')
+
+        try:
+            os.mkdir('VTK_SAVE')
+        except FileExistsError:
+            pass
+
+        ### Finding, copying and modifying convert files into RESULTS
+        convert_scripts = glob.glob(os.path.join(self.convert_path, '*'))
+
+        for file in convert_scripts:
+            try:
+                shutil.copy2(file, '.')
+            except (FileNotFoundError, PermissionError, OSError):
+                print("====EXCEPTION====")
+                print("FileNotFoundError")
+                print(f"Failed to copy '{file}'.")
+                return
+
+        os.system(f'sed -i \"s/\'FILECOUNT\'/{file_count}/\" Multithread_pool.py')
+
+        ### Submitting job convert and extracting job_id, wait time and status
+        jobid = self.submit_job(os.path.join(ephemeral_path,'RESULTS'),'convert')
+
+        print('-' * 100)
+        print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
+        sleep(60)
+
+        try:
+            t_jobwait, status, new_jobID = self.job_wait(jobid)
+            print("====JOB_IDS====")
+            print(new_jobID)
+            print("====JOB_STATUS====")
+            print(status)
+            if status == 'Q' or status == 'H':
+                print("====WAIT_TIME====")
+                print(t_jobwait-1800)
+            elif status == 'R':
+                print("====WAIT_TIME====")
+                print(t_jobwait)
+
+        except JobStatError:
+            print(f'Convert job {self.run_ID} failed on initial submission')
+            print("====EXCEPTION====")
+            print("JobStatError")
+
+        except ValueError:
+            print("====EXCEPTION====")
+            print("ValueError")
 
 
 def main():
@@ -1121,7 +1287,11 @@ def main():
 
     args = parser.parse_args()
 
-    simulator = HPCScheduling(args.pdict)
+    ### choose class to run according to pdict given ###
+    if 'vtk_conv_mode' in args.pdict:
+        simulator = SVHPCScheduling(args.pdict)
+    else:
+        simulator = HPCScheduling(args.pdict)
 
     if hasattr(simulator, args.function):
         func = getattr(simulator, args.function)

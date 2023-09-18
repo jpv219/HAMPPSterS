@@ -1039,4 +1039,94 @@ class SVSimScheduling(SimScheduling):
             ### job monitoring loop ###
             log.info('-' * 100)
             log.info('JOB MONITORING')
-            log.info('-' * 100)            
+            log.info('-' * 100) 
+
+            try:
+                self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            except (ValueError, NameError, ConvergenceError) as e:
+                log.info(f'Exited with message: {e}')
+                return return_from_casetype.get(self.case_type,{})
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"SSH ERROR: Authentication failed: {e}")
+                return return_from_casetype.get(self.case_type,{})
+
+            ### Job restart execution ###
+            log.info('-' * 100)
+            log.info('JOB RESTARTING')
+            log.info('-' * 100)
+
+            try:
+                log.info('-' * 100)
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
+                    command=command, search=2, log=log
+                    )
+
+                log.info('-' * 100)
+
+                ### updating
+                jobid = new_jobID
+                t_wait = new_t_wait
+                status = new_status
+                restart = eval(ret_bool)
+
+            except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError,TypeError,KeyError) as e:
+                log.info(f'Exited with message: {e}')
+                return return_from_casetype.get(self.case_type,{})
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"SSH ERROR: Authentication failed: {e}")
+                return return_from_casetype.get(self.case_type,{})
+
+        ### vtk convert job creation and submission
+        log.info('-' * 100)
+        log.info('VTK CONVERTING')
+        log.info('-' * 100)
+
+        try:
+            log.info('-' * 100)
+            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
+            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
+                command=command,search=0,log=log
+                )
+            log.info('-' * 100)
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"SSH ERROR: Authentication failed: {e}")
+            return return_from_casetype.get(self.case_type,{})
+        except (FileNotFoundError, JobStatError, ValueError, NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return return_from_casetype.get(self.case_type,{})
+        
+        conv_name = 'Convert' + str(self.run_ID)
+
+        ### job convert monitoring loop ###
+
+        log.info('-' * 100)
+        log.info('JOB MONITORING')
+        log.info('-' * 100)
+
+        try:
+            self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
+        except (ValueError, NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return return_from_casetype.get(self.case_type,{})
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"SSH ERROR: Authentication failed: {e}")
+            return return_from_casetype.get(self.case_type,{})
+
+        ### Downloading files and local Post-processing
+
+        log.info('-' * 100)
+        log.info('DOWNLOADING FILES FROM EPHEMERAL')
+        log.info('-' * 100)
+
+        try:
+            self.scp_download(log)
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"SSH ERROR: Authentication failed: {e}")
+            return return_from_casetype.get(self.case_type,{})
+
+        log.info('-' * 100)
+        log.info('PVPYTHON POSTPROCESSING')
+        log.info('-' * 100)
+
+ 

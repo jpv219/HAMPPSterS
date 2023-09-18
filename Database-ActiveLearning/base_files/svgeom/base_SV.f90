@@ -13,17 +13,17 @@ module USER
   real(kind=d), parameter :: TANK_RADIUS         =  0.5_d*0.05_d  !  (m)
   real(kind=d), parameter :: Interface_Level     =  0.0497_d 
 !!!!   IMPELLER PARAMETERS
-  real(kind=d), parameter :: BLADE_RADIUS        =   0.5_d*'impeller_d'    !  (m)
-  real(kind=d), parameter :: BLADE_LENGTH        =   0.5_d*'impeller_d'    !  (m)
-  real(kind=d), parameter :: BLADE_WIDTH         =   'blade_width'     !  (m)
-  real(kind=d), parameter :: BLADE_THICK         =   'blade_thick'    !  (m)
+  real(kind=d), parameter :: BLADE_RADIUS        =   0.5_d*'impeller_d'_d    !  (m)
+  real(kind=d), parameter :: BLADE_LENGTH        =   0.5_d*'impeller_d'_d    !  (m)
+  real(kind=d), parameter :: BLADE_HEIGHT        =   'blade_width'_d     !  (m)
+  real(kind=d), parameter :: BLADE_WIDTH         =   'blade_thick'_d    !  (m)
   integer     , parameter :: BLADE_NUMBER        =   'nblades'
-  real(kind=d), parameter :: BLADE_ANGLE         =   'inclination'     ! (Degree)
-  real(kind=d), parameter :: Clearance           =   'clearance'     !  (m)
+  real(kind=d), parameter :: BLADE_ANGLE         =   'inclination'_d     ! (Degree)
+  real(kind=d), parameter :: Clearance           =   'clearance'_d     !  (m)
   real(kind=d), parameter :: DISK_RADIUS         =   0.0025_d    !  (m)
   real(kind=d), parameter :: DISK_WIDTH          =   0.006_d    !  (m)
   real(kind=d), parameter :: TUBE_RADIUS         =   0.0025_d    !  (m)
-  real(kind=d), parameter :: Impeller_Frequency  =   'frequency'
+  real(kind=d), parameter :: Impeller_Frequency  =   'frequency'_d
  
 
   public :: USER_solid, USER_int, USER_bcd 
