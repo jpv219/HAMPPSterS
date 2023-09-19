@@ -392,11 +392,11 @@ class HPCScheduling:
                     n_nodes = 1
 
                 else:
-                    ysub = zsub = math.ceil(yz_cpus_h)
+                    ysub = zsub = 4
                     xsub = int(ysub*(n_ele+1))
                     mem = 256
                     cell1 = cell2 = cell3 = 64
-                    ncpus = 80
+                    ncpus = int(xsub*ysub*zsub)/4
                     n_nodes = 4
 
             elif n_ele==5:
@@ -410,11 +410,11 @@ class HPCScheduling:
                     n_nodes = 1
 
                 else:
-                    ysub = zsub = math.ceil(yz_cpus_h)
+                    ysub = zsub = 4
                     xsub = int(ysub*(n_ele+1))
                     mem = 256
                     cell1 = cell2 = cell3 = 64
-                    ncpus = 128
+                    ncpus = int(xsub*ysub*zsub)/3
                     n_nodes = 3
 
             elif n_ele==6:
@@ -428,14 +428,32 @@ class HPCScheduling:
                     n_nodes = 1
 
                 else:
-                    ysub = zsub = math.ceil(yz_cpus_h)
+                    ysub = zsub = 4
                     xsub = int(ysub*(n_ele+1))
                     mem = 256
                     cell1 = cell2 = cell3 = 64
-                    ncpus = 112
+                    ncpus = int(xsub*ysub*zsub)/4
                     n_nodes = 4
 
-            elif n_ele>=7:
+            elif n_ele==7:
+
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = 4
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)/4
+                    n_nodes = 4
+
+            else:
 
                 if yz_cpus_l<=3:
                     ysub = zsub = math.ceil(yz_cpus_l)

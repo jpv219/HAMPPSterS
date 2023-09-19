@@ -49,7 +49,7 @@ save_path = ps.plist("save_path",["/media/jpv219/ML/Surf_Runs"])
 ### cond_csv determines which condition to use as stopping criteria from the csv
 cond_csv = ps.plist("cond_csv",["Time"])
 conditional = ps.plist("conditional",["<"])
-cond_csv_limit = ps.plist("cond_csv_limit",["0.35"])
+cond_csv_limit = ps.plist("cond_csv_limit",["0.28"])
 
 ## Parameters to vary in the sample space
 Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
