@@ -6,12 +6,10 @@
 ### First commit: Sep, 2023
 ### Version: 1.0
 ### Department of Chemical Engineering, Imperial College London
-#######################################################################################################################################################################################
-#######################################################################################################################################################################################
 
 import psweep as ps
 from CFD_run_scheduling import SVSimScheduling
-from LHS_Dataspace import runSVDOE
+from LHS_Dataspace import runSVSurfDOE
 from logger import configure_logger
 import io
 import contextlib
@@ -19,10 +17,9 @@ import csv
 import pickle
 import math
 
-# everthing below will run when 'python filename', everything above can be used when this file is imported by others.
 if __name__ == '__main__':
 
-    log = configure_logger("svgeom")
+    log = configure_logger("svsurf")
 
     log.info('-' * 100)
     log.info('-' * 100)
@@ -30,10 +27,10 @@ if __name__ == '__main__':
     log.info('-' * 100)
     log.info('-' * 100)
 
-    case = "svgeom"
+    case = "svtest"
     nruns = 2
     nruns_list = [str(i) for i in range(1, nruns + 1)]
-    runname_list = ['run_svgeom_' + item for item in nruns_list]
+    runname_list = ['run_svsurf_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
     re_run = False
     user = 'fl18'
@@ -48,7 +45,7 @@ if __name__ == '__main__':
     run_name = ps.plist("run_name",runname_list)
 
     local_path = ps.plist("local_path",["/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning"])
-    save_path = ps.plist("save_path",["/media/fl18/Elements/emu_ML"])
+    save_path = ps.plist("save_path",["/media/fl18/Elements/surf_ML"])
 
     ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
     ### cond_csv determines which condition to use as stopping criteria from the csv
@@ -56,105 +53,97 @@ if __name__ == '__main__':
     conditional = ps.plist("conditional",["<"])
     cond_csv_limit = ps.plist("cond_csv_limit",["4.5"])
     ### convert vtk to vtr: last or all ###
-    vtk_conv_mode = ps.plist("vtk_conv_mode", ["last"])
+    vtk_conv_mode = ps.plist("vtk_conv_mode", ["all"])
 
     ## Parameters to vary in the sample space
-    tank_diameter = 0.05 # (m)
-    SV_dict = {'Impeller_Diameter (m)': [0.15*tank_diameter,0.85*tank_diameter],
-                'Frequency (1/s)': [5,8],
-                'Clearance (m)': [0.15*tank_diameter,0.85*tank_diameter],
-                'Blade_width (m)':[0.001, 0.036], # [0.1D, 0.9D], D=[0.2T, 0.8T]
-                'Blade_thickness (m)': [0.001,0.005],
-                'Nblades':[1,6],
-                'Inclination': [0,180]
+    Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-8,1e-4],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
+                'Desorption Coeff (1/s)': [1e-3,10],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
+                'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[1e-8,1e-4],
+                'Elasticity Coeff':[0.05,0.95]
                 }
 
     captured_output = io.StringIO()
 
     with contextlib.redirect_stdout(captured_output):
-        psdict = runSVDOE(SV_dict,nruns)
+        psdict = runSVSurfDOE(Surf_dict,nruns)
         log.info('-' * 100)
         log.info('Modifications to the DOE')
         log.info(captured_output.getvalue())
 
+
+    dict_print = psdict.iloc[:,7:]
+
     log.info('-' * 100)
-    log.info('\n'+ psdict.to_string())
-    log.info('-' * 100)
+    log.info('\n'+ dict_print.to_string())
 
     ### Save LHS dictionary for later
 
-    with open('DOE/LHS_SVGeom.pkl', 'wb') as file:
+    with open('DOE/LHS_SVSurftest.pkl', 'wb') as file:
         pickle.dump(psdict, file)
 
-    ## Geometry parameters
+    ## Surfactant parameters
 
     if not re_run:
 
-        impeller_d_list = list(map(str,psdict["Impeller_Diameter (m)"]))
-        frequency_list = list(map(str,psdict["Frequency (1/s)"]))
-        clearance_list = list(map(str,psdict["Clearance (m)"]))
-        blade_width_list = list(map(str,psdict["Blade_width (m)"]))
-        blade_thick_list = list(map(str,psdict["Blade_thickness (m)"]))
-        nblades_list = list(map(str,psdict["Nblades"]))
-        inclination_list = list(map(str,psdict["Inclination"]))
+        diff2_list = list(map(str,psdict["Bulk Diffusivity (m2/s)"]))
+        ka_list = list(map(str,psdict["Adsorption Coeff (m3/mol s)"]))
+        kd_list = list(map(str,psdict["Desorption Coeff (1/s)"]))
+        ginf_list = list(map(str,psdict["Maximum packing conc (mol/ m2)"]))
+        gini_list = list(map(str,psdict["Initial surface conc (mol/m2)"]))
+        diffs_list = list(map(str,psdict["Surface diffusivity (m2/s)"]))
+        beta_list = list(map(str,psdict["Elasticity Coeff"]))
 
         # Combine the lists
-        data = list(zip(impeller_d_list, frequency_list, clearance_list, 
-                        blade_width_list, blade_thick_list, nblades_list, inclination_list))
+        data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
 
         # Save the combined data into a CSV file
-        with open('params/parameters_svgeom.csv', 'w', newline='') as csvfile:
+        with open('params/parameters_svsurftest.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["impeller_d", "frequency", "clearance", "blade_width", "blade_thick", 
-                            "nblades", "inclination"])
+            writer.writerow(["D_b", "ka", "kd", "ginf", "gini", "D_s", "beta"])
             writer.writerows(data)
-
     else:
-        # Initialize empty lists for each parameter
-        impeller_d_list = []
-        frequency_list = []
-        clearance_list = []
-        blade_width_list = []
-        blade_thick_list = []
-        nblades_list = []
-        inclination_list = []
+        diff2_list = []
+        ka_list = []
+        kd_list = []
+        ginf_list = []
+        gini_list = []
+        diffs_list = []
+        beta_list = []
 
         # Load data from CSV file
-        with open('params/parameters_svgeom.csv', 'r') as csvfile:
+        with open('params/parameters_svsurftest.csv', 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                impeller_d_list.append(row["impeller_d"])
-                frequency_list.append(row["frequency"])
-                clearance_list.append(row["clearance"])
-                blade_width_list.append(row["blade_width"])
-                blade_thick_list.append(row["blade_thick"])
-                nblades_list.append(row["nblades"])
-                inclination_list.append(row["inclination"])
+                diff2_list.append(row["D_b"])
+                ka_list.append(row["ka"])
+                kd_list.append(row["kd"])
+                ginf_list.append(row["ginf"])
+                gini_list.append(row["gini"])
+                diffs_list.append(row["D_s"])
+                beta_list.append(row["beta"])
+    
 
+    diff1 = ps.plist("D_d",["1.0"])
+    diff2 = ps.plist("D_b",diff2_list)
+    ka = ps.plist("ka",ka_list)
+    kd = ps.plist("kd",kd_list)
+    ginf = ps.plist("ginf",ginf_list)
+    gini = ps.plist("gini",gini_list)
+    diffs = ps.plist("D_s",diffs_list)
+    beta = ps.plist("beta",beta_list)
 
-    impeller_d = ps.plist("impeller_d",impeller_d_list)
-    frequency = ps.plist("frequency",frequency_list)
-    clearance = ps.plist("clearance",clearance_list)
-    blade_width = ps.plist("blade_width",blade_width_list)
-    blade_thick = ps.plist("blade_thick",blade_thick_list)
-    nblades = ps.plist("nblades",nblades_list)
-    inclination = ps.plist("inclination",inclination_list)
-
-    ## creates parameter grid (list of dictionarys)
-    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
-                    cond_csv,conditional,cond_csv_limit,vtk_conv_mode,user_ps,
-                    zip(run_ID,run_name,impeller_d,frequency,clearance,blade_width,
-                        blade_thick,nblades,inclination))
+    #creates parameter grid (list of dictionarys)
+    params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
+                    save_path,cond_csv,conditional,cond_csv_limit,vtk_conv_mode,
+                    diff1,user_ps,
+                    zip(run_ID,run_name,diff2,ka,kd,ginf,gini,diffs,beta))
+        
 
     ######################################################################################################################################################################################
     ######################################################################################################################################################################################
     log.info('-' * 100)
     log.info('-' * 100)
-    print(params)
 
-    # simulator = SVSimScheduling()
+    simulator = SVSimScheduling()
 
-
-    # df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)   
-
-
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)    

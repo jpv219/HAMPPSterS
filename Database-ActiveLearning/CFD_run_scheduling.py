@@ -985,6 +985,7 @@ class SVSimScheduling(SimScheduling):
         self.run_path = pset_dict['run_path']
         self.run_name = pset_dict['run_name']
         self.usr = pset_dict['user']
+        self.vtk_conv_mode = pset_dict['vtk_conv_mode']
 
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
         self.main_path = os.path.join(self.run_path,'..')
@@ -1009,7 +1010,7 @@ class SVSimScheduling(SimScheduling):
 
         ### First job creation and submission ###
 
-        HPC_script = 'HPC_run_schedule.py'
+        HPC_script = 'HPC_run_scheduling.py'
 
         log.info('-' * 100)
         log.info('-' * 100)
@@ -1022,7 +1023,7 @@ class SVSimScheduling(SimScheduling):
         sleep(init_wait_time)
 
         try:
-            command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
+            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\'"
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException,paramiko.SSHException) as e:
             log.info(f'SSH EEROR: Authentication failed: {e}')
@@ -1129,4 +1130,103 @@ class SVSimScheduling(SimScheduling):
         log.info('PVPYTHON POSTPROCESSING')
         log.info('-' * 100)
 
+        ### csv backup saving file for post-processed variables ###
+        csvbkp_file_path = os.path.join(self.local_path,'CSV_BKP',f'{self.case_type}.csv')
+
+        ### checking if a pvpython is operating on another process, if so sleeps ###
+        pvpyactive, pid = self.is_pvpython_running()
+
+        while pvpyactive:
+            log.info(f'pvpython is active in process ID: {pid}')
+            sleep(600)
+            pvpyactive,pid =self.is_pvpython_running()
+
+        ### pvpython execution ###
+        if self.vtk_conv_mode == 'last':
+            dfDSD, IntA = self.post_process_last(log)
+            if dfDSD is not None:
+
+                Nd = dfDSD.size
+
+                df_drops = pd.DataFrame({'Run':self.run_name,'IA': IntA, 'Nd': Nd, 'DSD': dfDSD})
+
+                log.info('-' * 100)
+                log.info('Post processing completed succesfully')
+                log.info('-' * 100)
+                log.info(f'Number of drops in this run: {Nd}')
+                log.info(f'Drop size dist. {dfDSD}')
+                log.info(f'Interfacial Area : {IntA}')
+
+                # Check if the CSV file already exists
+                if not os.path.exists(csvbkp_file_path):
+                    # If it doesn't exist, create a new CSV file with a header
+                    df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
+                                        'DSD': []})
+                    df.to_csv(csvbkp_file_path, index=False)
+                
+                ### Append data to csvbkp file
+                df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+                log.info('-' * 100)
+                log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+                log.info('-' * 100)
+
+                
+                return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
+            else:
+                log.info('Pvpython postprocessing failed, returning empty dictionary')
+                return{"Nd":0, "DSD":0, "IntA":0}
+            
+        else:
+            #####################################################
+            ### for the case where all time steps are saved ###
+            ######################################################
+            return
  
+    def post_process_last(self, log):
+        ### Extracting Interfacial Area from csv###
+        os.chdir(self.save_path_runID)
+        pvdfiles = glob.glob('VAR_*_time=*.pvd')
+        maxpvd_tf = max(float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles)
+
+        df_csv = pd.read_csv(os.path.join(self.save_path_runID,f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv'))
+        df_csv['diff'] = abs(df_csv['Time']-maxpvd_tf)
+        log.info('Reading data from csv')
+        log.info('-'*100)
+
+        tf_row = df_csv.sort_values(by='diff')
+
+        IntA = tf_row.iloc[0]['INTERFACE_SURFACE_AREA']
+        log.info('Interfacial area extracted')
+        log.info('-'*100)
+
+        os.chdir(self.local_path)
+
+        ### Running pvpython script for Nd and DSD ###
+        script_path = os.path.join(self.local_path,'')
+
+        log.info('Executing pvpython script')
+        log.info('-' * 100)
+
+        try:
+            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
+            outlines= []
+            for i, line in enumerate(captured_stdout):
+                stripline = line.strip()
+                outlines.append(stripline)
+                if i < len(captured_stdout) - 1:
+                    log.info(stripline)
+            
+            df_DSD = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
+
+
+        except subprocess.CalledProcessError as e:
+            log.info(f"Error executing the script with pvpython: {e}")
+            df_DSD = None
+        except FileNotFoundError:
+            log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+            df_DSD = None
+
+        return df_DSD, IntA
