@@ -52,9 +52,9 @@ conditional = ps.plist("conditional",["<"])
 cond_csv_limit = ps.plist("cond_csv_limit",["0.28"])
 
 ## Parameters to vary in the sample space
-Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-4,1e-8],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
+Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-5,1e-8],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
              'Desorption Coeff (1/s)': [1e-3,10],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
-             'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[1e-4,1e-8],'Elasticity Coeff':[0.05,0.95]}
+             'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[1e-5,1e-8],'Elasticity Coeff':[0.05,0.95]}
 
 captured_output = io.StringIO()
 
