@@ -59,10 +59,10 @@ cat > Blue.nml <<'EOF'
   sl_runge_kutta_order    = 1      ! Semi-Lagrangian Runge-Kutta order: 1 or 2.
 !
 ! Time step factor multipliers
-  cfl_time_step_factor    =0.5d0
+  cfl_time_step_factor    =1.0d0
   visc_time_step_factor   =500.0d0 
   capi_time_step_factor   =10.0d0
-  int_time_step_factor    =0.5d0
+  int_time_step_factor    =1.0d0
   cond_time_step_factor   =2.0d0
   diff_time_step_factor   =2.0d0
   surf_time_step_factor   =2.0d0

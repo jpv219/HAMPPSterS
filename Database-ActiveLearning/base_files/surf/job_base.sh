@@ -50,7 +50,7 @@ cat > Blue.nml <<'EOF'
   num_time_step=30000000                   real_time_limit=-1.0d0       run_time_limit=-1.0d0
 !
 ! Fixed time step,                     If fixed, set dt.
-  fixed_time_step=.TRUE.             dt=4.0D-4
+  fixed_time_step=.TRUE.             dt=1.0D-4
 !
 ! Time integeration scheme ("GEAR" order(2) or "CRANK-NICHOLSON" order(2) or "EULER" order(1) scheme).
   time_integration_scheme="GEAR"
@@ -59,7 +59,7 @@ cat > Blue.nml <<'EOF'
   sl_runge_kutta_order    = 1      ! Semi-Lagrangian Runge-Kutta order: 1 or 2.
 !
 ! Time step factor multipliers
-  cfl_time_step_factor    =5.0d0
+  cfl_time_step_factor    =10.0d0
   visc_time_step_factor   =500.0d0 
   capi_time_step_factor   =10.0d0
   int_time_step_factor    =0.5d0

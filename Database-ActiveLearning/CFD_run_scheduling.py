@@ -515,7 +515,9 @@ class SimScheduling:
 
                 Nd = dfDSD.size
 
-                df_drops = pd.DataFrame({'Run':self.run_name,'IA': IntA, 'Nd': Nd, 'DSD': dfDSD})
+                df_scalar = pd.DataFrame({'Run':[self.run_name],'IA': [IntA], 'Nd': [Nd]})
+                df_drops = pd.concat([df_scalar,dfDSD], axis = 1)
+
 
                 log.info('-' * 100)
                 log.info('Post processing completed succesfully')

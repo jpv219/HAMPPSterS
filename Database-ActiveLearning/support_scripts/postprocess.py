@@ -8,8 +8,8 @@ def post_process():
 
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
-    save_path = '/media/ijpv219/ML/SP_Runs'
-    run_name = 'run_sp_9'
+    save_path = '/media/jpv219/ML/test_pp'
+    run_name = 'run_2'
     save_path_runID = os.path.join(save_path,run_name)
 
     os.chdir(save_path_runID)
@@ -97,76 +97,81 @@ def post_process_SP():
 
 def main():
 
-    run_name = 'run_sp_9'          
+    run_name = 'run_2'          
 ### pvpython execution
-    # dfDSD, IntA = post_process()
 
-    # if dfDSD is not None:
+    dfDSD, IntA = post_process()
 
-    #     Nd = dfDSD.size
+    if dfDSD is not None:
 
-    #     df_drops = pd.DataFrame({'Run':run_name,'IA': IntA, 'Nd': Nd, 'DSD': dfDSD})
+        Nd = dfDSD.size
 
-    #     print('-' * 100)
-    #     print('Post processing completed succesfully')
-    #     print('-' * 100)
-    #     print(f'Number of drops in this run: {Nd}')
-    #     print(f'Drop size dist. {dfDSD}')
-    #     print(f'Interfacial Area : {IntA}')
-
-    #     csvbkp_file_path = f'/media/jpv219/ML/PP.csv'
-
-
-    #     # Check if the CSV file already exists
-    #     if not os.path.exists(csvbkp_file_path):
-    #         # If it doesn't exist, create a new CSV file with a header
-    #         df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
-    #                             'DSD': []})
-    #         df.to_csv(csvbkp_file_path, index=False)
-        
-    #     ### Append data to csvbkp file
-    #     df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
-    #     print('-' * 100)
-    #     print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
-    #     print('-' * 100)
-
-
-        ### pvpython execution
-        
-    df_hyd = post_process_SP()
-
-    if df_hyd is not None:
-        L = df_hyd['Length']
-        emax = df_hyd['e_max']
-        Q = df_hyd['Q']
-        ediss =  df_hyd['E_diss']
-        gamma = df_hyd['Gamma']
-        P = df_hyd['Pressure']
-        u = df_hyd['Velocity']
+        df_scalar = pd.DataFrame({'Run':[run_name],'IA': [IntA], 'Nd': [Nd]})
+        df_drops = pd.concat([df_scalar,dfDSD], axis = 1)
 
         print('-' * 100)
         print('Post processing completed succesfully')
         print('-' * 100)
-        print('Extracted relevant hydrodynamic data')
+        print(f'Number of drops in this run: {Nd}')
+        print(f'Drop size dist. {dfDSD}')
+        print(f'Interfacial Area : {IntA}')
 
-        df_hyd.insert(0,'Run', run_name)
+        csvbkp_file_path = f'/media/jpv219/ML/geom.csv'
 
-        csvbkp_file_path = f'/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP/sp_geom.csv'
 
         # Check if the CSV file already exists
         if not os.path.exists(csvbkp_file_path):
             # If it doesn't exist, create a new CSV file with a header
-            df = pd.DataFrame({'Run_ID': [], 'Length': [], 'E_max': [], 
-                                'Q': [], 'E_diss': [], 'Gamma': [], 'Pressure': [], 'Velocity':[]})
+            df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
+                                'DSD': []})
             df.to_csv(csvbkp_file_path, index=False)
         
         ### Append data to csvbkp file
-        df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+        df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
         print('-' * 100)
         print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
         print('-' * 100)
+
     else:
-        print('Pvpython postprocessing failed')
+        print('pvpython post-rocessing failed, returning empty')
+
+
+        ### pvpython execution
+        
+    # df_hyd = post_process_SP()
+
+    # if df_hyd is not None:
+    #     L = df_hyd['Length']
+    #     emax = df_hyd['e_max']
+    #     Q = df_hyd['Q']
+    #     ediss =  df_hyd['E_diss']
+    #     gamma = df_hyd['Gamma']
+    #     P = df_hyd['Pressure']
+    #     u = df_hyd['Velocity']
+
+    #     print('-' * 100)
+    #     print('Post processing completed succesfully')
+    #     print('-' * 100)
+    #     print('Extracted relevant hydrodynamic data')
+
+    #     df_hyd.insert(0,'Run', run_name)
+
+    #     csvbkp_file_path = f'/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP/sp_geom.csv'
+
+    #     # Check if the CSV file already exists
+    #     if not os.path.exists(csvbkp_file_path):
+    #         # If it doesn't exist, create a new CSV file with a header
+    #         df = pd.DataFrame({'Run_ID': [], 'Length': [], 'E_max': [], 
+    #                             'Q': [], 'E_diss': [], 'Gamma': [], 'Pressure': [], 'Velocity':[]})
+    #         df.to_csv(csvbkp_file_path, index=False)
+        
+    #     ### Append data to csvbkp file
+    #     df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+    #     print('-' * 100)
+    #     print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+    #     print('-' * 100)
+    # else:
+    #     print('Pvpython postprocessing failed')
 
 
 if __name__ == "__main__":
