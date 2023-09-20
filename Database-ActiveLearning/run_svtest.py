@@ -19,7 +19,7 @@ import math
 
 if __name__ == '__main__':
 
-    log = configure_logger("svsurf")
+    log = configure_logger("svtest")
 
     log.info('-' * 100)
     log.info('-' * 100)
@@ -27,10 +27,10 @@ if __name__ == '__main__':
     log.info('-' * 100)
     log.info('-' * 100)
 
-    case = "svtest"
+    case = "svsurf"
     nruns = 2
-    nruns_list = [str(i) for i in range(1, nruns + 1)]
-    runname_list = ['run_svsurf_' + item for item in nruns_list]
+    nruns_list = [str(2),str(4)]#[str(i) for i in range(1, nruns + 1)]
+    runname_list = ['run_svtest_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
     re_run = False
     user = 'fl18'
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     ### cond_csv determines which condition to use as stopping criteria from the csv
     cond_csv = ps.plist("cond_csv",["Time"])
     conditional = ps.plist("conditional",["<"])
-    cond_csv_limit = ps.plist("cond_csv_limit",["4.5"])
+    cond_csv_limit = ps.plist("cond_csv_limit",["2.0"])
     ### convert vtk to vtr: last or all ###
     vtk_conv_mode = ps.plist("vtk_conv_mode", ["all"])
 

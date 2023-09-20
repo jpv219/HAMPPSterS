@@ -1177,7 +1177,6 @@ class SVHPCScheduling(HPCScheduling):
             ### Files to be converted, all time step in VAR
             VAR_toconvert_list = VAR_file_list
             file_count = len(glob.glob(f'VAR_*_{last_vtk}.vtk'))
-            print(file_count, len(VAR_toconvert_list))
 
         ### Check if the files to be converted exist ###
         if VAR_toconvert_list:

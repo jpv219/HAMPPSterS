@@ -609,7 +609,7 @@ class SimScheduling:
                 
                 else:
                     ### Status here is R and not jobconvert, performing convergence checks in HPC monitor
-                    n_checks = 16 # has to be larger than 0
+                    n_checks = 200 # has to be larger than 0
                     log.info('-' * 100)
                     log.info(f'Job {run} with id: {jobid} has status {status}. Currently on check {chk_counter} out of {n_checks} checks during runtime.')
                     log.info('-' * 100)
@@ -1004,8 +1004,8 @@ class SVSimScheduling(SimScheduling):
 
         ### Exception return mapped by case type, to guarantee correct psweep completion ###
         return_from_casetype = {
-            'svsurf': {"Nd": 0, "DSD": 0, "IntA": 0},
-            'svgeom': {"Nd": 0, "DSD": 0, "IntA": 0}
+            'svsurf': {"Time": 0,"Nd": 0, "DSD": 0, "IntA": 0},
+            'svgeom': {"Time": 0,"Nd": 0, "DSD": 0, "IntA": 0}
         }
 
         ### First job creation and submission ###
@@ -1138,30 +1138,32 @@ class SVSimScheduling(SimScheduling):
 
         while pvpyactive:
             log.info(f'pvpython is active in process ID: {pid}')
-            sleep(600)
+            sleep(10)
             pvpyactive,pid =self.is_pvpython_running()
 
         ### pvpython execution ###
         if self.vtk_conv_mode == 'last':
-            dfDSD, IntA = self.post_process_last(log)
+            dfDSD, IntA, maxtime = self.post_process_last(log)
             if dfDSD is not None:
 
                 Nd = dfDSD.size
 
-                df_drops = pd.DataFrame({'Run':self.run_name,'IA': IntA, 'Nd': Nd, 'DSD': dfDSD})
+                df_drops = pd.DataFrame({'Run':self.run_name,
+                                         'Time': maxtime,'IntA': IntA, 
+                                         'Nd': Nd, 'DSD': dfDSD})
 
                 log.info('-' * 100)
                 log.info('Post processing completed succesfully')
                 log.info('-' * 100)
-                log.info(f'Number of drops in this run: {Nd}')
+                log.info(f'Number of drops in this run at time {maxtime}: {Nd}')
                 log.info(f'Drop size dist. {dfDSD}')
                 log.info(f'Interfacial Area : {IntA}')
 
                 # Check if the CSV file already exists
                 if not os.path.exists(csvbkp_file_path):
                     # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
-                                        'DSD': []})
+                    df = pd.DataFrame({'Run_ID': [], 
+                                       'Time': [], 'IntA': [], 'Nd': [], 'DSD': []})
                     df.to_csv(csvbkp_file_path, index=False)
                 
                 ### Append data to csvbkp file
@@ -1170,17 +1172,45 @@ class SVSimScheduling(SimScheduling):
                 log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
                 log.info('-' * 100)
 
-                
-                return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
+                return {"Time": maxtime, "IntA":IntA, "Nd":Nd, "DSD":dfDSD}
+            
             else:
                 log.info('Pvpython postprocessing failed, returning empty dictionary')
-                return{"Nd":0, "DSD":0, "IntA":0}
+                return{"Time":0, "Nd":0, "DSD":0, "IntA":0}
             
         else:
-            #####################################################
-            ### for the case where all time steps are saved ###
-            ######################################################
-            return
+            df_join = self.post_process_all(log)
+
+            if df_join is not None:
+                df_drops = pd.DataFrame({'Run':self.run_name, 
+                                         'Time':df_join['Time'], 'IntA':df_join['IntA'], 
+                                         'Nd':df_join['Nd'], 'DSD':df_join['Volumes']
+                                         })
+                
+                log.info('-' * 100)
+                log.info('Post processing completed succesfully')
+                log.info('-' * 100)
+                log.info('Results for the last 10 time steps in this run:')
+                log.info(f'{df_drops[-10:]}')
+
+            # Check if the CSV file already exists
+                if not os.path.exists(csvbkp_file_path):
+                    # If it doesn't exist, create a new CSV file
+                    df = pd.DataFrame({'Run':[],
+                                       'Time':[], 'IntA':[], 'Nd':[], 'DSD':[]})
+                    df.to_csv(csvbkp_file_path, index=False)
+                
+                ### Append data to csvbkp file
+                df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+                log.info('-' * 100)
+                log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+                log.info('-' * 100)
+
+                return {"Time":df_join['Time'], "IntA":df_join['IntA'], "Nd":df_join['Nd'], "DSD":df_join['Volumes']}
+            
+            else:
+                log.info('Pvpython postprocessing failed, returning empty dictionary')
+                return {"Time":0, "IntA":0, "Nd":0, "DSD":0}
  
     def post_process_last(self, log):
         ### Extracting Interfacial Area from csv###
@@ -1202,7 +1232,7 @@ class SVSimScheduling(SimScheduling):
         os.chdir(self.local_path)
 
         ### Running pvpython script for Nd and DSD ###
-        script_path = os.path.join(self.local_path,'')
+        script_path = os.path.join(self.local_path,'PV_sv_last.py')
 
         log.info('Executing pvpython script')
         log.info('-' * 100)
@@ -1229,4 +1259,54 @@ class SVSimScheduling(SimScheduling):
             log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
             df_DSD = None
 
-        return df_DSD, IntA
+        return df_DSD, IntA, maxpvd_tf
+    
+    def post_process_all(self, log):
+        ### Extracting Interfacial Area from CSV ###
+        os.chdir(self.save_path_runID)
+        
+        df_csv = pd.read_csv(os.path.join(self.save_path_runID, f'{self.run_name}.csv'
+                                          if os.path.exists(f'{self.run_name}.csv') 
+                                          else f'HST_{self.run_name}.csv'))
+        pvdfiles = glob.glob('VAR_*_time=*.pvd')
+        times = sorted([float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles])
+        maxtime = max(times)
+
+        ints_list = []
+        for t in times:
+            therow = df_csv[df_csv['Time']==t]
+            value_to_add = {'Time': t, 'IntA': therow['INTERFACE_SURFACE_AREA'].values}
+            ints_list.append(value_to_add)
+        df_ints = pd.DataFrame(ints_list, columns=['Time', 'IntA'])
+        log.info(f'Interfacial Area up to {maxtime} extracted.')
+        log.info('-' * 100)
+
+        ### Running pvpython script for Nd and DSD ###
+        os.chdir(self.local_path)
+        script_path = os.path.join(self.local_path,'PV_sv_all.py')
+        log.info('Executing pvpython script')
+        log.info('-' * 100)
+
+        try:
+            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
+            outlines= []
+            for i, line in enumerate(captured_stdout):
+                stripline = line.strip()
+                outlines.append(stripline)
+                if i < len(captured_stdout) - 1:
+                    log.info(stripline)
+
+            df_DSD = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
+            df_join = pd.merge(df_ints, df_DSD, on='Time', how='left')
+
+        except subprocess.CalledProcessError as e:
+            log.info(f"Error executing the script with pvpython: {e}")
+            df_join = None
+        except FileNotFoundError:
+            log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+            df_join = None
+
+        return df_join
