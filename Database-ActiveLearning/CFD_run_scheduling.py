@@ -916,6 +916,9 @@ class SimScheduling:
         except FileNotFoundError:
             log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
             df_DSD = None
+        except ValueError as e:
+            log.info(f'ValueError, Exited with message: {e}')
+            df_DSD = None
 
         return df_DSD, IntA
     
