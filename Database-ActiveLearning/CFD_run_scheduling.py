@@ -609,7 +609,7 @@ class SimScheduling:
                 
                 else:
                     ### Status here is R and not jobconvert, performing convergence checks in HPC monitor
-                    n_checks = 200 # has to be larger than 0
+                    n_checks = 16 # has to be larger than 0
                     log.info('-' * 100)
                     log.info(f'Job {run} with id: {jobid} has status {status}. Currently on check {chk_counter} out of {n_checks} checks during runtime.')
                     log.info('-' * 100)
@@ -1121,7 +1121,8 @@ class SVSimScheduling(SimScheduling):
         log.info('-' * 100)
 
         try:
-            self.scp_download(log)
+            # self.scp_download(log)
+            log.info('Skipping downloading')
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
             return return_from_casetype.get(self.case_type,{})
@@ -1138,7 +1139,7 @@ class SVSimScheduling(SimScheduling):
 
         while pvpyactive:
             log.info(f'pvpython is active in process ID: {pid}')
-            sleep(10)
+            sleep(1800)
             pvpyactive,pid =self.is_pvpython_running()
 
         ### pvpython execution ###
@@ -1146,17 +1147,15 @@ class SVSimScheduling(SimScheduling):
             dfDSD, IntA, maxtime = self.post_process_last(log)
             if dfDSD is not None:
 
-                Nd = dfDSD.size
-
                 df_drops = pd.DataFrame({'Run':self.run_name,
                                          'Time': maxtime,'IntA': IntA, 
-                                         'Nd': Nd, 'DSD': dfDSD})
+                                         'Nd': dfDSD['Nd'], 'DSD': dfDSD['Volume']})
 
                 log.info('-' * 100)
                 log.info('Post processing completed succesfully')
                 log.info('-' * 100)
-                log.info(f'Number of drops in this run at time {maxtime}: {Nd}')
-                log.info(f'Drop size dist. {dfDSD}')
+                log.info(f'Drop size dist and Nd in this run at time {maxtime}[s]:')
+                log.info(f'{dfDSD}')
                 log.info(f'Interfacial Area : {IntA}')
 
                 # Check if the CSV file already exists
@@ -1172,7 +1171,7 @@ class SVSimScheduling(SimScheduling):
                 log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
                 log.info('-' * 100)
 
-                return {"Time": maxtime, "IntA":IntA, "Nd":Nd, "DSD":dfDSD}
+                return {"Time": maxtime, "IntA":IntA, "Nd":dfDSD['Nd'], "DSD":dfDSD['Volume']}
             
             else:
                 log.info('Pvpython postprocessing failed, returning empty dictionary')
@@ -1182,6 +1181,7 @@ class SVSimScheduling(SimScheduling):
             df_join = self.post_process_all(log)
 
             if df_join is not None:
+        
                 df_drops = pd.DataFrame({'Run':self.run_name, 
                                          'Time':df_join['Time'], 'IntA':df_join['IntA'], 
                                          'Nd':df_join['Nd'], 'DSD':df_join['Volumes']
@@ -1191,7 +1191,7 @@ class SVSimScheduling(SimScheduling):
                 log.info('Post processing completed succesfully')
                 log.info('-' * 100)
                 log.info('Results for the last 10 time steps in this run:')
-                log.info(f'{df_drops[-10:]}')
+                log.info(f'{df_drops[:10]}')
 
             # Check if the CSV file already exists
                 if not os.path.exists(csvbkp_file_path):
@@ -1278,7 +1278,7 @@ class SVSimScheduling(SimScheduling):
             value_to_add = {'Time': t, 'IntA': therow['INTERFACE_SURFACE_AREA'].values}
             ints_list.append(value_to_add)
         df_ints = pd.DataFrame(ints_list, columns=['Time', 'IntA'])
-        log.info(f'Interfacial Area up to {maxtime} extracted.')
+        log.info(f'Interfacial Area up to {maxtime}[s] extracted.')
         log.info('-' * 100)
 
         ### Running pvpython script for Nd and DSD ###

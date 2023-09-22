@@ -9,33 +9,42 @@
 from paraview.simple import *
 import sys
 import pandas as pd
+import numpy as np
 import os 
 import glob
+import shutil
 
-def pvdropDSD(HDpath, case_name):
+if __name__ == "__main__":
+
+    HDpath = sys.argv[1]#'/media/fl18/Elements/surf_ML/'#
+    
+    case_name = sys.argv[2]#'run_svtest_2'#
+
     path = os.path.join(HDpath,case_name)
     os.chdir(path)
 
     ### find the final time steps ###
     pvdfiles = glob.glob('VAR_*_time=*.pvd')
     times = sorted([float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles])
+    
+    pvdfile0 = f'VAR_{case_name}_time=0.00000E+00.pvd'
+    shutil.copy(pvdfile0, f'VAR_DSD_{case_name}.pvd')
+    pvdfile = f'VAR_DSD_{case_name}.pvd'
 
     DSD_list = []
-    for t_idx,t in enumerate(times):
+    for t_idx,t in enumerate(times[:10]):
 
-        if t_idx < 256:
-            value_to_add = {'Time': t, 'Volumes': 0, 'Nd': 0}
-            
+        if t_idx < 6:
+            value_to_add = {'Time': t, 'Volumes': [], 'Nd': 0}
 
         else:
-            pvdfile = f'VAR_{case_name}_time=0.00000E+00.pvd'
             old_suf = "_0.vtr"
             new_suf = f"_{t_idx}.vtr"
 
-            with open(pvdfile,"r") as input_file:
+            with open(pvdfile0,"r") as input_file:
                 lines = input_file.readlines()
 
-            ### modify a pvdfile with the last time step ###
+            ### modify a pvdfile with the new time step ###
             updated_lines = []
             for line in lines:
                 if old_suf in line:
@@ -46,8 +55,9 @@ def pvdropDSD(HDpath, case_name):
 
             with open(pvdfile, "w") as output_file:
                 output_file.writelines(updated_lines)
-
-            print('PVD file modified correctly.') 
+            
+            if t_idx % 2 == 0:
+                print(f'{t_idx}: PVD file modified correctly.') 
 
             ### paraview onwards ###
             case_data = PVDReader(FileName=pvdfile)
@@ -75,10 +85,8 @@ def pvdropDSD(HDpath, case_name):
 
             lower_bound = int(region_range[0]+1)
             upper_bound = int(region_range[1])
-            print(region_range, lower_bound)
 
-            volume_list = []
-
+            volume_list = [1e-9, 6.7e-11, 5.8e-10]
             for i in range(lower_bound, upper_bound+1):
                 # select individual droplet
                 threshold.ThresholdRange = [i, i]
@@ -87,30 +95,22 @@ def pvdropDSD(HDpath, case_name):
                 data_object = paraview.servermanager.Fetch(integral)
                 volume = data_object.GetCellData().GetArray('Volume').GetValue(0)
                 volume_list.append(volume)    
-
+            # volume_list = [1e-9, 6.7e-11, 5.8e-10]
             volume_floats = [float(x) for x in volume_list]
             volume_count = len(volume_list)
             value_to_add = {'Time': t, 'Volumes': volume_floats, 'Nd': volume_count}
 
-            if t%100 != 0:
-                continue
-            print(f'Volumes at snaps {t_idx} extracted.')
-        
+            if t_idx % 100 == 0:
+                print(f'Volumes at snaps {t_idx} extracted.')
+            
         DSD_list.append(value_to_add)
+
+        Disconnect()
+        Connect()
     
     print('Volume for all time steps extracted correctly from integrate variables.')
     df_DSD = pd.DataFrame(DSD_list, columns=['Time','Volumes', 'Nd'])
-    df_jason = df_DSD.to_json(orient='split', double_precision=15)
+    df_json = df_DSD.to_json(orient='split', double_precision=15)
         
-    return df_jason
-
-if __name__ == "__main__":
-
-    HDpath = sys.argv[1]
-    
-    case_name = sys.argv[2]
-
-    df_bytes = pvdropDSD(HDpath,case_name)
-
-    print(df_bytes)
+    print(df_json)
 

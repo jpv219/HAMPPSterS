@@ -19,7 +19,7 @@ import math
 
 if __name__ == '__main__':
 
-    log = configure_logger("svsurf")
+    log = configure_logger("svtest1")
 
     log.info('-' * 100)
     log.info('-' * 100)
@@ -28,9 +28,9 @@ if __name__ == '__main__':
     log.info('-' * 100)
 
     case = "svsurf"
-    nruns = 20
-    nruns_list = [str(i) for i in range(1, nruns + 1)]
-    runname_list = ['run_svsurf_' + item for item in nruns_list]
+    nruns = 2
+    nruns_list = [str(1),str(3)]#[str(i) for i in range(1, nruns + 1)]
+    runname_list = ['run_svtest_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
     re_run = False
     user = 'fl18'
@@ -51,9 +51,9 @@ if __name__ == '__main__':
     ### cond_csv determines which condition to use as stopping criteria from the csv
     cond_csv = ps.plist("cond_csv",["Time"])
     conditional = ps.plist("conditional",["<"])
-    cond_csv_limit = ps.plist("cond_csv_limit",["4.5"])
+    cond_csv_limit = ps.plist("cond_csv_limit",["2.0"])
     ### convert vtk to vtr: last or all ###
-    vtk_conv_mode = ps.plist("vtk_conv_mode", ["all"])
+    vtk_conv_mode = ps.plist("vtk_conv_mode", ["last"])
 
     ## Parameters to vary in the sample space
     Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-8,1e-4],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     ### Save LHS dictionary for later
 
-    with open('DOE/LHS_SVSurf.pkl', 'wb') as file:
+    with open('DOE/LHS_SVSurftest.pkl', 'wb') as file:
         pickle.dump(psdict, file)
 
     ## Surfactant parameters
@@ -97,7 +97,7 @@ if __name__ == '__main__':
         data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
 
         # Save the combined data into a CSV file
-        with open('params/parameters_svsurf.csv', 'w', newline='') as csvfile:
+        with open('params/parameters_svsurftest.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["D_b", "ka", "kd", "ginf", "gini", "D_s", "beta"])
             writer.writerows(data)
@@ -111,7 +111,7 @@ if __name__ == '__main__':
         beta_list = []
 
         # Load data from CSV file
-        with open('params/parameters_svsurf.csv', 'r') as csvfile:
+        with open('params/parameters_svsurftest.csv', 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 diff2_list.append(row["D_b"])
@@ -146,4 +146,4 @@ if __name__ == '__main__':
 
     simulator = SVSimScheduling()
 
-    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)    
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)    

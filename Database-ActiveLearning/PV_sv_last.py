@@ -9,10 +9,16 @@
 from paraview.simple import *
 import sys
 import pandas as pd
+import numpy as np
 import os 
 import glob
 
-def pvdropDSD(HDpath, case_name):
+if __name__ == "__main__":
+
+    HDpath = sys.argv[1]#'/media/fl18/Elements/surf_ML/'#
+    
+    case_name = sys.argv[2]#'run_svtest_3'#
+
     path = os.path.join(HDpath,case_name)
     os.chdir(path)
 
@@ -65,10 +71,8 @@ def pvdropDSD(HDpath, case_name):
 
     lower_bound = int(region_range[0]+1)
     upper_bound = int(region_range[1])
-    print(region_range, lower_bound)
 
     volume_list = []
-
     for i in range(lower_bound, upper_bound+1):
         # select individual droplet
         threshold.ThresholdRange = [i, i]
@@ -79,21 +83,14 @@ def pvdropDSD(HDpath, case_name):
         volume_list.append(volume)    
 
     volume_floats = [float(x) for x in volume_list]
-    volume_df = pd.DataFrame(volume_floats, columns=['Volume'])
+    volume_count = len(volume_list)
+    value_to_add = [{'Volume':volume_floats, 'Nd':volume_count}]
+
+    volume_df = pd.DataFrame(value_to_add, columns=['Volume', 'Nd'])
 
     print('Volumes extracted correctly from integrate variables')
 
     df_jason = volume_df.to_json(orient='split', double_precision=15)
 
-    return df_jason
-
-if __name__ == "__main__":
-
-    HDpath = sys.argv[1]
-    
-    case_name = sys.argv[2]
-
-    df_bytes = pvdropDSD(HDpath,case_name)
-
-    print(df_bytes)
+    print(df_jason)
 

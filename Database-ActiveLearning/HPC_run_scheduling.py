@@ -567,7 +567,7 @@ class HPCScheduling:
         csv_to_check = pd.read_csv(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')
         
         # verify whether convergence checks can start
-        len_to_check = 250
+        len_to_check = 400
         recent = int(len_to_check * 0.95)
 
         window_size = max(10,int(len_to_check * 0.05))
