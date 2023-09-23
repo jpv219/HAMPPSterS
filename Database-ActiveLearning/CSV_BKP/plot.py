@@ -7,8 +7,8 @@ import pandas as pd
 case = 'sp_geom'
 
 # Read backup csv with post-process data and DOE table from pkl file
-df = pd.read_csv(f'{case}.csv')
-df_DOE = pd.read_pickle(f'../DOE/LHS_{case}.pkl')
+df = pd.read_csv(f'old_csv/{case}.csv')
+df_DOE = pd.read_pickle(f'../DOE/old_DOE/LHS_{case}.pkl')
 run_list = []
 run_count = 1 # Assuming at least one run exists, since last/single run is not counted in the loop    
 
@@ -73,6 +73,7 @@ if case == 'sp_geom':
 
         fig, axes = plt.subplots(3, 2, figsize=(16, 12), sharex=True)
         plt.subplots_adjust(wspace=0.4, hspace=0.4)
+        legend_handles = []
 
         for idx, feature in enumerate(['E_max','Q','E_diss','Gamma','Pressure','Velocity']):
 
@@ -88,12 +89,14 @@ if case == 'sp_geom':
                 color = color_map[jdx % len(color_map)]
                 marker = markers[jdx % len(markers)]
 
-                ax.plot(L_norm,hyd_feat,marker=marker,markersize = 5, 
+                line, = ax.plot(L_norm,hyd_feat,marker=marker,markersize = 5, 
                         markerfacecolor = color, markeredgewidth = 1.0, markeredgecolor = 'k',
                         ls=('-'),lw=3.0,color=color,label=f'{case}')
                 
+                legend_handles.append(line)
+                
             ax.set_title(f'Hydrodynamic field: {feature}')
-            ax.legend()
+            fig.legend(handles=legend_handles, labels=case_list, loc='upper right', bbox_to_anchor=(1.0, 1.0))
             ax.set_xlabel('$L/L_{max}$')
             ax.set_ylabel(f'{ylabels[idx]}')
 

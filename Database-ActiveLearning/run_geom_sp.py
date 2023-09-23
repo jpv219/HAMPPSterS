@@ -27,7 +27,7 @@ log.info('-' * 100)
 
 case = "sp_geom"
 nruns = 32
-nruns_list = [str(i) for i in range(1, nruns + 1)]
+nruns_list = [str(i+32) for i in range(1, nruns + 1)]
 runname_list = ['run_sp_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -65,7 +65,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_SP_Geom.pkl', 'wb') as file:
+with open('DOE/LHS_sp_geom.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 
