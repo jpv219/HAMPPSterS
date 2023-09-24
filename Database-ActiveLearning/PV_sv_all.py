@@ -56,7 +56,7 @@ if __name__ == "__main__":
             with open(pvdfile, "w") as output_file:
                 output_file.writelines(updated_lines)
             
-            if t_idx % 2 == 0:
+            if t_idx % 100 == 0:
                 print(f'{t_idx}: PVD file modified correctly.') 
 
             ### paraview onwards ###
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             lower_bound = int(region_range[0]+1)
             upper_bound = int(region_range[1])
 
-            volume_list = [1e-9, 6.7e-11, 5.8e-10]
+            volume_list = []
             for i in range(lower_bound, upper_bound+1):
                 # select individual droplet
                 threshold.ThresholdRange = [i, i]
