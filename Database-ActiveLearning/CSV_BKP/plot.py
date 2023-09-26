@@ -7,8 +7,8 @@ import pandas as pd
 case = 'sp_geom'
 
 # Read backup csv with post-process data and DOE table from pkl file
-df = pd.read_csv(f'old_csv/{case}.csv')
-df_DOE = pd.read_pickle(f'../DOE/old_DOE/LHS_{case}.pkl')
+df = pd.read_csv(f'old_csv/{case}_1.csv')
+df_DOE = pd.read_pickle(f'../DOE/old_DOE/LHS_{case}_1.pkl')
 run_list = []
 run_count = 1 # Assuming at least one run exists, since last/single run is not counted in the loop    
 
@@ -31,18 +31,22 @@ print(sorted_runs)
 # Merge input paramters from psweep run with cases successfully ran.
 df_updated = df_DOE[df_DOE.index.isin([int(run.split('_')[-1])-1 for run in sorted_runs])]
 
-df_updated.index = [f'run_{case}_{i+1}' for i in df_updated.index]
-
 # Plot segment for single-phase cases
 
 if case == 'sp_geom':
 
-    choice = input("plot hydrodynamics? (yes/no): ")
+    choice = input("plot hydrodynamics? (y/n): ")
 
-    if choice.lower() == 'yes':
+    if choice.lower() == 'y' or choice.lower() == 'yes':
 
+        df_updated.index = [f'run_sp_{i+1}' for i in df_updated.index]
+        
         num_cases = input('List all case numbers you want to plot separated by spaces: ')
         numbers = num_cases.split()
+
+        if not num_cases.replace(' ','').isdigit():
+            raise ValueError('Non-numeric value entered as input. Re-check input values.')
+
         case_list = [f'run_sp_{n}' for n in numbers]
 
         import matplotlib.pyplot as plt
@@ -74,15 +78,33 @@ if case == 'sp_geom':
         fig, axes = plt.subplots(3, 2, figsize=(16, 12), sharex=True)
         plt.subplots_adjust(wspace=0.4, hspace=0.4)
         legend_handles = []
+        cases_plotted = []
+        Re_plotted = []
 
-        for idx, feature in enumerate(['E_max','Q','E_diss','Gamma','Pressure','Velocity']):
+        for jdx, case in enumerate(case_list):
+        #for case, jdx in zip(case_list, range(len(case_list))):
 
-            row = idx // 2  # Calculate the row for the subplot
-            col = idx % 2   # Calculate the column for the subplot
-            ax = axes[row, col]
+            filtered_df = df[df['Run_ID'] == case]
+
+            ## Error handling
+            if filtered_df.shape[0] == 0:
+                print(f'Case with ID {case} does not exist, ignoring plot.')
+                continue
+            if case in cases_plotted:
+                print ('case duplicated, ignoring')
+                continue
+            
+            Re = df_updated[df_updated.index==case]['Re'].values[0]
+
+            cases_plotted.append(case)
+            Re_plotted.append(Re)
         
-            for case, jdx in zip(case_list, range(len(case_list))):
-                filtered_df = df[df['Run_ID'] == case]
+            for idx, feature in enumerate(['E_max','Q','E_diss','Gamma','Pressure','Velocity']):
+
+                row = idx // 2  # Calculate the row for the subplot
+                col = idx % 2   # Calculate the column for the subplot
+                ax = axes[row, col]
+
                 L = filtered_df['Length']
                 L_norm = filtered_df['Length']/max(filtered_df['Length'])
                 hyd_feat = filtered_df[feature]
@@ -93,19 +115,27 @@ if case == 'sp_geom':
                         markerfacecolor = color, markeredgewidth = 1.0, markeredgecolor = 'k',
                         ls=('-'),lw=3.0,color=color,label=f'{case}')
                 
-                legend_handles.append(line)
+                ax.set_title(f'Hydrodynamic field: {feature}')
+                ax.set_xlabel('$L/L_{max}$')
+                ax.set_ylabel(f'{ylabels[idx]}')
                 
-            ax.set_title(f'Hydrodynamic field: {feature}')
-            fig.legend(handles=legend_handles, labels=case_list, loc='upper right', bbox_to_anchor=(1.0, 1.0))
-            ax.set_xlabel('$L/L_{max}$')
-            ax.set_ylabel(f'{ylabels[idx]}')
+            legend_handles.append(line)
 
+        # Combining case and Re list to create legend label as a tuple with idx position
+        legend_list = [(idx, case + ': Re = {:.2f}'.format(Re)) for idx, (case, Re) in enumerate(zip(cases_plotted,Re_plotted))]
+
+        # Sorting legend list by Re
+        sorted_legend = sorted(legend_list, key=lambda x: float(x[1].split('= ')[-1]))
+
+        # Sorting legend_handles object by idx sorted above through Re
+        legend_handles_sorted = sorted(zip(list(zip(*sorted_legend))[0],legend_handles), key = lambda x: x[0])
+        
+        fig.legend(handles=list(zip(*legend_handles_sorted))[1], labels=list(zip(*sorted_legend))[1], loc='upper right', bbox_to_anchor=(1.0, 1.0))
+        #fig.legend(handles=legend_handles, labels=legend_list, loc='upper right', bbox_to_anchor=(1.0, 1.0))
         plt.show()
 
 
-
-        
-    elif choice.lower() == 'no':
+    elif choice.lower() == 'n':
         pass
         
     else:
