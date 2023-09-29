@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
 import math
+from matplotlib.lines import Line2D
 
 #### PLOT PARAMETERS #####
 #Plot parameters
@@ -65,8 +66,7 @@ if case == 'surf' or case == 'geom':
     df['Run_ID'].fillna(method='ffill', inplace=True)
     df['Interfacial Area'].fillna(method='ffill', inplace=True)
     df['Number of Drops'].fillna(method='ffill', inplace=True)
-    df['V/VCAP'] = df['DSD']/(4*math.pi/3*(math.sqrt(0.036/(9.81*(1364-970))))**3)
-
+    df['V/VCAP'] = df['DSD'].apply(lambda x: math.log10(x / (4 * math.pi / 3 * (math.sqrt(0.036 / (9.81 * (1364 - 970)))) ** 3)))
 
 # Count how many runs stored successfully in the CSV.
 for i in range(1,len(df['Run_ID'])):
@@ -198,6 +198,7 @@ elif case == 'surf':
         if not num_cases.replace(' ','').isdigit():
             raise ValueError('Non-numeric value entered as input. Re-check input values.')
 
+        ## cases selected to be plotted
         case_list = [f'run_surf_{n}' for n in numbers]
 
         #plotting:
@@ -211,13 +212,18 @@ elif case == 'surf':
         #Legend handling
         legend_handles = []
         cases_plotted = []
-        property_keys = ['Bi', 'Da', 'PeS','Elasticity Coeff']
+        param_plotted = []
 
-        properties = {}
+        ## Surfactant parameter chosen to label the plots
+        sorting_key = input('Sort cases by? (choose between Da, Bi, PeS, Beta): ')
+
+        param_keys = ['Bi', 'Da', 'PeS','Elasticity Coeff']
+        key_map = {'Da':'Da', 'Bi': 'Bi', 'PeS': 'PeS', 'Beta': 'Elasticity Coeff'}
 
         ## Looping through the cases to be plotted
         for jdx, case in enumerate(case_list):
 
+            # selecting case to plot
             filtered_df = df[df['Run_ID'] == case]
 
             ## Error handling
@@ -228,29 +234,42 @@ elif case == 'surf':
                 print ('case duplicated, ignoring')
                 continue
             
-            case_properties = {}
+            # initializing property dictionary
+            case_params = {}
 
-            for key in property_keys:
-                case_properties[f'{key}'] = df_updated[df_updated.index==case][f'{key}'].values[0]
+            # Extracting values of interest from DOE dataframe
+            for key in param_keys:
+                case_params[f'{key}'] = df_updated[df_updated.index==case][f'{key}'].values[0]
 
-            ## Appending for later legend usage
+            param = case_params[key_map[sorting_key]]
+
+            ## Appending for later legend and label sorting
             cases_plotted.append(case)
-            ## Dictionary containing propety dictionaries
-            properties[case] = case_properties
+            param_plotted.append(param)
 
-            sns.histplot(filtered_df['V/VCAP'], kde=True, ax=axes[0])
-            axes[0].set_ylabel("Frequency")
-            axes[0].set_title(f"Droplet Size Distribution for {case} with KDE")
+            color = color_map[jdx % len(color_map)]
+
+            sns.histplot(filtered_df['V/VCAP'], kde=False, ax=axes[0],bins=12, color = color, label = f'{case}: {sorting_key} ' + '= {:.3f}'.format(param))
+            axes[0].set_ylabel("Number of drops")
+            axes[0].set_title(f"Droplet Size Distribution")
+
+            legend_handles.append(Line2D([0], [0], color=color, lw=2))
+            
 
             # Plot PDF and CDF
             sns.kdeplot(filtered_df['V/VCAP'], ax=axes[1], label="PDF", cumulative=True)
             sns.histplot(filtered_df['V/VCAP'], ax=axes[1], kde=True, stat="density", common_norm=False, color='red', label="PDF")
             axes[1].set_xlabel("Droplet Size")
-            axes[1].set_ylabel("Density/CDF")
+            axes[1].set_ylabel("PDF/CDF")
             axes[1].set_title(f"PDF and CDF for {case}")
-            axes[1].legend()
         
-        # Show the plot for the current case
+
+        ## Legend handling: Creating unsorted list of labels and indices for the legend (as tuple)
+        legend_list = [(idx, f'{case}: {sorting_key} ' + '= {:.3f}'.format(param)) for idx, (case, param) in enumerate(zip(cases_plotted,param_plotted))]
+        sorted_legend = sorted(legend_list, key= lambda x: float(x[1].split('= ')[-1]))
+
+
+
         plt.show()
 
 
