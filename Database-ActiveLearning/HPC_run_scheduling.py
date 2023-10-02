@@ -1140,6 +1140,14 @@ class SVHPCScheduling(HPCScheduling):
             print('-' * 100)
             print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
 
+        ### replace placeholders for output time interval for geometry parametric study ###
+        else:
+            opt = 1/32/float(self.frequency)
+            os.system(f'sed -i \"s/\'output_interval\'/{opt}/\" {self.path}/job_{self.run_name}.sh')
+
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
+
 
     ### Convert last vtk to vtr ###
     def vtk_convert(self):
@@ -1174,8 +1182,18 @@ class SVHPCScheduling(HPCScheduling):
             file_count = len(VAR_toconvert_list)
         
         else:
-            ### Files to be converted, all time step in VAR
-            VAR_toconvert_list = VAR_file_list
+            ### Files to be converted, all time step in VAR: from 256 (8 Rev.)
+            for filename in VAR_file_list:
+                try:
+                    timestep = int(filename.split('_')[-1].split('.vtr')[0])
+                except (ValueError, IndexError):
+                    # skip files that don't follow the expected naming convention
+                    continue
+
+                if timestep < 256:
+                    file_path = os.path.join(ephemeral_path, filename)
+                    os.remove(file_path)
+            VAR_toconvert_list = glob.glob('VAR_*_*.vtk')
             file_count = len(glob.glob(f'VAR_*_{last_vtk}.vtk'))
 
         ### Check if the files to be converted exist ###

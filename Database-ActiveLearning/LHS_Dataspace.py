@@ -189,6 +189,10 @@ def svgeom_restrictions(DOE):
         N = round(DOE.loc[i,'Nblades'])
         DOE.loc[i,'Nblades'] = N
 
+        # round the cond_csv_limit
+        L = round(DOE.loc[i, 'cond_csv_limit'],1)
+        DOE.loc[i,'cond_csv_limit'] = L
+
         # make sure Re > 500
         F = round(DOE.loc[i, 'Frequency (1/s)'],2)
         D = DOE.loc[i,'Impeller_Diameter (m)']

@@ -31,7 +31,7 @@ if __name__ == '__main__':
     log.info('-' * 100)
 
     case = "svgeom"
-    nruns = 32
+    nruns = 8
     nruns_list = [str(i) for i in range(1, nruns + 1)]
     runname_list = ['run_svgeom_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
@@ -54,14 +54,13 @@ if __name__ == '__main__':
     ### cond_csv determines which condition to use as stopping criteria from the csv
     cond_csv = ps.plist("cond_csv",["Time"])
     conditional = ps.plist("conditional",["<"])
-    cond_csv_limit = ps.plist("cond_csv_limit",["4.5"])
     ### convert vtk to vtr: last or all ###
     vtk_conv_mode = ps.plist("vtk_conv_mode", ["last"])
 
     ## Parameters to vary in the sample space
     tank_diameter = 0.05 # (m)
     SV_dict = {'Impeller_Diameter (m)': [0.15*tank_diameter,0.85*tank_diameter],
-                'Frequency (1/s)': [5,8],
+                'Frequency (1/s)': [5,9],
                 'Clearance (m)': [0.15*tank_diameter,0.85*tank_diameter],
                 'Blade_width (m)':[0.001, 0.036], # [0.1D, 0.9D], D=[0.2T, 0.8T]
                 'Blade_thickness (m)': [0.001,0.005],
@@ -86,6 +85,11 @@ if __name__ == '__main__':
     with open('DOE/LHS_SVGeom.pkl', 'wb') as file:
         pickle.dump(psdict, file)
 
+    ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
+    ### cond_csv determines which condition to use as stopping criteria from the csv
+
+    psdict['cond_csv_limit'] = psdict['Frequency (1/s)'].apply(lambda f: 1 / f * 22.5)
+    
     ## Geometry parameters
 
     if not re_run:
@@ -98,15 +102,18 @@ if __name__ == '__main__':
         nblades_list = list(map(str,psdict["Nblades"]))
         inclination_list = list(map(str,psdict["Inclination"]))
 
+        # Dynamically changing termination condition
+        cond_csv_limit_list = list(map(str,psdict["cond_csv_limit"]))
+
         # Combine the lists
-        data = list(zip(impeller_d_list, frequency_list, clearance_list, 
-                        blade_width_list, blade_thick_list, nblades_list, inclination_list))
+        data = list(zip(impeller_d_list, frequency_list, clearance_list, blade_width_list, 
+                        blade_thick_list, nblades_list, inclination_list, cond_csv_limit_list))
 
         # Save the combined data into a CSV file
         with open('params/parameters_svgeom.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["impeller_d", "frequency", "clearance", "blade_width", "blade_thick", 
-                            "nblades", "inclination"])
+                            "nblades", "inclination", "cond_csv_limit"])
             writer.writerows(data)
 
     else:
@@ -118,6 +125,7 @@ if __name__ == '__main__':
         blade_thick_list = []
         nblades_list = []
         inclination_list = []
+        cond_csv_limit_list = []
 
         # Load data from CSV file
         with open('params/parameters_svgeom.csv', 'r') as csvfile:
@@ -130,6 +138,7 @@ if __name__ == '__main__':
                 blade_thick_list.append(row["blade_thick"])
                 nblades_list.append(row["nblades"])
                 inclination_list.append(row["inclination"])
+                cond_csv_limit_list.append(row["cond_csv_limit"])
 
 
     impeller_d = ps.plist("impeller_d",impeller_d_list)
@@ -139,12 +148,13 @@ if __name__ == '__main__':
     blade_thick = ps.plist("blade_thick",blade_thick_list)
     nblades = ps.plist("nblades",nblades_list)
     inclination = ps.plist("inclination",inclination_list)
+    cond_csv_limit = ps.plist("cond_csv_limit", cond_csv_limit_list)
 
     ## creates parameter grid (list of dictionarys)
     params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
                     cond_csv,conditional,vtk_conv_mode,user_ps,
                     zip(run_ID,run_name,impeller_d,frequency,clearance,blade_width,
-                        blade_thick,nblades,inclination))
+                        blade_thick,nblades,inclination,cond_csv_limit))
 
     ######################################################################################################################################################################################
     ######################################################################################################################################################################################
@@ -155,6 +165,6 @@ if __name__ == '__main__':
     simulator = SVSimScheduling()
 
 
-    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)   
+    df = ps.run_local(simulator.localrun, params, poolsize=2,save=True,tmpsave=True,skip_dups=True)   
 
 

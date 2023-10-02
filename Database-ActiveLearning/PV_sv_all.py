@@ -32,9 +32,9 @@ if __name__ == "__main__":
     pvdfile = f'VAR_DSD_{case_name}.pvd'
 
     DSD_list = []
-    for t_idx,t in enumerate(times[:10]):
+    for t_idx,t in enumerate(times):
 
-        if t_idx < 6:
+        if t_idx < 256:
             value_to_add = {'Time': t, 'Volumes': [], 'Nd': 0}
 
         else:

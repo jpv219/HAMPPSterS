@@ -1121,8 +1121,8 @@ class SVSimScheduling(SimScheduling):
         log.info('-' * 100)
 
         try:
-            # self.scp_download(log)
-            log.info('Skipping downloading')
+            self.scp_download(log)
+            # log.info('Skipping downloading')
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
             return return_from_casetype.get(self.case_type,{})
