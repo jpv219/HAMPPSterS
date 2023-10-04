@@ -71,7 +71,7 @@ log.info('\n'+ dict_print.to_string())
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_Surf.pkl', 'wb') as file:
+with open('DOE/LHS_surf.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ## Surfactant parameters

@@ -27,7 +27,7 @@ log.info('-' * 100)
 
 case = "sp_geom"
 nruns = 32
-nruns_list = [str(i+32) for i in range(1, nruns + 1)]
+nruns_list = [str(i+64) for i in range(1, nruns + 1)]
 runname_list = ['run_sp_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -46,10 +46,10 @@ local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/
 save_path = ps.plist("save_path",["/media/jpv219/ML/SP_Runs"])
 
 ## Parameters to vary in the sample space
-max_diameter = 0.04
-SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],
+max_diameter = 0.042
+SMX_dict = {'Bar_Width (mm)': [1,25],'Bar_Thickness (mm)': [1,8],
             'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],
-            'Flowrate (m3/s)': [1e-6,1e-2],'Angle':[20,70], 'NElements': [2,8]}
+            'Flowrate (m3/s)': [1e-6,1e-2],'Angle':[15,75], 'NElements': [2,8]}
 
 captured_output = io.StringIO()
 
@@ -65,7 +65,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_sp_geom.pkl', 'wb') as file:
+with open('DOE/LHS_sp_geom_3.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 
@@ -77,7 +77,7 @@ ninf = 0.00086
 k = 0.4585
 m = 0.577
 
-psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: (1-Re/500)*ninf + ((n0-ninf)/(1+(k*Re)**m)))
+psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: (1-Re/500)*ninf + 0.90*((n0-ninf)/(1+(k*Re)**m)))
 
 
 cond_csv = ps.plist("cond_csv",["Time(s)"])

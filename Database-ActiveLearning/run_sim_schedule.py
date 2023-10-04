@@ -64,7 +64,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_Geom.pkl', 'wb') as file:
+with open('DOE/LHS_geom.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 

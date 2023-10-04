@@ -8,8 +8,8 @@ def post_process():
 
     script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
-    save_path = '/media/jpv219/ML/test_pp'
-    run_name = 'run_2'
+    save_path = '/media/jpv219/ML/Surf_Runs/'
+    run_name = 'run_surf_15'
     save_path_runID = os.path.join(save_path,run_name)
 
     os.chdir(save_path_runID)
@@ -46,6 +46,9 @@ def post_process():
         df_DSD = None
     except FileNotFoundError:
         print("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+        df_DSD = None
+    except ValueError as e:
+        print(f'ValueError, Exited with message: {e}')
         df_DSD = None
 
     return df_DSD, IntA
@@ -97,7 +100,7 @@ def post_process_SP():
 
 def main():
 
-    run_name = 'run_2'          
+    run_name = 'run_surf_15'          
 ### pvpython execution
 
     dfDSD, IntA = post_process()
@@ -116,7 +119,7 @@ def main():
         print(f'Drop size dist. {dfDSD}')
         print(f'Interfacial Area : {IntA}')
 
-        csvbkp_file_path = f'/media/jpv219/ML/geom.csv'
+        csvbkp_file_path = f'/media/jpv219/ML/surf.csv'
 
 
         # Check if the CSV file already exists
@@ -133,7 +136,7 @@ def main():
         print('-' * 100)
 
     else:
-        print('pvpython post-rocessing failed, returning empty')
+        print('pvpython post-processing failed, returning empty')
 
 
         ### pvpython execution
