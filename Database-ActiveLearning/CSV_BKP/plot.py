@@ -87,6 +87,128 @@ print(sorted_runs)
 # Merge input paramters from psweep run with cases successfully ran.
 df_updated = df_DOE[df_DOE.index.isin([int(run.split('_')[-1])-1 for run in sorted_runs])]
 
+##PLOTTING FUN DSD FOR TWO PHASE CASES
+
+def plot_DSD(df, case_list, sorting_key, param_keys, key_map, x_axis_format):
+        #plotting params:
+        color_map = sns.color_palette("husl", len(case_list))
+        markers = ['o', 's', 'D', '^', 'v', '>', '<', 'p', '*', 'h', '+', 'x']
+
+
+        fig, axes = plt.subplots(2, 2,figsize=(10, 6), sharex=False)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+        sns.set(style="whitegrid")
+
+        #Legend handling
+        legend_handles = []
+        cases_plotted = []
+        param_plotted = []
+
+        # Number of drops and IA
+        Nd_list = []
+        IA_list = []
+
+
+        ## Looping through the cases to be plotted
+        for jdx, case in enumerate(case_list):
+
+            # selecting case to plot
+            filtered_df = df[df['Run_ID'] == case]
+
+            ## Error handling
+            if filtered_df.shape[0] == 0:
+                print(f'Case with ID {case} does not exist, ignoring plot.')
+                continue
+            if case in cases_plotted:
+                print ('case duplicated, ignoring')
+                continue
+            
+            # initializing property dictionary
+            case_params = {}
+
+            # Extracting values of interest from DOE dataframe
+            for key in param_keys:
+                case_params[f'{key}'] = df_updated[df_updated.index==case][f'{key}'].values[0]
+
+            param = case_params[key_map[sorting_key]]
+
+            ## Appending for later legend and label sorting, and Nd/IA vs. surf. plot construction
+            cases_plotted.append(case)
+            Nd_list.append(filtered_df['Number of Drops'].iloc[0])
+            IA_list.append(filtered_df['Interfacial Area'].iloc[0])
+            param_plotted.append(param)
+
+            color = color_map[jdx % len(color_map)]
+            marker = markers[jdx % len(markers)]
+            marker_frequency = 10
+
+            sns.histplot(filtered_df['V/VCAP'], kde=False, ax=axes[0,0],bins=12, color = color,
+                         fill=False)
+            axes[0,0].xaxis.set_major_formatter(plt.FuncFormatter(x_axis_format))
+            axes[0,0].set_ylabel("$N_{d}$")
+            axes[0,0].set_xlabel("$V/V_{cap}$")
+            axes[0,0].set_title(f"Droplet Size Distribution")
+
+            legend_handles.append(Line2D([0], [0], color=color,marker=marker, lw=2))
+            
+
+            # Plot PDF and CDF
+            sns.kdeplot(filtered_df['V/VCAP'], ax=axes[0,1],color=color, 
+                        marker= marker, markevery=marker_frequency, markersize = 6, 
+                        markeredgecolor = 'k',ls=('-'),lw=2.0,fill = False, legend=False)
+            axes[0,1].xaxis.set_major_formatter(plt.FuncFormatter(x_axis_format))
+            axes[0,1].set_xlabel("$V/V_{cap}$")
+            axes[0,1].set_ylabel("$PDF$")
+
+            sns.kdeplot(filtered_df['V/VCAP'], cumulative=True, ax=axes[1,0], color=color, 
+                        marker=marker,markevery=marker_frequency, markersize = 6, 
+                        markeredgecolor = 'k',ls=('-.'),lw=2.0, legend=False)
+            axes[1,0].xaxis.set_major_formatter(plt.FuncFormatter(x_axis_format))
+            axes[1,0].set_xlabel("$V/V_{cap}$")
+            axes[1,0].set_ylabel("$CDF$")
+
+
+        # Plot Nd and IA vs. surfactant feature
+        sns.scatterplot(x=param_plotted,y=Nd_list, marker='*', 
+                        color='c', s=120,
+                        edgecolor='black',ax=axes[1, 1])
+        axes[1,1].set_xlabel(f'{sorting_key}')
+        axes[1,1].set_ylabel('$N_{d}$', color='tab:cyan')
+        axes[1,1].tick_params(axis='y', labelcolor='tab:cyan')
+
+        ## Second y-axis
+        ax2 = axes[1, 1].twinx()
+        
+        sns.scatterplot(x=param_plotted, y=IA_list, marker='^', 
+                        color='brown', s=120,
+                        edgecolor='black',ax=ax2)
+        ax2.set_ylabel('Interfacial Area', color='tab:brown')
+        ax2.tick_params(axis='y', labelcolor='tab:brown')
+        axes[1, 1].set_title(f'Dispersion performance vs {sorting_key}')
+
+        ## Legend handling: Creating unsorted list of labels and indices for the legend (as tuple)
+        legend_list = [(idx, f'{case}: {sorting_key} ' + '= {:.5f}'.format(param)) for idx, (case, param) in enumerate(zip(cases_plotted,param_plotted))]
+        
+        # Sorting legend values by parameter from sorting key
+        sorted_legend = sorted(legend_list, key= lambda x: float(x[1].split('= ')[-1]))
+
+        # Sorting legend_handles object by idx sorted above from parameter chosen. zip(list(zip)) construction used to switch between tuples and lists
+        legend_handles_sorted = sorted(zip(list(zip(*sorted_legend))[0],legend_handles), key = lambda x: x[0])
+
+        fig.legend(handles=list(zip(*legend_handles_sorted))[1], labels=list(zip(*sorted_legend))[1], loc='upper right', bbox_to_anchor=(1.0, 1.0))
+        plt.show()
+
+#x-axis formatter function for surf cases
+def x_axis_formatter(x, pos):
+    exponent = int(x)
+    return r'$10^{{{}}}$'.format(exponent)
+
+#x-axis formatter function for geom cases
+def x_axis_format_geom(x, pos):
+    decimal = 10 ** x
+    return '{:.4f}'.format(decimal)
+
+
 ##### SINGLE PHASE#####
 
 if case == 'sp_geom':
@@ -96,6 +218,7 @@ if case == 'sp_geom':
     # Plot segment for single-phase cases
     if choice.lower() == 'y' or choice.lower() == 'yes':
 
+        ## Replacing index in dfDOE with RunID to match later with case results
         df_updated.index = [f'run_sp_{i+1}' for i in df_updated.index]
         
         num_cases = input('List all case numbers you want to plot separated by spaces: ')
@@ -187,6 +310,7 @@ elif case == 'surf':
 
     if choice.lower() == 'y' or choice.lower() == 'yes':
 
+        ## Replacing index in dfDOE with RunID to match later with case results
         df_updated.index = [f'run_surf_{i+1}' for i in df_updated.index]
 
         num_cases = input('List all case numbers you want to plot separated by spaces: ')
@@ -201,78 +325,57 @@ elif case == 'surf':
         ## cases selected to be plotted
         case_list = [f'run_surf_{n}' for n in numbers]
 
-        #plotting:
-        color_map = sns.color_palette("husl", len(case_list))
-        markers = ['o', 's', 'D', '^', 'v', '>', '<', 'p', '*', 'h', '+', 'x']
-
-        fig, axes = plt.subplots(2, 1, figsize=(16, 12), sharex=True)
-        plt.subplots_adjust(wspace=0.4, hspace=0.4)
-        sns.set(style="whitegrid")
-
-        #Legend handling
-        legend_handles = []
-        cases_plotted = []
-        param_plotted = []
-
-        ## Surfactant parameter chosen to label the plots
-        sorting_key = input('Sort cases by? (choose between Da, Bi, PeS, Beta): ')
+        ## Surfactant parameter chosen to label and sort plots
+        sorting_key = input('Sort DSD plots by? (choose between Da, Bi, PeS, Beta): ')
 
         param_keys = ['Bi', 'Da', 'PeS','Elasticity Coeff']
         key_map = {'Da':'Da', 'Bi': 'Bi', 'PeS': 'PeS', 'Beta': 'Elasticity Coeff'}
 
-        ## Looping through the cases to be plotted
-        for jdx, case in enumerate(case_list):
+        x_axis_format = x_axis_formatter
 
-            # selecting case to plot
-            filtered_df = df[df['Run_ID'] == case]
+        ##Plotting
+        plot_DSD(df,case_list,sorting_key,param_keys,key_map,x_axis_format)
 
-            ## Error handling
-            if filtered_df.shape[0] == 0:
-                print(f'Case with ID {case} does not exist, ignoring plot.')
-                continue
-            if case in cases_plotted:
-                print ('case duplicated, ignoring')
-                continue
-            
-            # initializing property dictionary
-            case_params = {}
-
-            # Extracting values of interest from DOE dataframe
-            for key in param_keys:
-                case_params[f'{key}'] = df_updated[df_updated.index==case][f'{key}'].values[0]
-
-            param = case_params[key_map[sorting_key]]
-
-            ## Appending for later legend and label sorting
-            cases_plotted.append(case)
-            param_plotted.append(param)
-
-            color = color_map[jdx % len(color_map)]
-
-            sns.histplot(filtered_df['V/VCAP'], kde=False, ax=axes[0],bins=12, color = color, label = f'{case}: {sorting_key} ' + '= {:.3f}'.format(param))
-            axes[0].set_ylabel("Number of drops")
-            axes[0].set_title(f"Droplet Size Distribution")
-
-            legend_handles.append(Line2D([0], [0], color=color, lw=2))
-            
-
-            # Plot PDF and CDF
-            sns.kdeplot(filtered_df['V/VCAP'], ax=axes[1], label="PDF", cumulative=True)
-            sns.histplot(filtered_df['V/VCAP'], ax=axes[1], kde=True, stat="density", common_norm=False, color='red', label="PDF")
-            axes[1].set_xlabel("Droplet Size")
-            axes[1].set_ylabel("PDF/CDF")
-            axes[1].set_title(f"PDF and CDF for {case}")
+    elif choice.lower() == 'n':
+        pass
         
+    else:
+        print("Invalid choice. Please enter 'yes' or 'no'.")
 
-        ## Legend handling: Creating unsorted list of labels and indices for the legend (as tuple)
-        legend_list = [(idx, f'{case}: {sorting_key} ' + '= {:.3f}'.format(param)) for idx, (case, param) in enumerate(zip(cases_plotted,param_plotted))]
-        sorted_legend = sorted(legend_list, key= lambda x: float(x[1].split('= ')[-1]))
+#### TWO-PHASE GEOMETRY ######
 
+elif case == 'geom':
 
+    choice = input("plot dispersion metrics? (y/n): ")
 
-        plt.show()
+    if choice.lower() == 'y' or choice.lower() == 'yes':
 
+        ## Replacing index in dfDOE with RunID to match later with case results
+        df_updated.index = [f'run_geom_{i+1}' for i in df_updated.index]
 
+        num_cases = input('List all case numbers you want to plot separated by spaces: ')
+
+        ## Storing and splitting numbers inputted by the user.
+        numbers = num_cases.split()
+
+        ## Error if non numeric values
+        if not num_cases.replace(' ','').isdigit():
+            raise ValueError('Non-numeric value entered as input. Re-check input values.')
+
+        ## cases selected to be plotted
+        case_list = [f'run_geom_{n}' for n in numbers]
+
+        ## Geomtry parameter chosen to label and sort plots
+        sorting_key = input('Sort DSD plots by? (choose between R, Q, Re, W, Th, Nb): ')
+
+        param_keys = ['Bar_Width (mm)', 'Bar_Thickness (mm)', 'Radius (mm)',
+                      'Nbars','Flowrate (m3/s)','Re']
+        key_map = {'W':'Bar_Width (mm)', 'Th': 'Bar_Thickness (mm)', 'R': 'Radius (mm)', 
+                   'Nb': 'Nbars','Q':'Flowrate (m3/s)','Re':'Re'}
+        
+        x_axis_format = x_axis_format_geom
+
+        plot_DSD(df,case_list,sorting_key,param_keys,key_map,x_axis_format)
 
     elif choice.lower() == 'n':
         pass
