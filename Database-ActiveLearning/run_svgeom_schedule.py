@@ -31,7 +31,7 @@ if __name__ == '__main__':
     log.info('-' * 100)
 
     case = "svgeom"
-    nruns = 8
+    nruns = 4
     nruns_list = [str(i) for i in range(1, nruns + 1)]
     runname_list = ['run_svgeom_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     run_name = ps.plist("run_name",runname_list)
 
     local_path = ps.plist("local_path",["/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning"])
-    save_path = ps.plist("save_path",["/media/fl18/Elements/emu_ML"])
+    save_path = ps.plist("save_path",["/media/fl18/Elements/geom_ML"])
 
     ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
     ### cond_csv determines which condition to use as stopping criteria from the csv
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     tank_diameter = 0.05 # (m)
     SV_dict = {'Impeller_Diameter (m)': [0.15*tank_diameter,0.85*tank_diameter],
                 'Frequency (1/s)': [5,9],
-                'Clearance (m)': [0.15*tank_diameter,0.85*tank_diameter],
+                'Clearance (m)': [0.1*tank_diameter,0.8*tank_diameter],
                 'Blade_width (m)':[0.001, 0.036], # [0.1D, 0.9D], D=[0.2T, 0.8T]
                 'Blade_thickness (m)': [0.001,0.005],
                 'Nblades':[1,6],
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
     ### cond_csv determines which condition to use as stopping criteria from the csv
 
-    psdict['cond_csv_limit'] = psdict['Frequency (1/s)'].apply(lambda f: 1 / f * 22.5)
+    psdict['cond_csv_limit'] = psdict['Frequency (1/s)'].apply((lambda f: round((1 / f * 22.5),1)))
     
     ## Geometry parameters
 

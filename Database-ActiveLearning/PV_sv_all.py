@@ -34,7 +34,7 @@ if __name__ == "__main__":
     DSD_list = []
     for t_idx,t in enumerate(times):
 
-        if t_idx < 256:
+        if t_idx < 320:
             value_to_add = {'Time': t, 'Volumes': [], 'Nd': 0}
 
         else:

@@ -1058,7 +1058,7 @@ class SVHPCScheduling(HPCScheduling):
         self.vtk_conv_mode = pset_dict['vtk_conv_mode']
 
         ### Geometry parametric study ###
-        if self.case_type == 'svgeom':
+        if self.case_type == 'svgeom' or self.case_type == 'sp_svgeom':
             self.impeller_d = pset_dict['impeller_d']
             self.frequency = pset_dict['frequency']
             self.clearance = pset_dict['clearance']
@@ -1097,7 +1097,7 @@ class SVHPCScheduling(HPCScheduling):
         print('-' * 100)
         print(f'Run directory {self.path} created and base files copied')
 
-        if self.case_type == 'svgeom':
+        if self.case_type == 'svgeom' or 'sp_svgeom':
             ### Assign values to placeholders ###
             os.system(f'sed -i \"s/\'impeller_d\'/{self.impeller_d}/\" {self.path}/{self.run_name}_SV.f90')
             os.system(f'sed -i \"s/\'frequency\'/{self.frequency}/\" {self.path}/{self.run_name}_SV.f90')
@@ -1182,7 +1182,7 @@ class SVHPCScheduling(HPCScheduling):
             file_count = len(VAR_toconvert_list)
         
         else:
-            ### Files to be converted, all time step in VAR: from 256 (8 Rev.)
+            ### Files to be converted, all time step in VAR: from 320-720 (10-22.5 Rev.)
             for filename in VAR_file_list:
                 try:
                     timestep = int(filename.split('_')[-1].split('.vtr')[0])
@@ -1190,7 +1190,7 @@ class SVHPCScheduling(HPCScheduling):
                     # skip files that don't follow the expected naming convention
                     continue
 
-                if timestep < 256:
+                if timestep < 320 or timestep > 720:
                     file_path = os.path.join(ephemeral_path, filename)
                     os.remove(file_path)
             VAR_toconvert_list = glob.glob('VAR_*_*.vtk')
@@ -1221,7 +1221,7 @@ class SVHPCScheduling(HPCScheduling):
             return
 
         print('-' * 100)
-        print('Convert files copied to RESULTS')
+        print('Convert files (320-720) copied to RESULTS')
 
         ### Moving individual files of interest: pvd, csv
         try:

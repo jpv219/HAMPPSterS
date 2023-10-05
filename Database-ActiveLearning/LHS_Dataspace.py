@@ -189,10 +189,6 @@ def svgeom_restrictions(DOE):
         N = round(DOE.loc[i,'Nblades'])
         DOE.loc[i,'Nblades'] = N
 
-        # round the cond_csv_limit
-        L = round(DOE.loc[i, 'cond_csv_limit'],1)
-        DOE.loc[i,'cond_csv_limit'] = L
-
         # make sure Re > 500
         F = round(DOE.loc[i, 'Frequency (1/s)'],2)
         D = DOE.loc[i,'Impeller_Diameter (m)']
@@ -205,6 +201,24 @@ def svgeom_restrictions(DOE):
             print('Re modification')
             print(f'Frequency (1/s) in row {i} is modified from {oldF} to {F}.')
         DOE.loc[i,'Frequency (1/s)'] = F
+
+        # make sure the combination of clearance and blade width is within domain
+        C = DOE.loc[i,'Clearance (m)']
+        bw = DOE.loc[i, 'Blade_width (m)']
+        oldC = C
+        # bw/2 < C and C + bw/2 < 0.05
+        if bw/2 >= C:
+            C = 0.005+bw/2 # 0.005 is the lower bound of clearance
+            print('Clearance modification')
+            print(f'Clearance (m) in row {i} is modified from {oldC}')
+        DOE.loc[i,'Clearance (m)'] = C
+
+        if bw/2+C >= 0.05:
+            C = 0.041-bw/2 
+            # 0.041 is chosen to make the new distance from vessel bottom is 0.005
+            print('Clearance modification')
+            print(f'Clearance (m) in row {i} is modified from {oldC}')
+        DOE.loc[i,'Clearance (m)'] = C
 
     return DOE
 
@@ -227,6 +241,18 @@ def runSVDOE(SV_dict,numsamples):
     
     return modifiedLHS
 
+####################################################################################
+# # STIRRED VESSEL GEOMETRY FEATURES Single Phase - LHS #
+# ##################################################################################
+def runSVSPDOE(SV_dict,numsamples):
+    ## Initial LHS with no restrictions
+    LHS_DOE = build.space_filling_lhs(SV_dict,num_samples = numsamples)
+    modifiedLHS = svgeom_restrictions(LHS_DOE)
+
+    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcsvRe(row), axis = 1)
+    modifiedLHS['We'] = modifiedLHS.apply(lambda row: calcsvWe(row), axis = 1)
+    
+    return modifiedLHS
 
 ####################################################################################
 # STIRRED VESSEL SURFACTANT PROPERTIES - LHS #

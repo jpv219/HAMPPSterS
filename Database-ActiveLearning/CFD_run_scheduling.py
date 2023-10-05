@@ -1005,7 +1005,12 @@ class SVSimScheduling(SimScheduling):
         ### Exception return mapped by case type, to guarantee correct psweep completion ###
         return_from_casetype = {
             'svsurf': {"Time": 0,"Nd": 0, "DSD": 0, "IntA": 0},
-            'svgeom': {"Time": 0,"Nd": 0, "DSD": 0, "IntA": 0}
+            'svgeom': {"Time": 0,"Nd": 0, "DSD": 0, "IntA": 0},
+            'sp_svgeom':{"Time":0,
+                        "Height":0,"Q":0,"Pres":0,
+                        "Ur": 0, "Uth":0, "Uz":0,
+                        "arc_length":0,"Q_over_line":0, 
+                        "Ur_over_line":0,"Uz_over_line":0}
         }
 
         ### First job creation and submission ###
@@ -1144,38 +1149,88 @@ class SVSimScheduling(SimScheduling):
 
         ### pvpython execution ###
         if self.vtk_conv_mode == 'last':
-            dfDSD, IntA, maxtime = self.post_process_last(log)
-            if dfDSD is not None:
-
-                df_drops = pd.DataFrame({'Run':self.run_name,
-                                         'Time': maxtime,'IntA': IntA, 
-                                         'Nd': dfDSD['Nd'], 'DSD': dfDSD['Volume']})
-
-                log.info('-' * 100)
-                log.info('Post processing completed succesfully')
-                log.info('-' * 100)
-                log.info(f'Drop size dist and Nd in this run at time {maxtime}[s]:')
-                log.info(f'{dfDSD}')
-                log.info(f'Interfacial Area : {IntA}')
-
-                # Check if the CSV file already exists
-                if not os.path.exists(csvbkp_file_path):
-                    # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run_ID': [], 
-                                       'Time': [], 'IntA': [], 'Nd': [], 'DSD': []})
-                    df.to_csv(csvbkp_file_path, index=False)
-                
-                ### Append data to csvbkp file
-                df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
-                log.info('-' * 100)
-                log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
-                log.info('-' * 100)
-
-                return {"Time": maxtime, "IntA":IntA, "Nd":dfDSD['Nd'], "DSD":dfDSD['Volume']}
             
-            else:
-                log.info('Pvpython postprocessing failed, returning empty dictionary')
-                return{"Time":0, "Nd":0, "DSD":0, "IntA":0}
+            if self.case_type == 'sp_svgeom':
+                df_sp, maxtime = self.post_process_lastsp(log)
+                if df_sp is not None:
+                    df_hyd = pd.DataFrame({'Run':self.run_name,'Time':maxtime,
+                                          'Height':df_sp['Height'],'Q':df_sp['Q'],'Pres':df_sp['Pressure'],
+                                          'Ur': df_sp['Ur'], 'Uth':df_sp['Uth'], 'Uz':df_sp['Uz'],
+                                          'arc_length':df_sp['arc_length'],'Q_over_line':df_sp['Q_over_line'], 
+                                          'Ur_over_line':df_sp['Ur_over_line'],'Uz_over_line':df_sp['Uz_over_line']
+                    })
+
+                    log.info('-' * 100)
+                    log.info('Post processing completed succesfully')
+                    log.info('-' * 100)
+                    log.info('Extracted flow features')
+                    log.info(f'{df_sp}')
+
+                    # check if the CSV file already exits
+                    if not os.path.exists(csvbkp_file_path):
+                        # If it doesn't exist, create a new CSV with headers #
+                        df = pd.DataFrame({'Run':[],'Time':[],
+                                          'Height':[],'Q':[],'Pres':[],
+                                          'Ur': [], 'Uth':[], 'Uz':[],
+                                          'arc_length':[],'Q_over_line':[], 
+                                          'Ur_over_line':[],'Uz_over_line':[]
+                        })
+                        df.to_csv(csvbkp_file_path, index=False)
+                    
+                    # Append data to csvbkp file
+                    df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+                    log.info('-' * 100)
+                    log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+                    log.info('-' * 100)
+
+                    return {"Time":maxtime,
+                            "Height":df_sp['Height'],"Q":df_sp['Q'],"Pres":df_sp['Pressure'],
+                            "Ur": df_sp['Ur'], "Uth":df_sp['Uth'], "Uz":df_sp['Uz'],
+                            "arc_length":df_sp['arc_length'],"Q_over_line":df_sp['Q_over_line'], 
+                            "Ur_over_line":df_sp['Ur_over_line'],"Uz_over_line":df_sp['Uz_over_line']
+                            }
+                
+                else:
+                    log.info('Pvpython postprocessing failed, returning empty dictionary')
+                    return {"Time":0,
+                            "Height":0,"Q":0,"Pres":0,
+                            "Ur": 0, "Uth":0, "Uz":0,
+                            "arc_length":0,"Q_over_line":0, 
+                            "Ur_over_line":0,"Uz_over_line":0}
+
+            else: 
+                dfDSD, IntA, maxtime = self.post_process_last(log)
+                if dfDSD is not None:
+
+                    df_drops = pd.DataFrame({'Run':self.run_name,
+                                            'Time': maxtime,'IntA': IntA, 
+                                            'Nd': dfDSD['Nd'], 'DSD': dfDSD['Volume']})
+
+                    log.info('-' * 100)
+                    log.info('Post processing completed succesfully')
+                    log.info('-' * 100)
+                    log.info(f'Drop size dist and Nd in this run at time {maxtime}[s]:')
+                    log.info(f'{dfDSD}')
+                    log.info(f'Interfacial Area : {IntA}')
+
+                    # Check if the CSV file already exists
+                    if not os.path.exists(csvbkp_file_path):
+                        # If it doesn't exist, create a new CSV file with a header
+                        df = pd.DataFrame({'Run_ID': [], 
+                                        'Time': [], 'IntA': [], 'Nd': [], 'DSD': []})
+                        df.to_csv(csvbkp_file_path, index=False)
+                    
+                    ### Append data to csvbkp file
+                    df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+                    log.info('-' * 100)
+                    log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+                    log.info('-' * 100)
+
+                    return {"Time": maxtime, "IntA":IntA, "Nd":dfDSD['Nd'], "DSD":dfDSD['Volume']}
+                
+                else:
+                    log.info('Pvpython postprocessing failed, returning empty dictionary')
+                    return{"Time":0, "Nd":0, "DSD":0, "IntA":0}
             
         else:
             df_join = self.post_process_all(log)
@@ -1211,7 +1266,45 @@ class SVSimScheduling(SimScheduling):
             else:
                 log.info('Pvpython postprocessing failed, returning empty dictionary')
                 return {"Time":0, "IntA":0, "Nd":0, "DSD":0}
- 
+
+    def post_process_lastsp(self,log):
+        # get the final time #
+        os.chdir(self.save_path_runID)
+        pvdfiles = glob.glob('VAR_*_time=*.pvd')
+        maxpvd_tf = max(float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles)
+        
+        os.chdir(self.local_path)
+        # Attributes needed for single phase post processing # 
+        self.C = self.pset_dict['Clearance']
+
+        ### Running pvpython script for single phases ###
+        script_path = os.path.join(self.local_path, 'PV_sv_sp.py')
+        log.info('Executing pvpython script')
+        log.info('-' * 100)
+
+        try:
+            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name, self.C], 
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
+            outlines= []
+            for i, line in enumerate(captured_stdout):
+                stripline = line.strip()
+                outlines.append(stripline)
+                if i < len(captured_stdout) - 1:
+                    log.info(stripline)
+
+            df_sp = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
+
+        except subprocess.CalledProcessError as e:
+            log.info(f"Error executing the script with pvpython: {e}")
+            df_sp = None
+        except FileNotFoundError:
+            log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
+            df_sp = None
+
+        return df_sp, maxpvd_tf
+
     def post_process_last(self, log):
         ### Extracting Interfacial Area from csv###
         os.chdir(self.save_path_runID)
@@ -1230,7 +1323,6 @@ class SVSimScheduling(SimScheduling):
         log.info('-'*100)
 
         os.chdir(self.local_path)
-
         ### Running pvpython script for Nd and DSD ###
         script_path = os.path.join(self.local_path,'PV_sv_last.py')
 
