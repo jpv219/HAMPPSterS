@@ -85,7 +85,7 @@ print(f'Number of runs completed for case {case} : {run_count}')
 print(sorted_runs)
 
 # Merge input paramters from psweep run with cases successfully ran.
-df_updated = df_DOE[df_DOE.index.isin([int(run.split('_')[-1])-1 for run in sorted_runs])]
+df_DOE_updated = df_DOE[df_DOE.index.isin([int(run.split('_')[-1])-1 for run in sorted_runs])]
 
 ##PLOTTING FUN DSD FOR TWO PHASE CASES
 
@@ -128,7 +128,7 @@ def plot_DSD(df, case_list, sorting_key, param_keys, key_map, x_axis_format):
 
             # Extracting values of interest from DOE dataframe
             for key in param_keys:
-                case_params[f'{key}'] = df_updated[df_updated.index==case][f'{key}'].values[0]
+                case_params[f'{key}'] = df_DOE_updated[df_DOE_updated.index==case][f'{key}'].values[0]
 
             param = case_params[key_map[sorting_key]]
 
@@ -178,6 +178,12 @@ def plot_DSD(df, case_list, sorting_key, param_keys, key_map, x_axis_format):
 
         ## Second y-axis
         ax2 = axes[1, 1].twinx()
+        ## Set style for second axis
+        ax2.grid(False)
+        for spine in ax2.spines.values():
+            spine.set_edgecolor('black')
+            spine.set_linewidth(0.2)
+
         
         sns.scatterplot(x=param_plotted, y=IA_list, marker='^', 
                         color='brown', s=120,
@@ -219,15 +225,21 @@ if case == 'sp_geom':
     if choice.lower() == 'y' or choice.lower() == 'yes':
 
         ## Replacing index in dfDOE with RunID to match later with case results
-        df_updated.index = [f'run_sp_{i+1}' for i in df_updated.index]
+        df_DOE_updated.index = [f'run_sp_{i+1}' for i in df_DOE_updated.index]
+        numbers = []
         
         num_cases = input('List all case numbers you want to plot separated by spaces: ')
 
-        ## Storing and splitting numbers inputted by the user.
-        numbers = num_cases.split()
+        if num_cases == 'all':
+            for elem in sorted_runs:
+                num = elem.split('_')[-1]
+                numbers.append(int(num))
+        else:
+            ## Storing and splitting numbers inputted by the user.
+            numbers = num_cases.split()
 
         ## Error if non numeric values
-        if not num_cases.replace(' ','').isdigit():
+        if num_cases != 'all' and not num_cases.replace(' ','').isdigit():
             raise ValueError('Non-numeric value entered as input. Re-check input values.')
 
         case_list = [f'run_sp_{n}' for n in numbers]
@@ -256,7 +268,7 @@ if case == 'sp_geom':
                 print ('case duplicated, ignoring')
                 continue
             
-            Re = df_updated[df_updated.index==case]['Re'].values[0]
+            Re = df_DOE_updated[df_DOE_updated.index==case]['Re'].values[0]
 
             cases_plotted.append(case)
             Re_plotted.append(Re)
@@ -311,15 +323,21 @@ elif case == 'surf':
     if choice.lower() == 'y' or choice.lower() == 'yes':
 
         ## Replacing index in dfDOE with RunID to match later with case results
-        df_updated.index = [f'run_surf_{i+1}' for i in df_updated.index]
+        df_DOE_updated.index = [f'run_surf_{i+1}' for i in df_DOE_updated.index]
+        numbers = []
 
         num_cases = input('List all case numbers you want to plot separated by spaces: ')
 
-        ## Storing and splitting numbers inputted by the user.
-        numbers = num_cases.split()
+        if num_cases == 'all':
+            for elem in sorted_runs:
+                num = elem.split('_')[-1]
+                numbers.append(int(num))
+        else:
+            ## Storing and splitting numbers inputted by the user.
+            numbers = num_cases.split()
 
         ## Error if non numeric values
-        if not num_cases.replace(' ','').isdigit():
+        if num_cases != 'all' and not num_cases.replace(' ','').isdigit():
             raise ValueError('Non-numeric value entered as input. Re-check input values.')
 
         ## cases selected to be plotted
@@ -351,15 +369,21 @@ elif case == 'geom':
     if choice.lower() == 'y' or choice.lower() == 'yes':
 
         ## Replacing index in dfDOE with RunID to match later with case results
-        df_updated.index = [f'run_geom_{i+1}' for i in df_updated.index]
+        df_DOE_updated.index = [f'run_geom_{i+1}' for i in df_DOE_updated.index]
+        numbers = []
 
         num_cases = input('List all case numbers you want to plot separated by spaces: ')
 
-        ## Storing and splitting numbers inputted by the user.
-        numbers = num_cases.split()
+        if num_cases == 'all':
+            for elem in sorted_runs:
+                num = elem.split('_')[-1]
+                numbers.append(int(num))
+        else:
+            ## Storing and splitting numbers inputted by the user.
+            numbers = num_cases.split()
 
         ## Error if non numeric values
-        if not num_cases.replace(' ','').isdigit():
+        if num_cases != 'all' and not num_cases.replace(' ','').isdigit():
             raise ValueError('Non-numeric value entered as input. Re-check input values.')
 
         ## cases selected to be plotted
