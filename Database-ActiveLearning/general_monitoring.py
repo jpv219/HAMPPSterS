@@ -2,8 +2,11 @@
 ### General monitoring and restarting for BLUE jobs. Copying csv files before every simulation restart
 ### to be run locally
 ### Author: Paula Pico
+### Version: 3.0
 ### First commit: Aug, 2023
 ### Department of Chemical Engineering, Imperial College London
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
 
 from CFD_run_scheduling import SimMonitoring
 from logger import configure_logger

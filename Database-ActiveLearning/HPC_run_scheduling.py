@@ -3,7 +3,7 @@
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 3.0
+### Version: 4.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
