@@ -49,6 +49,8 @@ class BadTerminationError(Exception):
 
 ################################################################################# Tailored for SMX static mixer study ###############################################################
 
+########################################################################################### PARENT CLASS ############################################################################
+
 class SimScheduling:
 
     ### Init function
@@ -119,7 +121,7 @@ class SimScheduling:
         self.__construct__(pset_dict)
 
         ### Logger set-up
-        log_filename = f"output_{self.case_type}/output_{self.run_name}.txt"
+        log_filename = os.path.join(self.local_path,f"output_{self.case_type}/output_{self.run_name}.txt")
         log = self.set_log(log_filename)
 
         dict_str = json.dumps(self.pset_dict, default=self.convert_to_json, ensure_ascii=False)
@@ -781,6 +783,8 @@ class SimScheduling:
 ################################################################################# Author: Paula Pico #########################################################################
 
 ################################################################################# General Application for BLUE 12 onwards #####################################################
+
+########################################################################################### CHILD CLASS ############################################################################
 class SimMonitoring(SimScheduling):
     
     ### Init function
@@ -964,6 +968,8 @@ class SimMonitoring(SimScheduling):
 
 ################################################################################# Tailored for stirred mixer study ###############################################################
 
+########################################################################################### CHILD CLASS ############################################################################
+
 class SVSimScheduling(SimScheduling):
 
     ### Ini Function ###
@@ -992,7 +998,7 @@ class SVSimScheduling(SimScheduling):
         self.__construct__(pset_dict)
 
         ### Logger setup ###
-        log_filename = f"output_{self.case_type}/output_{self.run_name}.txt"
+        log_filename = os.path.join(self.local_path,f"output_{self.case_type}/output_{self.run_name}.txt")
         log = self.set_log(log_filename)
 
         # convert the dictionary to strings for HPC

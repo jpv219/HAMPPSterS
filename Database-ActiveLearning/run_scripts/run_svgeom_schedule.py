@@ -8,6 +8,9 @@
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
 #######################################################################################################################################################################################
+# Local path
+import sys
+sys.path.append('/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning')
 
 import psweep as ps
 from CFD_run_scheduling import SVSimScheduling
@@ -82,7 +85,7 @@ if __name__ == '__main__':
 
     ### Save LHS dictionary for later
 
-    with open('DOE/LHS_SVGeom.pkl', 'wb') as file:
+    with open('../DOE/LHS_SVGeom.pkl', 'wb') as file:
         pickle.dump(psdict, file)
 
     ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -110,7 +113,7 @@ if __name__ == '__main__':
                         blade_thick_list, nblades_list, inclination_list, cond_csv_limit_list))
 
         # Save the combined data into a CSV file
-        with open('params/parameters_svgeom.csv', 'w', newline='') as csvfile:
+        with open('../params/parameters_svgeom.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["impeller_d", "frequency", "clearance", "blade_width", "blade_thick", 
                             "nblades", "inclination", "cond_csv_limit"])
@@ -128,7 +131,7 @@ if __name__ == '__main__':
         cond_csv_limit_list = []
 
         # Load data from CSV file
-        with open('params/parameters_svgeom.csv', 'r') as csvfile:
+        with open('../params/parameters_svgeom.csv', 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 impeller_d_list.append(row["impeller_d"])

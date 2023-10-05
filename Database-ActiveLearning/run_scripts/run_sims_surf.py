@@ -7,6 +7,9 @@
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
 #######################################################################################################################################################################################
+# Local path
+import sys
+sys.path.append('/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning')
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
@@ -71,7 +74,7 @@ log.info('\n'+ dict_print.to_string())
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_surf.pkl', 'wb') as file:
+with open('../DOE/LHS_surf.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ## Surfactant parameters
@@ -90,7 +93,7 @@ if not re_run:
     data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
 
     # Save the combined data into a CSV file
-    with open('params/parameters_surf.csv', 'w', newline='') as csvfile:
+    with open('../params/parameters_surf.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['D_b', 'ka', 'kd', 'ginf', 'gini', 'D_s', 'beta'])
         writer.writerows(data)
@@ -104,7 +107,7 @@ else:
     beta_list = []
 
     # Load data from CSV file
-    with open('params/parameters_surf.csv', 'r') as csvfile:
+    with open('../params/parameters_surf.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             diff2_list.append(row['D_b'])

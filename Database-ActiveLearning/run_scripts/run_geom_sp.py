@@ -8,6 +8,10 @@
 #######################################################################################################################################################################################
 #######################################################################################################################################################################################
 
+# Local path
+import sys
+sys.path.append('/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning')
+
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
 from LHS_Dataspace import runDOESP
@@ -65,7 +69,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('DOE/LHS_sp_geom_3.pkl', 'wb') as file:
+with open('../DOE/LHS_sp_geom_3.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 
@@ -107,7 +111,7 @@ if not re_run:
                     cond_csv_limit_list))
 
     # Save the combined data into a CSV file
-    with open('params/parameters_SP.csv', 'w', newline='') as csvfile:
+    with open('../params/parameters_SP.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
         writer.writerows(data)
@@ -125,7 +129,7 @@ else:
     cond_csv_limit_list = []
 
     # Load data from CSV file
-    with open('params/parameters.csv', 'r') as csvfile:
+    with open('../params/parameters.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             bar_width_list.append(row['bar_width'])
