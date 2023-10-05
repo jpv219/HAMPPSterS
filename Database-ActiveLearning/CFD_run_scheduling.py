@@ -697,7 +697,7 @@ class SimScheduling:
         os.chdir(self.local_path)
 
         ### Running pvpython script for Nd and DSD
-        script_path = os.path.join(self.local_path,'PV_ndrop_DSD.py')
+        script_path = os.path.join(self.local_path,'PV_scripts/PV_ndrop_DSD.py')
 
         log.info('Executing pvpython script')
         log.info('-'*100)
@@ -741,7 +741,7 @@ class SimScheduling:
         domain_length = (1 + float(self.n_ele))*float(self.pipe_radius)*2
 
         ### Running pvpython script for Nd and DSD
-        script_path = os.path.join(self.local_path,'PV_sp_PP.py')
+        script_path = os.path.join(self.local_path,'PV_scripts/PV_sp_PP.py')
 
         log.info('-'*100)
         log.info('Executing pvpython script')
@@ -1274,7 +1274,7 @@ class SVSimScheduling(SimScheduling):
         self.C = self.pset_dict['Clearance']
 
         ### Running pvpython script for single phases ###
-        script_path = os.path.join(self.local_path, 'PV_sv_sp.py')
+        script_path = os.path.join(self.local_path, 'PV_scripts/PV_sv_sp.py')
         log.info('Executing pvpython script')
         log.info('-' * 100)
 
@@ -1320,7 +1320,7 @@ class SVSimScheduling(SimScheduling):
 
         os.chdir(self.local_path)
         ### Running pvpython script for Nd and DSD ###
-        script_path = os.path.join(self.local_path,'PV_sv_last.py')
+        script_path = os.path.join(self.local_path,'PV_scripts/PV_sv_last.py')
 
         log.info('Executing pvpython script')
         log.info('-' * 100)
@@ -1371,7 +1371,7 @@ class SVSimScheduling(SimScheduling):
 
         ### Running pvpython script for Nd and DSD ###
         os.chdir(self.local_path)
-        script_path = os.path.join(self.local_path,'PV_sv_all.py')
+        script_path = os.path.join(self.local_path,'PV_scripts/PV_sv_all.py')
         log.info('Executing pvpython script')
         log.info('-' * 100)
 
