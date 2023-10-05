@@ -176,3 +176,151 @@ def runSurfDOE(Surf_dict,samples):
 
     return Modified_SurfDOE
 
+
+####################################################################################
+# # STIRRED VESSEL GEOMETRY FEATURES - LHS #
+# ##################################################################################
+
+## Function applying restrictions
+
+def svgeom_restrictions(DOE):
+    for i in range(DOE.shape[0]):
+        # make sure blade number is an integer
+        N = round(DOE.loc[i,'Nblades'])
+        DOE.loc[i,'Nblades'] = N
+
+        # make sure Re > 500
+        F = round(DOE.loc[i, 'Frequency (1/s)'],2)
+        D = DOE.loc[i,'Impeller_Diameter (m)']
+        oldF = F
+
+        Re = (998*F*D**2)/1e-3
+
+        if Re < 500:
+            F = round((500*1e-3)/(998*D**2),2)
+            print('Re modification')
+            print(f'Frequency (1/s) in row {i} is modified from {oldF} to {F}.')
+        DOE.loc[i,'Frequency (1/s)'] = F
+
+        # make sure the combination of clearance and blade width is within domain
+        C = DOE.loc[i,'Clearance (m)']
+        bw = DOE.loc[i, 'Blade_width (m)']
+        oldC = C
+        # bw/2 < C and C + bw/2 < 0.05
+        if bw/2 >= C:
+            C = 0.005+bw/2 # 0.005 is the lower bound of clearance
+            print('Clearance modification')
+            print(f'Clearance (m) in row {i} is modified from {oldC}')
+        DOE.loc[i,'Clearance (m)'] = C
+
+        if bw/2+C >= 0.05:
+            C = 0.041-bw/2 
+            # 0.041 is chosen to make the new distance from vessel bottom is 0.005
+            print('Clearance modification')
+            print(f'Clearance (m) in row {i} is modified from {oldC}')
+        DOE.loc[i,'Clearance (m)'] = C
+
+    return DOE
+
+
+def calcsvRe(row):
+    return (998*row['Frequency (1/s)']*row['Impeller_Diameter (m)']**2)/1e-3
+
+def calcsvWe(row):
+    return (998* row['Frequency (1/s)']**2 * row['Impeller_Diameter (m)']**3)/0.035
+
+def runSVDOE(SV_dict,numsamples):
+
+    ## Initial LHS with no restrictions
+    LHS_DOE = build.space_filling_lhs(SV_dict,num_samples = numsamples) 
+
+    modifiedLHS = svgeom_restrictions(LHS_DOE)
+
+    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcsvRe(row), axis = 1)
+    modifiedLHS['We'] = modifiedLHS.apply(lambda row: calcsvWe(row), axis = 1)
+    
+    return modifiedLHS
+
+####################################################################################
+# # STIRRED VESSEL GEOMETRY FEATURES Single Phase - LHS #
+# ##################################################################################
+def runSVSPDOE(SV_dict,numsamples):
+    ## Initial LHS with no restrictions
+    LHS_DOE = build.space_filling_lhs(SV_dict,num_samples = numsamples)
+    modifiedLHS = svgeom_restrictions(LHS_DOE)
+
+    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcsvRe(row), axis = 1)
+    modifiedLHS['We'] = modifiedLHS.apply(lambda row: calcsvWe(row), axis = 1)
+    
+    return modifiedLHS
+
+####################################################################################
+# STIRRED VESSEL SURFACTANT PROPERTIES - LHS #
+# ##################################################################################
+def svsurf_restriction(DOE):
+    for i in range(DOE.shape[0]):
+        # make sure ginf > gini
+        ginf = DOE.loc[i,'Maximum packing conc (mol/ m2)']
+        gini = DOE.loc[i,'Initial surface conc (mol/m2)']
+
+        old_gini = gini
+
+        if gini>=ginf:
+            random_float = np.random.uniform(low=0.05, high=0.95)  
+            random_float = round(random_float, 2) 
+            gini = random_float*ginf
+            print(f'G_ini (mol/m2) in row {i} is modified from {old_gini} to {gini}')
+        DOE.loc[i,'Initial surface conc (mol/m2)'] = gini
+
+        # make sure Bi <= 1 or BiPeBh < 1 by modifying Bi < 1
+        kd = DOE.loc[i, 'Desorption Coeff (1/s)']
+        Db = DOE.loc[i, 'Bulk Diffusivity (m2/s)']
+        
+        Bi = kd/5
+        C0 = ginf/0.02125
+        BiPeBh = (kd*ginf)/(Db*C0)
+        
+        old_kd = kd
+
+        if Bi>1 and BiPeBh>1:
+            random_float = np.random.uniform(low=0.05, high=0.95)
+            random_float = round(random_float, 2)
+            kd = random_float*5
+            print(f'kd (1/s) in row {i} is modified from {old_kd} to {kd}')
+        DOE.loc[i,'Desorption Coeff (1/s)'] = kd
+
+    return DOE
+
+def svgamma_ratio(row):
+    return (row['Initial surface conc (mol/m2)']/row['Maximum packing conc (mol/ m2)'])
+def svPeS(row):
+    return (5*0.00180625/row['Surface diffusivity (m2/s)'])
+def svPeB(row):
+    return (5*0.00180625/row['Bulk Diffusivity (m2/s)'])
+def svBi(row):
+    return (row['Desorption Coeff (1/s)']/5)
+def svC0(row):
+    return (row['Maximum packing conc (mol/ m2)']/0.02125)
+def svh(row):
+    return (row['Maximum packing conc (mol/ m2)']/(0.0425*row['C0']))
+def svK(row):
+    return (row['Adsorption Coeff (m3/mol s)']*row['C0']/row['Desorption Coeff (1/s)'])
+def svBiPeBh(row):
+    return (row['Bi']*row['PeB']*row['h'])
+
+def runSVSurfDOE(Surf_dict,numsamples):
+
+    SurfDOE = build.space_filling_lhs(Surf_dict, num_samples=numsamples)
+    #### Adding dimensionless parameter calculation for easier post processing
+    Modified_SurfDOE = svsurf_restriction(SurfDOE)
+    Modified_SurfDOE['G0/Ginf'] = Modified_SurfDOE.apply(lambda row: svgamma_ratio(row), axis = 1)
+    Modified_SurfDOE['PeS'] = Modified_SurfDOE.apply(lambda row: svPeS(row), axis = 1)
+    Modified_SurfDOE['PeB'] = Modified_SurfDOE.apply(lambda row: svPeB(row), axis = 1)
+    Modified_SurfDOE['Bi'] = Modified_SurfDOE.apply(lambda row: svBi(row), axis = 1)
+    Modified_SurfDOE['C0'] = Modified_SurfDOE.apply(lambda row: svC0(row), axis = 1)
+    Modified_SurfDOE['h'] = Modified_SurfDOE.apply(lambda row: svh(row), axis = 1)
+    Modified_SurfDOE['K'] = Modified_SurfDOE.apply(lambda row: svK(row), axis = 1)
+    Modified_SurfDOE['BiPeBh'] = Modified_SurfDOE.apply(lambda row: svBiPeBh(row), axis=1)
+
+    return Modified_SurfDOE
+

@@ -53,8 +53,6 @@ class BadTerminationError(Exception):
         self.message = message
         super().__init__(self.message)
 
-#####################################################################################################################################################################################
-
 
 ################################################################################### PARAMETRIC STUDY ################################################################################
 
@@ -569,7 +567,7 @@ class HPCScheduling:
         csv_to_check = pd.read_csv(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv')
         
         # verify whether convergence checks can start
-        len_to_check = 250
+        len_to_check = 400
         recent = int(len_to_check * 0.95)
 
         window_size = max(10,int(len_to_check * 0.05))
@@ -1029,7 +1027,285 @@ class HPCScheduling:
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
         return jobid
-    
+
+#####################################################################################################################################################################################
+
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Fuyue Liang #########################################################################
+
+################################################################################# Tailored for stirred vessel study ###############################################################
+
+class SVHPCScheduling(HPCScheduling):
+
+        ### Init function
+    def __init__(self,pset_dict) -> None:
+                
+        ### Initialising class attributes
+        self.pset_dict = pset_dict
+        self.run_path = pset_dict['run_path']
+        self.convert_path = pset_dict['convert_path']
+        self.case_type = pset_dict['case']
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = pset_dict['run_name']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.convert_path = pset_dict['convert_path']
+
+        self.cond_csv = pset_dict['cond_csv']
+        self.conditional = pset_dict['conditional']
+        self.cond_csv_limit = pset_dict['cond_csv_limit']
+        self.vtk_conv_mode = pset_dict['vtk_conv_mode']
+
+        ### Geometry parametric study ###
+        if self.case_type == 'svgeom' or self.case_type == 'sp_svgeom':
+            self.impeller_d = pset_dict['impeller_d']
+            self.frequency = pset_dict['frequency']
+            self.clearance = pset_dict['clearance']
+            self.blade_width = pset_dict['blade_width']
+            self.blade_thick = pset_dict['blade_thick']
+            self.nblades = pset_dict['nblades']
+            self.inclination = pset_dict['inclination']
+
+        ### Surfactant parametric study ###
+        elif self.case_type == 'svsurf':
+            self.diff1 = pset_dict['D_d']
+            self.diff2 = format(float(pset_dict['D_b']),'.10f')
+            self.ka = format(float(pset_dict['ka']),'.10f')
+            self.kd = format(float(pset_dict['kd']),'.10f')
+            self.ginf = format(float(pset_dict['ginf']),'.10f')
+            self.gini = format(float(pset_dict['gini']),'.10f')
+            self.diffs = format(float(pset_dict['D_s']),'.10f')
+            self.beta = format(float(pset_dict['beta']),'.10f')
+
+
+        self.path = os.path.join(self.run_path, self.run_name)
+        self.mainpath = os.path.join(self.run_path,'..')
+        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+
+
+    def makef90(self):
+        ### create run_ID directory ###
+        os.mkdir(self.path)
+        base_path = self.pset_dict['base_path']
+        base_case_dir = os.path.join(base_path, self.case_type)
+
+        ### Copy base files and rename to current run accordingly ###
+        os.system(f'cp -r {base_case_dir}/* {self.path}')
+        os.system(f'mv {self.path}/base_SV.f90 {self.path}/{self.run_name}_SV.f90')
+        print('-' * 100)
+        print(f'Run directory {self.path} created and base files copied')
+
+        if self.case_type == 'svgeom' or 'sp_svgeom':
+            ### Assign values to placeholders ###
+            os.system(f'sed -i \"s/\'impeller_d\'/{self.impeller_d}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'frequency\'/{self.frequency}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'clearance\'/{self.clearance}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'blade_width\'/{self.blade_width}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'blade_thick\'/{self.blade_thick}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'nblades\'/{self.nblades}/\" {self.path}/{self.run_name}_SV.f90')
+            os.system(f'sed -i \"s/\'inclination\'/{self.inclination}/\" {self.path}/{self.run_name}_SV.f90')
+
+        ### modify the Makefile ###
+        os.system(f'sed -i s/file/{self.run_name}_SV/g {self.path}/Makefile')
+
+        ### compile the f90 into an executable ###
+        os.chdir(self.path)
+        subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
+        print('-' * 100)
+        print('Makefile created succesfully')
+        os.system(f'mv {self.run_name}_SV.x {self.run_name}.x')
+        subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
+        os.chdir('..')
+
+    def setjobsh(self):
+        ### rename job with current run ###
+        os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
+
+        ### assign values to placeholders
+        os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
+        
+        ### replace placeholders for surfactant parametric study with fixed geometry ###
+        if self.case_type == 'svsurf':
+            os.system(f'sed -i \"s/\'diff1\'/{self.diff1}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diff2\'/{self.diff2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ka\'/{self.ka}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'kd\'/{self.kd}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ginf\'/{self.ginf}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'gini\'/{self.gini}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diffs\'/{self.diffs}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
+
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
+
+        ### replace placeholders for output time interval for geometry parametric study ###
+        else:
+            opt = 1/32/float(self.frequency)
+            os.system(f'sed -i \"s/\'output_interval\'/{opt}/\" {self.path}/job_{self.run_name}.sh')
+
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
+
+
+    ### Convert last vtk to vtr ###
+    def vtk_convert(self):
+        ### vtk convert mode: last or all ###
+        vtk_conv_mode = self.vtk_conv_mode
+
+        ### Move to ephemeral and create RESULTS saing folder ###
+        ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
+        os.chdir(ephemeral_path)
+
+        try:
+            os.mkdir('RESULTS')
+            print('-' * 100)
+            print(f'RESULTS folder created in {ephemeral_path}')
+        except FileExistsError:
+            pass
+        
+        ### Listing VAR vtks and pvds ###
+        VAR_file_list = glob.glob('VAR_*_*.vtk')
+        PVD_file_list = glob.glob('VAR_*_time=*.pvd')
+        sorted_PVDs = sorted(PVD_file_list, key = lambda filename: 
+                    float(filename.split('=')[-1].split('.pvd')[0]))
+        last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
+
+        ### First and last pvd file for pvpython processing ###
+        pvd_0file = glob.glob(f'VAR_{self.run_name}_time=0.00000E+00.pvd')[0]
+        pvd_ffile = sorted_PVDs[-1]
+
+        if vtk_conv_mode == 'last':
+            ### Files to be converted, last time step in VAR
+            VAR_toconvert_list = glob.glob(f'VAR_*_{last_vtk}.vtk')
+            file_count = len(VAR_toconvert_list)
+        
+        else:
+            ### Files to be converted, all time step in VAR: from 320-720 (10-22.5 Rev.)
+            for filename in VAR_file_list:
+                try:
+                    timestep = int(filename.split('_')[-1].split('.vtr')[0])
+                except (ValueError, IndexError):
+                    # skip files that don't follow the expected naming convention
+                    continue
+
+                if timestep < 320 or timestep > 720:
+                    file_path = os.path.join(ephemeral_path, filename)
+                    os.remove(file_path)
+            VAR_toconvert_list = glob.glob('VAR_*_*.vtk')
+            file_count = len(glob.glob(f'VAR_*_{last_vtk}.vtk'))
+
+        ### Check if the files to be converted exist ###
+        if VAR_toconvert_list:
+            ### Moving files to RESULTS ###
+            for file in VAR_toconvert_list:
+                try:
+                    shutil.move(file, 'RESULTS')
+                except (FileNotFoundError, shutil.Error) as e:
+                    print('-' * 100)
+                    print("====EXCEPTION====")
+                    print("FileNotFoundError")
+                    print('-' * 100)
+                    print(f"Exited with message :{e}, File or directory not found.")
+                    print('-' * 100)
+                    return
+        ### If files don't exit, exit function and terminate pipeline ###
+        else:
+            print('-' * 100)
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('-' * 100)
+            print("VAR files don't exist.")
+            print('-' * 100)
+            return
+
+        print('-' * 100)
+        print('Convert files (320-720) copied to RESULTS')
+
+        ### Moving individual files of interest: pvd, csv
+        try:
+            shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
+            shutil.move(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv','RESULTS')
+            
+            if pvd_0file == pvd_ffile:
+                shutil.move(f'{pvd_0file}', 'RESULTS')
+                print('Warning: No vtk timesteps were generated, adjust vtk timestep save. Pvpython calculatons will be performed from the initial state')
+            
+            elif file_count == len(VAR_toconvert_list): # last time step
+                shutil.move(f'{pvd_0file}', 'RESULTS')
+                shutil.move(f'{pvd_ffile}', 'RESULTS')
+                print("First and last pvd copied to RESULTS")
+            
+            else:
+                [shutil.move(file, 'RESULTS') for file in PVD_file_list]
+                print("pvd for ALL time steps copied to RESULTS")
+
+            print('-' * 100)
+            print('VAR and csv files moved to RESULTS')
+        except (FileNotFoundError, shutil.Error) as e:
+            print('-' * 100)
+            print("====EXCEPTION====")
+            print("FileNotFoundError")
+            print('-' * 100)
+            print(f"Exited with message :{e}, File or directory not found.")
+            print('-' * 100)
+            return
+        
+        ### Cleaning previous restart and vtk from ephemeral
+        os.system('rm *rst')
+
+        os.chdir('RESULTS')
+
+        try:
+            os.mkdir('VTK_SAVE')
+        except FileExistsError:
+            pass
+
+        ### Finding, copying and modifying convert files into RESULTS
+        convert_scripts = glob.glob(os.path.join(self.convert_path, '*'))
+
+        for file in convert_scripts:
+            try:
+                shutil.copy2(file, '.')
+            except (FileNotFoundError, PermissionError, OSError):
+                print("====EXCEPTION====")
+                print("FileNotFoundError")
+                print(f"Failed to copy '{file}'.")
+                return
+
+        os.system(f'sed -i \"s/\'FILECOUNT\'/{file_count}/\" Multithread_pool.py')
+
+        ### Submitting job convert and extracting job_id, wait time and status
+        jobid = self.submit_job(os.path.join(ephemeral_path,'RESULTS'),'convert')
+
+        print('-' * 100)
+        print(f'JOB CONVERT from {self.run_name} submitted succesfully with ID {jobid}')
+        sleep(60)
+
+        try:
+            t_jobwait, status, new_jobID = self.job_wait(jobid)
+            print("====JOB_IDS====")
+            print(new_jobID)
+            print("====JOB_STATUS====")
+            print(status)
+            if status == 'Q' or status == 'H':
+                print("====WAIT_TIME====")
+                print(t_jobwait-1800)
+            elif status == 'R':
+                print("====WAIT_TIME====")
+                print(t_jobwait)
+
+        except JobStatError:
+            print(f'Convert job {self.run_ID} failed on initial submission')
+            print("====EXCEPTION====")
+            print("JobStatError")
+
+        except ValueError:
+            print("====EXCEPTION====")
+            print("ValueError")
+
+
 def main():
     ### Argument parser to specify function to run
     parser = argparse.ArgumentParser()
@@ -1046,7 +1322,11 @@ def main():
 
     args = parser.parse_args()
 
-    simulator = HPCScheduling(args.pdict)
+    ### choose class to run according to pdict given ###
+    if 'vtk_conv_mode' in args.pdict:
+        simulator = SVHPCScheduling(args.pdict)
+    else:
+        simulator = HPCScheduling(args.pdict)
 
     if hasattr(simulator, args.function):
         func = getattr(simulator, args.function)
