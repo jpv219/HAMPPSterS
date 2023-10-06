@@ -534,12 +534,20 @@ class HPCScheduling:
                 print(f'Submitted new job with id: {newjobid}')
             elif status == 'R':
                 time_format = '%H:%M'
-                wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
-                elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
-                delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
-                remaining = delta.total_seconds()+60
-                t_wait = remaining
-                newjobid = job_id
+                time_format_regex = r'\d{2}:\d{2}'
+                
+                # can have early monitor where R and -- as elap time
+                if re.match(time_format_regex, jobstatus[2]):
+                    wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
+                    elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
+                    delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
+                    remaining = delta.total_seconds()+60
+                    t_wait = remaining
+                    newjobid = job_id
+                else:
+                    t_wait = 60
+                    newjobid = job_id
+                    print(f'Elap time has not shown yet. Re-check in {t_wait/60} mins.')
             else:
                 t_wait = 0
                 
@@ -850,6 +858,11 @@ class HPCScheduling:
             job_IDS = self.submit_job(self.path,self.run_name)
             print('-' * 100)
             print(f'Job {self.run_name} re-submitted correctly with ID: {job_IDS}')
+
+            ### clean restart files as required
+            # args1: cleanrst = True (default) or False
+            # args2: saverstnum = int (default: 1, as in only the lastest one would be saved.)
+            self.rst_cleaning(saverstnum=10)
             sleep(120)
 
             ### check status and waiting time for re-submitted job
@@ -963,7 +976,7 @@ class HPCScheduling:
             print('-' * 100)
             return
 
-        ### Cleaning previous restart and vtk from ephemeral
+        ### Cleaning previous restart from ephemeral
         os.system('rm *rst')
 
         os.chdir('RESULTS')
@@ -1030,6 +1043,26 @@ class HPCScheduling:
         jobid = int(re.search(r'\b\d+\b',output[0]).group())
 
         return jobid
+
+    ### clean previous rst file from ephemeral
+    def rst_cleaning(self,cleanrst=True, saverstnum=1):
+        os.chdir(self.ephemeral_path)
+        saverstnum = int(saverstnum)
+
+        if cleanrst:
+            rstfiles = glob.glob('*rst')
+            last_rst = max(int(filename.split('_')[-1].split('.')[1]) for filename in rstfiles)
+            for rst in rstfiles:
+                rstnum = int(rst.split('_')[-1].split('.')[1])
+                if rstnum <= int(last_rst-saverstnum):
+                    file_path = os.path.join(self.ephemeral_path, rst)
+                    os.remove(file_path)
+        cleaned_rst = glob.glob('*rst')
+        rstlist = sorted([int(filename.split('_')[-1].split('.')[1]) for filename in cleaned_rst])
+        rstcount = int(rstlist[-1]-rstlist[0]+1)
+
+        print(f'Restart file are saved from time step {rstlist[0]} to {rstlist[-1]}.')
+        print(f'{rstcount} sets of Restart files are saved')
 
 #####################################################################################################################################################################################
 
@@ -1102,7 +1135,7 @@ class SVHPCScheduling(HPCScheduling):
         print('-' * 100)
         print(f'Run directory {self.path} created and base files copied')
 
-        if self.case_type == 'svgeom' or 'sp_svgeom':
+        if self.case_type == 'svgeom' or self.case_type == 'sp_svgeom':
             ### Assign values to placeholders ###
             os.system(f'sed -i \"s/\'impeller_d\'/{self.impeller_d}/\" {self.path}/{self.run_name}_SV.f90')
             os.system(f'sed -i \"s/\'frequency\'/{self.frequency}/\" {self.path}/{self.run_name}_SV.f90')

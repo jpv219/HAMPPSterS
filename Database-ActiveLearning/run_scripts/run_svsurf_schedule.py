@@ -10,7 +10,7 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning')
+sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning')
 
 import psweep as ps
 from CFD_run_scheduling import SVSimScheduling
@@ -33,8 +33,8 @@ if __name__ == '__main__':
     log.info('-' * 100)
 
     case = "svsurf"
-    nruns = 20
-    nruns_list = [str(i) for i in range(6, nruns + 1)]
+    nruns = 8
+    nruns_list = [str(i+10) for i in range(1, nruns + 1)]
     runname_list = ['run_svsurf_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
     re_run = False
@@ -151,4 +151,4 @@ if __name__ == '__main__':
 
     simulator = SVSimScheduling()
 
-    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)    
+    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)    

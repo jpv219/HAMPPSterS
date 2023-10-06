@@ -10,7 +10,7 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning')
+sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning')
 
 import psweep as ps
 from CFD_run_scheduling import SVSimScheduling
