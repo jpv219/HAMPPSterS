@@ -735,8 +735,6 @@ class SimScheduling:
 
     def post_process_SP(self,log):
 
-        os.chdir(self.local_path)
-
         ### Attributes not defined in class constructor as they are case-specific
         self.n_ele = self.pset_dict['n_ele']
         self.pipe_radius = self.pset_dict['pipe_radius']

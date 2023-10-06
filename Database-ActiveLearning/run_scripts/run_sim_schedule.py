@@ -3,13 +3,13 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
-### Version: 3.0
+### Version: 4.0
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/Users/mfgmember/Documents/Juan_Static_Mixer/ML/SMX_DeepLearning/Database-ActiveLearning')
+sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning')
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling

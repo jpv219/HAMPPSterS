@@ -6,10 +6,10 @@ import os
 
 def post_process():
 
-    script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_ndrop_DSD.py'
+    script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_scripts/PV_ndrop_DSD.py'
     local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
     save_path = '/media/jpv219/ML/Surf_Runs/'
-    run_name = 'run_surf_15'
+    run_name = 'run_surf_17'
     save_path_runID = os.path.join(save_path,run_name)
 
     os.chdir(save_path_runID)
@@ -55,15 +55,13 @@ def post_process():
 
 def post_process_SP():
 
-    script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_sp_PP.py'
-    local_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/'
+    script_path = '/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/PV_scripts/PV_sp_PP.py'
     save_path = '/media/jpv219/ML/SP_Runs'
-    run_name = 'run_sp_9'
+    run_name = 'run_sp_83'
 
-    os.chdir(local_path)
 
-    n_ele = 5
-    pipe_radius = 0.01467741935483871
+    n_ele = 3
+    pipe_radius = 0.021
     domain_length = (1 + float(n_ele))*float(pipe_radius)*2
 
     ### Running pvpython script for Nd and DSD
@@ -100,8 +98,8 @@ def post_process_SP():
 
 def main():
 
-    run_name = 'run_surf_15'          
-### pvpython execution
+    run_name = 'run_surf_17'          
+# ### pvpython execution
 
     dfDSD, IntA = post_process()
 
@@ -119,7 +117,7 @@ def main():
         print(f'Drop size dist. {dfDSD}')
         print(f'Interfacial Area : {IntA}')
 
-        csvbkp_file_path = f'/media/jpv219/ML/surf.csv'
+        csvbkp_file_path = f'/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP/surf.csv'
 
 
         # Check if the CSV file already exists
@@ -139,7 +137,7 @@ def main():
         print('pvpython post-processing failed, returning empty')
 
 
-        ### pvpython execution
+    ### pvpython execution
         
     # df_hyd = post_process_SP()
 
