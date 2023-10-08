@@ -862,7 +862,7 @@ class HPCScheduling:
             ### clean restart files as required
             # args1: cleanrst = True (default) or False
             # args2: saverstnum = int (default: 1, as in only the lastest one would be saved.)
-            self.rst_cleaning(saverstnum=10)
+            self.rst_cleaning()
             sleep(120)
 
             ### check status and waiting time for re-submitted job

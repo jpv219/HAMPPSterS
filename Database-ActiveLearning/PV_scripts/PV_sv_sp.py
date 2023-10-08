@@ -27,8 +27,7 @@ if __name__ == "__main__":
     os.chdir(path)
 
     pvdfile = f'VAR_{case_name}_time=0.00000E+00.pvd'
-    # timestep = int(glob.glob('VAR_*_*.vtr')[0].split("_")[-1].split(".")[0])
-    timestep=23
+    timestep = int(glob.glob('VAR_*_*.vtr')[0].split("_")[-1].split(".")[0])
 
     old_suf = "_0.vtr"
     new_suf = f"_{timestep}.vtr"

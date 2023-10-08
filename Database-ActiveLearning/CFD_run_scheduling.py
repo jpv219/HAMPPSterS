@@ -488,7 +488,8 @@ class SimScheduling:
 
         ### Read SSH configuration from config file
         config = configparser.ConfigParser()
-        config.read(f'config_{self.usr}.ini')
+        configfile = os.path.join(self.local_path, f'config_{self.usr}.ini')
+        config.read(configfile)
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
@@ -621,7 +622,8 @@ class SimScheduling:
 
         ### Config file with keys to login to the HPC
         config = configparser.ConfigParser()
-        config.read(f'config_{self.usr}.ini')
+        configfile = os.path.join(self.local_path, f'config_{self.usr}.ini')
+        config.read(configfile)
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
@@ -886,7 +888,8 @@ class SimMonitoring(SimScheduling):
 
         ### Config file with keys to login to the HPC
         config = configparser.ConfigParser()
-        config.read(f'config_{self.usr}.ini')
+        configfile = os.path.join(self.local_path, f'config_{self.usr}.ini')
+        config.read(configfile)
         user = config.get('SSH', 'username')
         key = config.get('SSH', 'password')
         try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
@@ -1149,7 +1152,7 @@ class SVSimScheduling(SimScheduling):
 
         ### pvpython execution ###
         if self.vtk_conv_mode == 'last':
-            
+            log.info(f'{self.vtk_conv_mode} post-processing is starting.')
             if self.case_type == 'sp_svgeom':
                 df_sp, maxtime = self.post_process_lastsp(log)
                 if df_sp is not None:
@@ -1275,7 +1278,7 @@ class SVSimScheduling(SimScheduling):
         
         os.chdir(self.local_path)
         # Attributes needed for single phase post processing # 
-        self.C = self.pset_dict['Clearance']
+        self.C = self.pset_dict['clearance']
 
         ### Running pvpython script for single phases ###
         script_path = os.path.join(self.local_path, 'PV_scripts/PV_sv_sp.py')
@@ -1283,7 +1286,7 @@ class SVSimScheduling(SimScheduling):
         log.info('-' * 100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name, self.C], 
+            output = subprocess.run(['pvpython', script_path, self.save_path, self.run_name, self.C], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')

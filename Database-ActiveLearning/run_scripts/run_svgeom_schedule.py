@@ -34,7 +34,7 @@ if __name__ == '__main__':
     log.info('-' * 100)
 
     case = "svgeom"
-    nruns = 4
+    nruns = 8
     nruns_list = [str(i) for i in range(1, nruns + 1)]
     runname_list = ['run_svgeom_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
