@@ -538,6 +538,8 @@ class HPCScheduling:
                 
                 # can have early monitor where R and -- as elap time
                 if re.match(time_format_regex, jobstatus[2]):
+                    if jobstatus[0] == '24:00':
+                        jobstatus[0] = '23:00'
                     wall_time = datetime.datetime.strptime(jobstatus[0], time_format).time()
                     elap_time = datetime.datetime.strptime(jobstatus[2], time_format).time()
                     delta = datetime.datetime.combine(datetime.date.min, wall_time)-datetime.datetime.combine(datetime.date.min, elap_time)
@@ -1220,10 +1222,11 @@ class SVHPCScheduling(HPCScheduling):
             file_count = len(VAR_toconvert_list)
         
         else:
+            file_count = len(glob.glob(f'VAR_*_{last_vtk}.vtk'))
             ### Files to be converted, all time step in VAR: from 320-720 (10-22.5 Rev.)
             for filename in VAR_file_list:
                 try:
-                    timestep = int(filename.split('_')[-1].split('.vtr')[0])
+                    timestep = int(filename.split('_')[-1].split('.vtk')[0])
                 except (ValueError, IndexError):
                     # skip files that don't follow the expected naming convention
                     continue
@@ -1232,7 +1235,6 @@ class SVHPCScheduling(HPCScheduling):
                     file_path = os.path.join(ephemeral_path, filename)
                     os.remove(file_path)
             VAR_toconvert_list = glob.glob('VAR_*_*.vtk')
-            file_count = len(glob.glob(f'VAR_*_{last_vtk}.vtk'))
 
         ### Check if the files to be converted exist ###
         if VAR_toconvert_list:
@@ -1248,6 +1250,8 @@ class SVHPCScheduling(HPCScheduling):
                     print(f"Exited with message :{e}, File or directory not found.")
                     print('-' * 100)
                     return
+            print('-' * 100)
+            print('Convert files (320-720) copied to RESULTS')
         ### If files don't exit, exit function and terminate pipeline ###
         else:
             print('-' * 100)
@@ -1257,9 +1261,6 @@ class SVHPCScheduling(HPCScheduling):
             print("VAR files don't exist.")
             print('-' * 100)
             return
-
-        print('-' * 100)
-        print('Convert files (320-720) copied to RESULTS')
 
         ### Moving individual files of interest: pvd, csv
         try:

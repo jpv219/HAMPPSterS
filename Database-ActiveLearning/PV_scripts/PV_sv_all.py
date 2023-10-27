@@ -26,10 +26,6 @@ if __name__ == "__main__":
     ### find the final time steps ###
     pvdfiles = glob.glob('VAR_*_time=*.pvd')
     times = sorted([float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles])
-    
-    pvdfile0 = f'VAR_{case_name}_time=0.00000E+00.pvd'
-    shutil.copy(pvdfile0, f'VAR_DSD_{case_name}.pvd')
-    pvdfile = f'VAR_DSD_{case_name}.pvd'
 
     DSD_list = []
     for t_idx,t in enumerate(times):
@@ -38,6 +34,9 @@ if __name__ == "__main__":
             value_to_add = {'Time': t, 'Volumes': [], 'Nd': 0}
 
         else:
+            pvdfile0 = f'VAR_{case_name}_time=0.00000E+00.pvd'
+            shutil.copy(pvdfile0, f'VAR_DSD_{case_name}.pvd')
+            pvdfile = f'VAR_DSD_{case_name}.pvd'
             old_suf = "_0.vtr"
             new_suf = f"_{t_idx}.vtr"
 
@@ -89,7 +88,10 @@ if __name__ == "__main__":
             volume_list = []
             for i in range(lower_bound, upper_bound+1):
                 # select individual droplet
-                threshold.ThresholdRange = [i, i]
+                threshold.LowerThreshold = i
+                threshold.UpperThreshold = i
+                threshold.ThresholdMethod = 'Between'
+                # threshold.ThresholdRange = [i, i]
 
                 # collect data
                 data_object = paraview.servermanager.Fetch(integral)

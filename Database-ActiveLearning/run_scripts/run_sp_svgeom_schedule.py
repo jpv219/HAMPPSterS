@@ -30,8 +30,8 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "sp_svgeom"
-nruns = 16
-nruns_list = [str(i) for i in range(1, nruns + 1)]
+nruns = 50
+nruns_list = [str(i+24) for i in range(1, nruns + 1)]
 runname_list = ['run_spsv_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -164,5 +164,5 @@ log.info('-' * 100)
 simulator = SVSimScheduling()
 
 
-df = ps.run_local(simulator.localrun, params, poolsize=8,save=True,tmpsave=True,skip_dups=True)   
+df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
 
