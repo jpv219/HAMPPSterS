@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import os 
 import glob
+import shutil
 
 if __name__ == "__main__":
 
@@ -23,7 +24,9 @@ if __name__ == "__main__":
     os.chdir(path)
 
     pvdfile = f'VAR_{case_name}_time=0.00000E+00.pvd'
-    timestep = int(glob.glob('VAR_*_*.vtr')[0].split("_")[-1].split(".")[0])
+    vtrfiles = glob.glob('VAR_*_0_*.vtr')
+    timestep = max(int(file.split("_")[-1].split(".")[0]) for file in vtrfiles)
+    print(timestep)
 
     old_suf = "_0.vtr"
     new_suf = f"_{timestep}.vtr"
@@ -43,7 +46,7 @@ if __name__ == "__main__":
     with open(pvdfile, "w") as output_file:
         output_file.writelines(updated_lines)
 
-    print('PVD file modified correctly.') 
+    print(f'PVD file modified with new suf {timestep} correctly.') 
 
     ### paraview onwards ###
     case_data = PVDReader(FileName=pvdfile)
@@ -75,7 +78,10 @@ if __name__ == "__main__":
     volume_list = []
     for i in range(lower_bound, upper_bound+1):
         # select individual droplet
-        threshold.ThresholdRange = [i, i]
+        threshold.LowerThreshold = i
+        threshold.UpperThreshold = i
+        threshold.ThresholdMethod = 'Between'
+        # threshold.ThresholdRange = [i, i]
 
         # collect data
         data_object = paraview.servermanager.Fetch(integral)

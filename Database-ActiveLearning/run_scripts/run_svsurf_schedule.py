@@ -33,8 +33,8 @@ if __name__ == '__main__':
     log.info('-' * 100)
 
     case = "svsurf"
-    nruns = 8
-    nruns_list = [str(i+10) for i in range(1, nruns + 1)]
+    nruns = 10
+    nruns_list = [str(i) for i in range(1, nruns + 1)]
     runname_list = ['run_svsurf_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
     re_run = False
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     run_path = ps.plist("run_path",["/rds/general/user/fl18/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
     base_path = ps.plist("base_path",["/rds/general/user/fl18/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
-    convert_path = ps.plist("convert_path",["/rds/general/user/fl18/home/F_CONVERT"])
+    convert_path = ps.plist("convert_path",["/rds/general/user/fl18/home/F_ALLCONVERT"])
 
     case_type = ps.plist("case",[case])
     user_ps = ps.plist("user",[user])
@@ -151,4 +151,4 @@ if __name__ == '__main__':
 
     simulator = SVSimScheduling()
 
-    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)    
+    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)    
