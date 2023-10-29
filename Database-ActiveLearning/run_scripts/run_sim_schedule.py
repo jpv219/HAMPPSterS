@@ -30,8 +30,8 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "geom"
-nruns = 32
-nruns_list = [str(i) for i in range(1, nruns + 1)]
+nruns = 38
+nruns_list = [str(i+11) for i in range(1, nruns + 1)]
 runname_list = ['run_geom_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -67,7 +67,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_geom.pkl', 'wb') as file:
+with open('../DOE/LHS_geom_2.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 
@@ -101,7 +101,7 @@ if not re_run:
                     cond_csv_limit_list))
 
     # Save the combined data into a CSV file
-    with open('../params/parameters_geom.csv', 'w', newline='') as csvfile:
+    with open('../params/parameters_geom_2.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','cond_csv_limit'])
         writer.writerows(data)
@@ -118,7 +118,7 @@ else:
     cond_csv_limit_list = []
 
     # Load data from CSV file
-    with open('../params/parameters_geom.csv', 'r') as csvfile:
+    with open('../params/parameters_geom_2.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             bar_width_list.append(row['bar_width'])
@@ -158,6 +158,6 @@ log.info('' * 100)
 simulator = SimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=4,save=True,tmpsave=True,skip_dups=True)   
+    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
 
 
