@@ -162,7 +162,7 @@ def post_process_all(run_name):
     return df_join
 
 def main():
-    for i in [16,17]:
+    for i in [3,5,6,9]:
         run_name = f'run_svsurf_{i}'         
     # ### pvpython execution
     #########################

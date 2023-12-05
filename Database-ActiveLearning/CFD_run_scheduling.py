@@ -295,7 +295,7 @@ class SimScheduling:
                 # Check if the CSV file already exists
                 if not os.path.exists(csvbkp_file_path):
                     # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run_ID': [], 'Length': [], 'E_max': [], 
+                    df = pd.DataFrame({'Run': [], 'Length': [], 'E_max': [], 
                                        'Q': [], 'E_diss': [], 'Gamma': [], 'Pressure': [], 'Velocity':[]})
                     df.to_csv(csvbkp_file_path, index=False)
                 
@@ -338,7 +338,7 @@ class SimScheduling:
                 # Check if the CSV file already exists
                 if not os.path.exists(csvbkp_file_path):
                     # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
+                    df = pd.DataFrame({'Run': [], 'Interfacial Area': [], 'Number of Drops': [], 
                                         'DSD': []})
                     df.to_csv(csvbkp_file_path, index=False)
                 
@@ -1219,7 +1219,7 @@ class SVSimScheduling(SimScheduling):
                     # Check if the CSV file already exists
                     if not os.path.exists(csvbkp_file_path):
                         # If it doesn't exist, create a new CSV file with a header
-                        df = pd.DataFrame({'Run_ID': [], 
+                        df = pd.DataFrame({'Run': [], 
                                         'Time': [], 'IntA': [], 'Nd': [], 'DSD': []})
                         df.to_csv(csvbkp_file_path, index=False)
                     
