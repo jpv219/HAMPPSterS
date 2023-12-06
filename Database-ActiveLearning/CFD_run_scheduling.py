@@ -295,7 +295,7 @@ class SimScheduling:
                 # Check if the CSV file already exists
                 if not os.path.exists(csvbkp_file_path):
                     # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run': [], 'Length': [], 'E_max': [], 
+                    df = pd.DataFrame({'Run_ID': [], 'Length': [], 'E_max': [], 
                                        'Q': [], 'E_diss': [], 'Gamma': [], 'Pressure': [], 'Velocity':[]})
                     df.to_csv(csvbkp_file_path, index=False)
                 
@@ -338,7 +338,7 @@ class SimScheduling:
                 # Check if the CSV file already exists
                 if not os.path.exists(csvbkp_file_path):
                     # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run': [], 'Interfacial Area': [], 'Number of Drops': [], 
+                    df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
                                         'DSD': []})
                     df.to_csv(csvbkp_file_path, index=False)
                 
@@ -1301,132 +1301,6 @@ class SVSimScheduling(SimScheduling):
             # else:
             #     log.info('Pvpython postprocessing failed, returning empty dictionary')
             #     return {"Time":0, "IntA":0, "Nd":0, "DSD":0}
-
-    def jobmonitor(self, t_wait, status, jobid, run, HPC_script,log):
-
-        running = True
-        chk_counter = 0
-        csv_check = True # Option to deacticate csv checks and only run qstat
-        
-        while running:
-            
-            ### Setting updated dictionary with jobid from submitted job and csv_check logical gate
-            mdict = self.pset_dict
-            mdict['jobID'] = jobid
-            mdict['check'] = csv_check
-            mdict_str = json.dumps(mdict, default=self.convert_to_json, ensure_ascii=False)
-                        
-            ### If t_wait>0, job is either running or queieng
-            if t_wait>0:
-
-            ### Performing monitoring and waiting processes depending on job status and type
-                if (status == 'Q' or status == 'H' or (status == 'R' and 'Convert' in run)):
-                    ### If Q or H, wait and qstat later
-                    log.info('-' * 100)
-                    log.info(f'Job {run} with id: {jobid} has status {status}. Sleeping for:{t_wait/3/60} mins')
-                    log.info('-' * 100)
-                    sleep(t_wait/3)
-                    try:
-                        ### Execute monitor function in HPC to check job status
-                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                        new_jobid, new_t_wait, new_status, _ = self.execute_remote_command(
-                            command=command,search=0,log=log
-                            )
-                        
-                        ### update t_wait and job status accordingly
-                        t_wait = new_t_wait
-                        status = new_status
-                        jobid = new_jobid
-
-                        log.info('-' * 100)
-                        log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
-                    except (JobStatError, ValueError, NameError) as e:  
-                        if isinstance(e, JobStatError):
-
-                            log.info('-' * 100)
-                            log.info(f'Exited with message: {e}')
-                            log.info('-' * 100)
-                            log.info(f'JOB {run} FINISHED')
-                            log.info('-' * 100)
-
-                            ### Update t_wait and job status for finished job condition, exiting the loop
-                            t_wait = 0
-                            status = 'F'
-                            running = False
-
-                        else:
-                            log.info('-' * 100)
-                            log.info(f'Exited with message: {e}')
-                            log.info('-' * 100)
-                            raise e
-
-                    except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                        log.info(f"Authentication failed: {e}")
-                        raise e
-                
-                else:
-                    ### Status here is R and not jobconvert, performing convergence checks in HPC monitor
-                    n_checks = 16 # has to be larger than 0
-                    log.info('-' * 100)
-                    log.info(f'Job {run} with id: {jobid} has status {status}. Currently on check {chk_counter} out of {n_checks} checks during runtime.')
-                    log.info('-' * 100)
-
-                    ### Initializing run_t_wait with initial run time extracted
-                    if chk_counter == 0:
-                        run_t_wait = t_wait
-                        log.info('-' * 100)
-                        log.info('First check to be performed')
-
-                    ### Sleep extra after last check to guarantee job has finished at the end
-                    if run_t_wait > (t_wait)/(n_checks+1):
-                        log.info('-' * 100)
-                        log.info(f'Sleeping for {t_wait/(n_checks+1)/60} mins until next check')
-                        sleep(t_wait/(n_checks+1))
-                    else:
-                        log.info('-' * 100)
-                        log.info(f'Final check done, sleeping for {run_t_wait/60} mins until completion')
-                        sleep((t_wait/(n_checks+1))* 1.05)
-
-                    try:
-                        ### Execute monitor function in HPC to check job status
-                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
-                        _, run_t_wait, run_status, _ = self.execute_remote_command(
-                            command=command,search=0,log=log
-                            )
-                        
-                        status = run_status
-                        chk_counter += 1
-
-                        log.info('-' * 100)
-                        log.info(f'Run time remaining: {run_t_wait/60} mins')
-
-                        log.info('-' * 100)
-                        log.info(f'Job {run} with id {jobid} status is {status}. Continuing checks')
-                    except (JobStatError, ValueError, NameError, ConvergenceError) as e:  
-                        if isinstance(e, JobStatError):
-
-                            log.info('-' * 100)
-                            log.info(f'Exited with message: {e}')
-                            log.info('-' * 100)
-                            log.info(f'JOB {run} FINISHED')
-                            log.info('-' * 100)
-
-                            ### Update t_wait and job status for finished job condition, exiting the loop
-                            t_wait = 0
-                            status = 'F'
-                            running = False
-
-                        else:
-                            log.info('-' * 100)
-                            log.info(f'Exited with message: {e}')
-                            log.info('-' * 100)
-                            raise e
-
-                    except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                        log.info(f"Authentication failed: {e}")
-                        raise e
-            else:
-                running = False
 
     def post_process_lastsp(self,log):
         # get the final time #
