@@ -29,8 +29,8 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "surf"
-nruns = 45
-nruns_list = [str(i+24) for i in range(1, nruns + 1)]
+nruns = 50
+nruns_list = [str(i+70) for i in range(1, nruns + 1)]
 runname_list = ['run_surf_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -74,7 +74,7 @@ log.info('\n'+ dict_print.to_string())
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_surf_2.pkl', 'wb') as file:
+with open('../DOE/LHS_surf_3.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ## Surfactant parameters
@@ -93,7 +93,7 @@ if not re_run:
     data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
 
     # Save the combined data into a CSV file
-    with open('../params/parameters_surf_2.csv', 'w', newline='') as csvfile:
+    with open('../params/parameters_surf_3.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['D_b', 'ka', 'kd', 'ginf', 'gini', 'D_s', 'beta'])
         writer.writerows(data)
@@ -107,7 +107,7 @@ else:
     beta_list = []
 
     # Load data from CSV file
-    with open('../params/parameters_surf_2.csv', 'r') as csvfile:
+    with open('../params/parameters_surf_3.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             diff2_list.append(row['D_b'])

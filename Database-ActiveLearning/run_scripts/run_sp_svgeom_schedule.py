@@ -30,8 +30,8 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "sp_svgeom"
-nruns = 50
-nruns_list = [str(i+24) for i in range(1, nruns + 1)]
+nruns = 32
+nruns_list = [str(i+134) for i in range(1, nruns + 1)]
 runname_list = ['run_spsv_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -59,7 +59,7 @@ vtk_conv_mode = ps.plist("vtk_conv_mode", ["last"])
 ## Parameters to vary in the sample space
 tank_diameter = 0.05 # (m)
 SV_dict = {'Impeller_Diameter (m)': [0.15*tank_diameter,0.85*tank_diameter],
-            'Frequency (1/s)': [5,9],
+            'Frequency (1/s)': [6,8],#[5,9] 
             'Clearance (m)': [0.1*tank_diameter,0.8*tank_diameter],
             'Blade_width (m)':[0.001, 0.036], # [0.1D, 0.9D], D=[0.2T, 0.8T]
             'Blade_thickness (m)': [0.001,0.005],

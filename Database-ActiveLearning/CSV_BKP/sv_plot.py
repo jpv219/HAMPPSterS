@@ -1,5 +1,4 @@
 import pandas as pd
-import glob
 import sys
 import csv
 import os
@@ -9,6 +8,7 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 from matplotlib import rc
+from matplotlib.lines import Line2D
 import seaborn as sns
 
 # For fitting test #
@@ -27,7 +27,7 @@ plt.rcParams.update({
     "font.family": "serif",
     "font.serif": ['Times']})
 
-case = 'sp_svgeom'#sys.srgv[1]
+case = 'svgeom'#'sp_svgeom'#sys.srgv[1]
 csv_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP'
 doe_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/DOE'
 
@@ -60,14 +60,219 @@ df_DOE = pd.concat(df_DOE_list, ignore_index=True)
 run_list = df['Run'].tolist()
 sorted_runs = sorted(run_list, key=lambda x: int(x.split('_')[-1]))
 
-
 print(f'Number of runs completed for case {case}: {len(run_list)}')
 print(sorted_runs)
 
 # Merge input parameters from psweep run with cases successfully finished
 df_DOE_updated = df_DOE[df_DOE.index.isin([int(run.split('_')[-1])-1 for run in sorted_runs])]
+
+#######################################################
+# Plotting Func DSD for Two phase cases
+#######################################################
+def plot_DSD(df, case_list, sorting_key, param_keys, key_map,plot_case):#,x_axis_format):
+    # plotting params:
+    color_map = sns.color_palette("muted", len(case_list))
+    markers = ['o', 's', 'D', '^', 'v', '>', '<', 'p', '*', 'h', '+', 'x']
+
+    fig, axes = plt.subplots(2, 2,figsize=(10, 6), sharex=False)
+    plt.subplots_adjust(wspace=0.4, hspace=0.4)
+    sns.set(style="whitegrid")
+
+    #Legend handling
+    legend_handles = []
+    cases_plotted = []
+    param_plotted = []
+
+    # Number of drops and IA
+    Nd_list = []
+    IA_list = []
+
+    # Looping through the cases to be plotted
+    for jdx, case in enumerate(case_list):
+        
+        # selecting case to plot
+        filtered_df = df[df['Run'] == case].reset_index(drop=True)
+
+        ## Error handling
+        if filtered_df.shape[0] == 0:
+            print(f'Case with ID {case} does not exist, ignoring plot.')
+            continue
+        if case in cases_plotted:
+            print ('case duplicated, ignoring')
+            continue
+
+
+        ## Appending for later legend and label sorting, and Nd/IA vs. surf. plot construction
+        cases_plotted.append(case)
+        Nd_list.append(filtered_df['Nd'].values[0])
+        IA_list.append(filtered_df['IntA'].values[0])
+
+        color = color_map[jdx % len(color_map)]
+        marker = markers[jdx % len(markers)]
+        marker_frequency = 10
+
+        # update DSD to V/VCAP
+        l_cap = (0.035/(9.80665*(998-824)))**0.5
+        v_cap = (4/3) * math.pi * (l_cap/2)**3
+        filtered_df['DSD'] = filtered_df['DSD'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+        DSD_norm = np.log10(np.array(filtered_df['DSD'][0])/v_cap)
+        ## plot the histogram for DSD
+        sns.histplot(DSD_norm, kde=False, ax=axes[0,0],bins=12, color = color,
+                         fill=False)
+        # axes[0,0].xaxis.set_major_formatter(plt.FuncFormatter(x_axis_format))
+        axes[0,0].set_ylabel("$N_{d}$")
+        axes[0,0].set_xlabel("$V/V_{cap}$")
+        axes[0,0].set_title(f"Droplet Size Distribution")
+        legend_handles.append(Line2D([0], [0], color=color,marker=marker, lw=2))
+        ## plot PDF and CDF
+        sns.kdeplot(DSD_norm, ax=axes[0,1],color=color, 
+                        marker= marker, markevery=marker_frequency, markersize = 6, 
+                        markeredgecolor = 'k',ls=('-'),lw=2.0,fill = False, legend=False)
+        # axes[0,1].xaxis.set_major_formatter(plt.FuncFormatter(x_axis_format))
+        axes[0,1].set_xlabel("$V/V_{cap}$")
+        axes[0,1].set_ylabel("$PDF$")
+
+        sns.kdeplot(DSD_norm, cumulative=True, ax=axes[1,0], color=color, 
+                    marker=marker,markevery=marker_frequency, markersize = 6, 
+                    markeredgecolor = 'k',ls=('-.'),lw=2.0, legend=False)
+        # axes[1,0].xaxis.set_major_formatter(plt.FuncFormatter(x_axis_format))
+        axes[1,0].set_xlabel("$V/V_{cap}$")
+        axes[1,0].set_ylabel("$CDF$")
+
+        # initializing property dictionary
+        case_params = {}
+        # Extracting values of interest from DOE dataframe
+        for key in param_keys:
+            case_params[f'{key}'] = df_DOE_updated[df_DOE_updated.index==case][f'{key}'].values[0]
+
+        param = case_params[key_map[sorting_key]]
+        param_plotted.append(param)
     
-### Interactive plotting window ###
+    ## plot ND and IA vs. surfactant features
+    sns.scatterplot(x=param_plotted, y=Nd_list, markers='*',
+                    color='c', s=120,
+                    edgecolor='black', ax=axes[1,1])
+    axes[1,1].set_xlabel(f'{sorting_key}')
+    axes[1,1].set_ylabel('$N_{d}$', color='tab:cyan')
+    axes[1,1].tick_params(axis='y',labelcolor='tab:cyan')
+
+    ### second y_axis
+    ax2 = axes[1,1].twinx()
+    ### Set style for second axis
+    ax2.grid(False)
+    for spine in ax2.spines.values():
+        spine.set_edgecolor('black')
+        spine.set_linewidth(0.2)
+
+    sns.scatterplot(x=param_plotted, y=IA_list, marker='^', 
+                    color='brown', s=120,
+                    edgecolor='black',ax=ax2)
+    ax2.set_ylabel('Interfacial Area', color='tab:brown')
+    ax2.tick_params(axis='y', labelcolor='tab:brown')
+    axes[1,1].set_title(f'Dispersion performance vs {sorting_key}')
+
+    ## Legend handling: Creating unsorted list of labels and indices for the legend (as tuple)
+    legend_list = [(idx, f'{case}: {sorting_key} ' + '= {:.5f}'.format(param)) for idx, (case, param) in enumerate(zip(cases_plotted,param_plotted))]
+    
+    # Sorting legend values by parameter from sorting key
+    sorted_legend = sorted(legend_list, key= lambda x: float(x[1].split('= ')[-1]))
+
+    # Sorting legend_handles object by idx sorted above from parameter chosen. zip(list(zip)) construction used to switch between tuples and lists
+    legend_handles_sorted = sorted(zip(list(zip(*sorted_legend))[0],legend_handles), key = lambda x: x[0])
+
+    fig.legend(handles=list(zip(*legend_handles_sorted))[1], labels=list(zip(*sorted_legend))[1], loc='upper right', bbox_to_anchor=(1.0, 1.0))
+    plt.show()
+
+    if plot_case=='svgeom':
+        # Plot DSD for all the features
+        fig1,axes1 = plt.subplots(2,4,figsize=(20,6))
+
+        for kdx, key in enumerate(param_keys):
+            row = kdx // 4
+            col = kdx % 4
+            ax = axes1[row,col]
+
+            param_cases = []
+            Nd_list =[]
+            IA_list = []
+            for case in case_list:
+                param_case = df_DOE_updated[df_DOE_updated.index==case][f'{key}'].values[0]
+                filtered_df = df[df['Run'] == case].reset_index(drop=True)
+
+                param_cases.append(param_case)
+                Nd_list.append(filtered_df['Nd'].values[0])
+                IA_list.append(filtered_df['IntA'].values[0])
+
+            ## plot ND and IA vs. surfactant features
+            sns.scatterplot(x=param_cases, y=Nd_list, markers='*',
+                            color='c', s=120,
+                            edgecolor='black', ax=ax)
+            ax.set_ylabel('$N_{d}$', color='tab:cyan')
+            ax.tick_params(axis='y',labelcolor='tab:cyan')
+
+            ### second y_axis
+            ax0 = ax.twinx()
+            ### Set style for second axis
+            ax0.grid(False)
+            for spine in ax0.spines.values():
+                spine.set_edgecolor('black')
+                spine.set_linewidth(0.2)
+
+            sns.scatterplot(x=param_cases, y=IA_list, marker='^', 
+                            color='brown', s=120,
+                            edgecolor='black',ax=ax0)
+            ax0.set_ylabel('Interfacial Area', color='tab:brown')
+            ax0.tick_params(axis='y', labelcolor='tab:brown')
+            ax.set_title(f'{key}')
+        fig1.tight_layout()
+        fig1.suptitle('Dispersion performance vs Mixer geometry parameters', fontsize=20)
+        plt.show()
+
+    elif plot_case == 'svsurf':
+        # Plot DSD for all the features
+        fig1,axes1 = plt.subplots(2,2,figsize=(20,6))
+
+        for kdx, key in enumerate(param_keys):
+            row = kdx // 2
+            col = kdx % 2
+            ax = axes1[row,col]
+
+            param_cases = []
+            Nd_list =[]
+            IA_list = []
+            for case in case_list:
+                param_case = df_DOE_updated[df_DOE_updated.index==case][f'{key}'].values[0]
+                filtered_df = df[df['Run'] == case].reset_index(drop=True)
+
+                param_cases.append(param_case)
+                Nd_list.append(filtered_df['Nd'].values[0])
+                IA_list.append(filtered_df['IntA'].values[0])
+
+            ## plot ND and IA vs. surfactant features
+            sns.scatterplot(x=param_cases, y=Nd_list, markers='*',
+                            color='c', s=120,
+                            edgecolor='black', ax=ax)
+            ax.set_ylabel('$N_{d}$', color='tab:cyan')
+            ax.tick_params(axis='y',labelcolor='tab:cyan')
+
+            ### second y_axis
+            ax0 = ax.twinx()
+            ### Set style for second axis
+            ax0.grid(False)
+            for spine in ax0.spines.values():
+                spine.set_edgecolor('black')
+                spine.set_linewidth(0.2)
+
+            sns.scatterplot(x=param_cases, y=IA_list, marker='^', 
+                            color='brown', s=120,
+                            edgecolor='black',ax=ax0)
+            ax0.set_ylabel('Interfacial Area', color='tab:brown')
+            ax0.tick_params(axis='y', labelcolor='tab:brown')
+            ax.set_title(f'{key}')
+        fig1.suptitle('Dispersion performance vs Surfactant properties', fontsize=20)
+        plt.show()
+
+### Single Phase ###
 if case == 'sp_svgeom':
     choice = input("plot hydrodynamics? (y/n): ")
 
@@ -196,14 +401,105 @@ if case == 'sp_svgeom':
         fig2.legend(handles=list(zip(*legend_handles_sorted2))[1], labels=list(zip(*sorted_legend2))[1], loc='upper right', bbox_to_anchor=(1.0, 1.0))
         fig2.suptitle('Hydrodynamic field at plane of the impeller center', fontsize=20)
         plt.show()
-            # # convert data in dataframe into right type
-            # columns = ['Height', 'Q', 'Pres', 'Ur', 'Uth', 'Uz', 
-            #            'arc_length','Q_over_line', 'Ur_over_line', 'Uz_over_line']
-            # Vels = ['Ur', 'Uth', 'Uz', 'Ur_over_line', 'Uz_over_line']
-
 
     elif choice.lower() == 'n':
         pass
 
     else:
         print("Invalide choice. Please enter 'yes' or 'no'.")
+
+##### Surfactant-laden cases #######
+elif case == 'svsurf':
+
+    choice = input("plot dispersion metrices? (y/n): ")
+
+    if choice.lower() == 'y' or choice.lower() == 'yes':
+        # Replacing index in dfDOE with RunID to match later with case results
+        df_DOE_updated.index = [f'run_svsurf_{i+1}' for i in df_DOE_updated.index]
+        numbers = []
+
+        num_cases = input('List all case numbers you want to plot separated by spaces: ')
+
+        if num_cases == 'all':
+            for elem in sorted_runs:
+                num = elem.split('_')[-1]
+                numbers.append(int(num))
+        else:
+            # storing and splitting numbers inputted by the user.
+            numbers = num_cases.split()
+
+        ## Error if non numeric values
+        if num_cases != 'all' and not num_cases.replace(' ','').isdigit():
+            raise ValueError('Non-numeric value entered as input. Re-check input values.')
+
+        case_list = [f'run_svsurf_{n}' for n in numbers]
+
+        ## Surfactant parameter chosen to label and sort plots
+        sorting_key = input('Sort DSD plots by? (choose between h, Bi, PeS, Beta): ')
+
+        param_keys = ['Bi', 'h', 'PeS', 'Elasticity Coeff']
+        key_map = {'h':'h', 'Bi': 'Bi', 'PeS': 'PeS', 'Beta': 'Elasticity Coeff'}
+
+        # x_axis_format = x_axis_formatter
+
+        ## Plotting
+        plot_DSD(df,case_list,sorting_key, param_keys,key_map,plot_case='svsurf')
+        
+
+    elif choice.lower() == 'n':
+        pass
+        
+    else:
+        print("Invalid choice. Please enter 'yes' or 'no'.")
+
+
+### Two-phase Geometry ###
+elif case == 'svgeom':
+    choice = input("plot dispersion metrics? (y/n): ")
+
+    if choice.lower() == 'y' or choice.lower() == 'yes':
+
+        ## Replacing index in dfDOE with RunID to match later with case results
+        df_DOE_updated.index = [f'run_svgeom_{i+1}' for i in df_DOE_updated.index]
+        numbers = []
+
+        num_cases = input('List all case numbers you want to plot separated by spaces: ')
+
+        if num_cases == 'all':
+            for elem in sorted_runs:
+                num = elem.split('_')[-1]
+                numbers.append(int(num))
+        else:
+            ## Storing and splitting numbers inputted by the user.
+            numbers = num_cases.split()
+
+        ## Error if non numeric values
+        if num_cases != 'all' and not num_cases.replace(' ','').isdigit():
+            raise ValueError('Non-numeric value entered as input. Re-check input values.')
+
+        ## cases selected to be plotted
+        case_list = [f'run_svgeom_{n}' for n in numbers]
+
+        ## Geomtry parameter chosen to label and sort plots
+        sorting_key = input('Sort DSD plots by? (choose between Di, f, C, W, Th, Nb, Inc, Re): ')
+
+        param_keys = ['Impeller_Diameter (m)', 'Frequency (1/s)', 'Clearance (m)',
+       'Blade_width (m)', 'Blade_thickness (m)', 'Nblades', 'Inclination',
+       'Re']
+        
+        key_map = {'Di':'Impeller_Diameter (m)', 'f':'Frequency (1/s)', 'C':'Clearance (m)', 
+                   'W':'Blade_width (m)', 'Th':'Blade_thickness (m)', 'Nb':'Nblades', 
+                   'Inc':'Inclination', 'Re':'Re'}
+        
+        ## Plotting
+        plot_DSD(df,case_list,sorting_key, param_keys,key_map,plot_case='svgeom')
+        
+
+    elif choice.lower() == 'n':
+        pass
+        
+    else:
+        print("Invalid choice. Please enter 'yes' or 'no'.")
+
+else:
+    print("Invalid case to plot, select either sp_svgeom, svgeom or svsurf")

@@ -34,8 +34,8 @@ if __name__ == '__main__':
     log.info('-' * 100)
 
     case = "svgeom"
-    nruns = 32
-    nruns_list = [str(i+8) for i in range(1, nruns + 1)]
+    nruns = 40
+    nruns_list = [str(i+72) for i in range(1, nruns + 1)]
     runname_list = ['run_svgeom_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
     re_run = False
@@ -62,8 +62,8 @@ if __name__ == '__main__':
 
     ## Parameters to vary in the sample space
     tank_diameter = 0.05 # (m)
-    SV_dict = {'Impeller_Diameter (m)': [0.15*tank_diameter,0.85*tank_diameter],
-                'Frequency (1/s)': [5,9],
+    SV_dict = {'Impeller_Diameter (m)': [0.3*tank_diameter,0.7*tank_diameter],#[0.15,0.85]
+                'Frequency (1/s)': [7,9],
                 'Clearance (m)': [0.1*tank_diameter,0.8*tank_diameter],
                 'Blade_width (m)':[0.001, 0.036], # [0.1D, 0.9D], D=[0.2T, 0.8T]
                 'Blade_thickness (m)': [0.001,0.005],

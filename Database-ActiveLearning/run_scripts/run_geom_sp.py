@@ -30,8 +30,8 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "sp_geom"
-nruns = 50
-nruns_list = [str(i+150) for i in range(1, nruns + 1)]
+nruns = 41
+nruns_list = [str(i+208) for i in range(1, nruns + 1)]
 runname_list = ['run_sp_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -50,10 +50,10 @@ local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/
 save_path = ps.plist("save_path",["/media/jpv219/ML/SP_Runs"])
 
 ## Parameters to vary in the sample space
-max_diameter = 0.038
-SMX_dict = {'Bar_Width (mm)': [2,22],'Bar_Thickness (mm)': [1,6],
+max_diameter = 0.03
+SMX_dict = {'Bar_Width (mm)': [1,16],'Bar_Thickness (mm)': [2,5],
             'Radius (mm)': [4,max_diameter*1000/2],'Nbars':[3,16],
-            'Flowrate (m3/s)': [1e-7,5e-2],'Angle':[20,85], 'NElements': [2,8]}
+            'Flowrate (m3/s)': [1e-7,1e-2],'Angle':[20,80], 'NElements': [2,8]}
 
 captured_output = io.StringIO()
 
@@ -69,7 +69,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_sp_geom_6.pkl', 'wb') as file:
+with open('../DOE/LHS_sp_geom_8.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 
@@ -111,7 +111,7 @@ if not re_run:
                     cond_csv_limit_list))
 
     # Save the combined data into a CSV file
-    with open('../params/parameters_SP_6.csv', 'w', newline='') as csvfile:
+    with open('../params/parameters_SP_8.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
         writer.writerows(data)
@@ -129,7 +129,7 @@ else:
     cond_csv_limit_list = []
 
     # Load data from CSV file
-    with open('../params/parameters_SP_6.csv', 'r') as csvfile:
+    with open('../params/parameters_SP_8.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             bar_width_list.append(row['bar_width'])
