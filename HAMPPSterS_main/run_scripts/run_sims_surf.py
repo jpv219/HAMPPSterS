@@ -9,7 +9,7 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning')
+sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
@@ -30,7 +30,7 @@ log.info('-' * 100)
 
 case = "surf"
 nruns = 50
-nruns_list = [str(i+70) for i in range(1, nruns + 1)]
+nruns_list = [str(i+119) for i in range(1, nruns + 1)]
 runname_list = ['run_surf_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
@@ -45,7 +45,7 @@ user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
 
-local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning"])
+local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/"])
 save_path = ps.plist("save_path",["/media/jpv219/ML/Surf_Runs"])
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -55,9 +55,9 @@ conditional = ps.plist("conditional",["<"])
 cond_csv_limit = ps.plist("cond_csv_limit",["0.30"])
 
 ## Parameters to vary in the sample space
-Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-5,1e-8],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
-             'Desorption Coeff (1/s)': [1e-3,10],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
-             'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[1e-5,1e-8],'Elasticity Coeff':[0.05,0.95]}
+Surf_dict = {'Bulk Diffusivity (m2/s)': [5e-5,5e-8],'Adsorption Coeff (m3/mol s)': [0.5,1.5e3],
+             'Desorption Coeff (1/s)': [5e-3,5],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
+             'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[5e-5,5e-8],'Elasticity Coeff':[0.1,0.90]}
 
 captured_output = io.StringIO()
 
@@ -74,7 +74,7 @@ log.info('\n'+ dict_print.to_string())
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_surf_3.pkl', 'wb') as file:
+with open('../DOE/LHS_surf_4.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ## Surfactant parameters
@@ -93,7 +93,7 @@ if not re_run:
     data = list(zip(diff2_list, ka_list, kd_list, ginf_list, gini_list, diffs_list, beta_list))
 
     # Save the combined data into a CSV file
-    with open('../params/parameters_surf_3.csv', 'w', newline='') as csvfile:
+    with open('../params/parameters_surf_4.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['D_b', 'ka', 'kd', 'ginf', 'gini', 'D_s', 'beta'])
         writer.writerows(data)
@@ -107,7 +107,7 @@ else:
     beta_list = []
 
     # Load data from CSV file
-    with open('../params/parameters_surf_3.csv', 'r') as csvfile:
+    with open('../params/parameters_surf_4.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             diff2_list.append(row['D_b'])

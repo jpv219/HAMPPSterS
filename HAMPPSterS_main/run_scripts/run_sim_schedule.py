@@ -9,7 +9,7 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning')
+sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
@@ -46,12 +46,12 @@ user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
 
-local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/Database-ActiveLearning"])
+local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/"])
 save_path = ps.plist("save_path",["/media/jpv219/ML/Runs"])
 
 ## Parameters to vary in the sample space
 max_diameter = 0.03
-SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-4],'Angle':[20,80]}
+SMX_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [1,5],'Radius (mm)': [5,max_diameter*1000/2],'Nbars':[3,16],'Flowrate (m3/s)': [1e-6,1e-4],'Angle':[15,85]}
 
 captured_output = io.StringIO()
 
