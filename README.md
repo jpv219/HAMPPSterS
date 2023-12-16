@@ -29,7 +29,6 @@ HAMPPSterS is a Python-based repository designed to facilitate the orchestration
 1. Clone the repository:
    ```bash
    git clone https://github.com/jpv219/HAMPPSterS.git
-   cd HAMPPSterS_main
    
-   ```bash
-   pip install -r requirements.txt
+   conda create --name your_environment_name --file requirements.txt
+
