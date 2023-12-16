@@ -3,7 +3,7 @@
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 4.0
+### Version: 5.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
@@ -1343,6 +1343,52 @@ class SVHPCScheduling(HPCScheduling):
         except ValueError:
             print("====EXCEPTION====")
             print("ValueError")
+
+
+#####################################################################################################################################################################################
+
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Paula Pico #########################################################################
+
+################################################################################# Tailored for Interfacial oscillations study ###############################################################
+
+########################################################################################### CHILD CLASS ############################################################################
+
+class IOHPCScheduling(HPCScheduling):
+
+    ### Init function
+    def __init__(self,pset_dict) -> None:
+                
+        ### Initialising class attributes
+        self.pset_dict = pset_dict
+        self.run_path = pset_dict['run_path']
+        self.convert_path = pset_dict['convert_path']
+        self.case_type = pset_dict['case']
+        self.run_ID = pset_dict['run_ID']
+        self.run_name = pset_dict['run_name']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.convert_path = pset_dict['convert_path']
+
+        self.cond_csv = pset_dict['cond_csv']
+        self.conditional = pset_dict['conditional']
+        self.cond_csv_limit = pset_dict['cond_csv_limit']
+
+        ### Geometry parametric study ###
+        if self.case_type == 'svgeom' or self.case_type == 'sp_svgeom':
+            self.impeller_d = pset_dict['impeller_d']
+            self.frequency = pset_dict['frequency']
+
+
+        ### Surfactant parametric study ###
+        elif self.case_type == 'svsurf':
+            self.diff1 = pset_dict['D_d']
+
+        self.path = os.path.join(self.run_path, self.run_name)
+        self.mainpath = os.path.join(self.run_path,'..')
+        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
+        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
 
 
 def main():

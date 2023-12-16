@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 4.0
+### Version: 5.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
@@ -1446,3 +1446,45 @@ class SVSimScheduling(SimScheduling):
             df_join = None
 
         return df_join
+    
+    
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Paula Pico #########################################################################
+
+################################################################################# Tailored for interfacial oscilations ###############################################################
+
+########################################################################################### CHILD CLASS ############################################################################
+
+class IOSimScheduling(SimScheduling):
+
+    ### Init Function ###
+    def __init__(self) -> None:
+        pass
+
+    ### Constructor function to be initilized through localrun via psweep call ###
+    def __construct__(self, pset_dict):
+        ### Initialising class attributes ###
+        self.pset_dict = pset_dict
+        self.case_type = pset_dict['case']
+        self.run_ID = pset_dict['run_ID']
+        self.local_path = pset_dict['local_path']
+        self.save_path = pset_dict['save_path']
+        self.run_path = pset_dict['run_path']
+        self.run_name = pset_dict['run_name']
+        self.usr = pset_dict['user']
+
+        self.save_path_runID = os.path.join(self.save_path,self.run_name)
+        self.main_path = os.path.join(self.run_path,'..')
+
+    def local_run(self,pset_dict):
+
+        ### constructor ###
+        self.__construct__(pset_dict)
+
+        ### Logger setup ###
+        log_filename = os.path.join(self.local_path,f"output_{self.case_type}/output_{self.run_name}.txt")
+        log = self.set_log(log_filename)
+
+        # convert the dictionary to strings for HPC
+        dict_str = json.dumps(self.pset_dict, default=self.convert_to_json, ensure_ascii=False)
