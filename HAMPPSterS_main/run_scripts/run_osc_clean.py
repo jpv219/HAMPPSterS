@@ -13,7 +13,7 @@ sys.path.append('/home/pdp19/Documents/SMX_DeepLearning/HAMPPSterS_main')
 
 import psweep as ps
 from CFD_run_scheduling import IOSimScheduling
-from LHS_Dataspace import runDOE
+from LHS_Dataspace import runIODOE
 from logger import configure_logger
 import io
 import contextlib
@@ -30,7 +30,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "osc_clean"
-nruns = 3
+nruns = 50
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_osc_clean_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -49,12 +49,13 @@ local_path = ps.plist("local_path",["/home/pdp19/Documents/SMX_DeepLearning/HAMP
 save_path = ps.plist("save_path",["/media/pdp19/PPICO3/ML_PROJECT/int_osc_clean"])
 
 ## Parameters to vary in the sample space
-osc_dict = {'epsilon': [0.1,4],'Density_ratio': [1,5],'Viscosity_ratio': [5,1000/2],'Ga':[3,16],'La': [1e-6,1e-4]}
+osc_dict = {'epsilon': [0.1,3],'Wave_number (1/m)': [1,3],'Surf_tension (N/m)': [0.01,1e6],'Density_l (kg/m3)': [1,1],
+            'Density_g (kg/m3)': [1e-2,1e-2],'Viscosity_l (Pa*s)':[1e-2,1e-2], 'Viscosity_g (Pa*s)':[1e-6,1e-2],'Gravity (m/s2)': [0,1e7]}
 
 captured_output = io.StringIO()
 
 with contextlib.redirect_stdout(captured_output):
-    psdict = runDOE(osc_dict,nruns)
+    psdict = runIODOE(osc_dict,nruns)
     log.info('-' * 100)
     log.info('Modifications to the DOE')
     log.info(captured_output.getvalue())
@@ -71,43 +72,56 @@ with open('../DOE/LHS_osc_clean_1.pkl', 'wb') as file:
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
 
-psdict['cond_csv_limit'] = psdict['w'].apply(lambda w: w*10)
+psdict['cond_csv_limit'] = psdict['Surf_tension (N/m)'].apply(lambda w: w*10)
 
 cond_csv = ps.plist("cond_csv",["Time"])
 conditional = ps.plist("conditional",["<"])
 
-
 epsilon_list = list(map(str,psdict['epsilon']))
-rho_l_list = list(map(str,psdict['rho_l']))
-mu_l_list = list(map(str,psdict['mu_l']))
+k_list = list(map(str,psdict['Wave_number (1/m)']))
+sigma_s_list = list(map(str,psdict['Surf_tension (N/m)']))
+rho_l_list = list(map(str,psdict['Density_l (kg/m3)']))
+rho_g_list = list(map(str,psdict['Density_g (kg/m3)']))
+mu_l_list = list(map(str,psdict['Viscosity_l (Pa*s)']))
+mu_g_list = list(map(str,psdict['Viscosity_g (Pa*s)']))
+gravity_list = list(map(str,psdict['Gravity (m/s2)']))
+
 
 # Dynamically changing termination condition
 cond_csv_limit_list = list(map(str,psdict['cond_csv_limit']))
 
 # Combine the lists
-data = list(zip(epsilon_list,rho_l_list,mu_l_list,cond_csv_limit_list))
+data = list(zip(epsilon_list,k_list,sigma_s_list,rho_l_list,rho_g_list,mu_l_list,mu_g_list,gravity_list,cond_csv_limit_list))
 
 # Save the combined data into a CSV file
 with open('../params/parameters_osc_clean_1.csv', 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerow(['epsilon','rho_l','mu_l'])
+    writer.writerow(['epsilon','k','sigma_s','rho_l','rho_g','mu_l','mu_g','gravity','cond_csv_limit'])
     writer.writerows(data)
 
 
 epsilon = ps.plist("epsilon",epsilon_list)
+k = ps.plist("k",k_list)
+sigma_s = ps.plist("sigma_s",sigma_s_list)
+rho_l = ps.plist("rho_l",rho_l_list)
+rho_g = ps.plist("rho_g",rho_g_list)
 mu_l = ps.plist("mu_l",mu_l_list)
+mu_g = ps.plist("mu_g",mu_g_list)
+gravity = ps.plist("gravity",gravity_list)
 cond_csv_limit = ps.plist("cond_csv_limit",cond_csv_limit_list)
 
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
-                  cond_csv,conditional,user_ps,zip(run_ID, run_name, epsilon, mu_l,cond_csv_limit))
+                  cond_csv,conditional,user_ps,zip(run_ID, run_name, epsilon, k, sigma_s,
+                                                    rho_l, rho_g, mu_l, mu_g, gravity, cond_csv_limit))
 
 ######################################################################################################################################################################################
 ######################################################################################################################################################################################
 log.info('-' * 100)
 log.info('' * 100)
+print(params)
 
 
-simulator = IOSimScheduling()
+# simulator = IOSimScheduling()
 
-if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)
+# if __name__ == '__main__':
+#     df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)

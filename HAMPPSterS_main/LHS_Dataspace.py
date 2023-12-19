@@ -327,3 +327,10 @@ def runSVSurfDOE(Surf_dict,numsamples):
 ####################################################################################
 # # INTERFACIAL OSCILLATION CLEAN FEATURES - LHS #
 # ##################################################################################
+
+def runIODOE(IO_dict,numsamples):
+
+    ## Initial LHS with no restrictions
+    LHS_DOE = build.space_filling_lhs(IO_dict,num_samples = numsamples) 
+    
+    return LHS_DOE
