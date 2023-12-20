@@ -1477,7 +1477,7 @@ class IOSimScheduling(SimScheduling):
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
         self.main_path = os.path.join(self.run_path,'..')
 
-    def local_run(self,pset_dict):
+    def localrun(self,pset_dict):
 
         ### constructor ###
         self.__construct__(pset_dict)
@@ -1488,3 +1488,112 @@ class IOSimScheduling(SimScheduling):
 
         # convert the dictionary to strings for HPC
         dict_str = json.dumps(self.pset_dict, default=self.convert_to_json, ensure_ascii=False)
+
+        ### First job creation and submission ###
+
+        HPC_script = 'HPC_run_scheduling.py'
+
+        log.info('-' * 100)
+        log.info('-' * 100)
+        log.info('NEW RUN')
+        log.info('-' * 100)
+        log.info('-' * 100)
+
+        ### wait time to connect at first, avoiding multiple simultaneuous connection ###
+        #init_wait_time = np.random.RandomState().randint(0,180)
+        #sleep(init_wait_time)
+
+        try:
+            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\'"
+            jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
+        except (paramiko.AuthenticationException,paramiko.SSHException) as e:
+            log.info(f'SSH EEROR: Authentication failed: {e}')
+            return {}
+        except (ValueError, JobStatError, NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        
+        ### Job monitor and restart nested loop ###
+        ### Checks job status and restarts if needed ###
+
+        restart = True
+        while restart:
+            ### job monitoring loop ###
+            log.info('-' * 100)
+            log.info('JOB MONITORING')
+            log.info('-' * 100) 
+
+            try:
+                self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
+            except (ValueError, NameError, ConvergenceError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"SSH ERROR: Authentication failed: {e}")
+                return {}
+
+            ### Job restart execution ###
+            log.info('-' * 100)
+            log.info('JOB RESTARTING')
+            log.info('-' * 100)
+
+            try:
+                log.info('-' * 100)
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
+                    command=command, search=2, log=log
+                    )
+
+                log.info('-' * 100)
+
+                ### updating
+                jobid = new_jobID
+                t_wait = new_t_wait
+                status = new_status
+                restart = eval(ret_bool)
+
+            except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError,TypeError,KeyError) as e:
+                log.info(f'Exited with message: {e}')
+                return {}
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                log.info(f"SSH ERROR: Authentication failed: {e}")
+                return {}
+        
+        ### vtk convert job creation and submission
+        log.info('-' * 100)
+        log.info('VTK CONVERTING')
+        log.info('-' * 100)
+
+        try:
+            log.info('-' * 100)
+            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
+            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
+                command=command,search=0,log=log
+                )
+            log.info('-' * 100)
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"SSH ERROR: Authentication failed: {e}")
+            return {}
+        except (FileNotFoundError, JobStatError, ValueError, NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        
+        conv_name = 'Convert' + str(self.run_ID)
+
+        ### job convert monitoring loop ###
+
+        log.info('-' * 100)
+        log.info('JOB MONITORING')
+        log.info('-' * 100)
+
+        try:
+            self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
+        except (ValueError, NameError) as e:
+            log.info(f'Exited with message: {e}')
+            return {}
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"SSH ERROR: Authentication failed: {e}")
+            return {}
+
+        return {}
+    
