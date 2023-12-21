@@ -1443,10 +1443,8 @@ class IOHPCScheduling(HPCScheduling):
             print('-' * 100)
             print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
     
-    ### Convert last vtk to vtr ###
+    ### Convert all vtks at the end of simulation ###
     def vtk_convert(self):
-        ### vtk convert mode: last or all ###
-        #vtk_conv_mode = self.vtk_conv_mode
 
         ### Move to ephemeral and create RESULTS saing folder ###
         ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
@@ -1459,45 +1457,16 @@ class IOHPCScheduling(HPCScheduling):
         except FileExistsError:
             pass
         
-        ### Listing VAR vtks and pvds ###
-        VAR_file_list = glob.glob('VAR_*_*.vtk')
-        PVD_file_list = glob.glob('VAR_*_time=*.pvd')
-        ISO_file_list = glob.glob('ISO_*.vtk')
-        sorted_PVDs = sorted(PVD_file_list, key = lambda filename: 
-                    float(filename.split('=')[-1].split('.pvd')[0]))
-        last_vtk = max(int(file.split("_")[-1].split(".")[0]) for file in VAR_file_list)
-
-        ### First and last pvd file for pvpython processing ###
-        pvd_0file = glob.glob(f'VAR_{self.run_name}_time=0.00000E+00.pvd')[0]
-        pvd_ffile = sorted_PVDs[-1]
-
-        # if vtk_conv_mode == 'last':
-        #     ### Files to be converted, last time step in VAR
-        #     VAR_toconvert_list = glob.glob(f'VAR_*_{last_vtk}.vtk')
-        #     file_count = len(VAR_toconvert_list)
-        
-        # else:
-        file_count = len(glob.glob(f'VAR_*_{last_vtk}.vtk'))
-        ### Files to be converted, all time step in VAR: from 320-720 (10-22.5 Rev.)
-        # for filename in VAR_file_list:
-        #     try:
-        #         timestep = int(filename.split('_')[-1].split('.vtk')[0])
-        #     except (ValueError, IndexError):
-        #         # skip files that don't follow the expected naming convention
-        #         continue
-
-        #     if timestep < 320 or timestep > 720:
-        #         file_path = os.path.join(ephemeral_path, filename)
-        #         os.remove(file_path)
+        # List of *vtk files to convert
         VAR_toconvert_list = glob.glob('VAR_*_*.vtk')
         ISO_toconvert_list = glob.glob('ISO_*_*.vtk')
-        FILES_toconvert_list = VAR_toconvert_list + ISO_toconvert_list
-        file_count = len(FILES_toconvert_list)
+        files_toconvert_list = VAR_toconvert_list + ISO_toconvert_list
+        file_count = len(files_toconvert_list)
 
         ### Check if the files to be converted exist ###
-        if FILES_toconvert_list:
+        if files_toconvert_list:
             ### Moving files to RESULTS ###
-            for file in FILES_toconvert_list:
+            for file in files_toconvert_list:
                 try:
                     shutil.move(file, 'RESULTS')
                 except (FileNotFoundError, shutil.Error) as e:
@@ -1509,37 +1478,26 @@ class IOHPCScheduling(HPCScheduling):
                     print('-' * 100)
                     return
             print('-' * 100)
-            print('Convert files (320-720) copied to RESULTS')
         ### If files don't exit, exit function and terminate pipeline ###
         else:
             print('-' * 100)
             print("====EXCEPTION====")
             print("FileNotFoundError")
             print('-' * 100)
-            print("VAR files don't exist.")
+            print("Either ISO or VAR files don't exist.")
             print('-' * 100)
             return
+        
+        print('-' * 100)
+        print('Convert files moved to RESULTS')
 
         ### Moving individual files of interest: pvd, csv
         try:
-            shutil.move(f'VAR_{self.run_name}.pvd','RESULTS')
-            shutil.move(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv','RESULTS')
-            
-            if pvd_0file == pvd_ffile:
-                shutil.move(f'{pvd_0file}', 'RESULTS')
-                print('Warning: No vtk timesteps were generated, adjust vtk timestep save. Pvpython calculatons will be performed from the initial state')
-            
-            # elif file_count == len(FILES_toconvert_list): # last time step
-            #     shutil.move(f'{pvd_0file}', 'RESULTS')
-            #     shutil.move(f'{pvd_ffile}', 'RESULTS')
-            #     print("First and last pvd copied to RESULTS")
-            
-            else:
-                [shutil.move(file, 'RESULTS') for file in PVD_file_list]
-                print("pvd for ALL time steps copied to RESULTS")
-
+            PVD_file_list = glob.glob('VAR_*.pvd') + glob.glob('ISO_*.pvd')
+            [shutil.move(file, 'RESULTS') for file in PVD_file_list]
+            shutil.copy2(f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv','RESULTS')
+            print("pvd for ALL time steps moved to RESULTS. csv file copied to RESULTS")
             print('-' * 100)
-            print('VAR and csv files moved to RESULTS')
         except (FileNotFoundError, shutil.Error) as e:
             print('-' * 100)
             print("====EXCEPTION====")
@@ -1548,9 +1506,6 @@ class IOHPCScheduling(HPCScheduling):
             print(f"Exited with message :{e}, File or directory not found.")
             print('-' * 100)
             return
-        
-        ### Cleaning previous restart and vtk from ephemeral
-        os.system('rm *rst')
 
         os.chdir('RESULTS')
 
@@ -1589,10 +1544,10 @@ class IOHPCScheduling(HPCScheduling):
             print(status)
             if status == 'Q' or status == 'H':
                 print("====WAIT_TIME====")
-                print(t_jobwait-1800)
+                print(t_jobwait-3400)
             elif status == 'R':
                 print("====WAIT_TIME====")
-                print(t_jobwait)
+                print(t_jobwait - 6900)
 
         except JobStatError:
             print(f'Convert job {self.run_ID} failed on initial submission')

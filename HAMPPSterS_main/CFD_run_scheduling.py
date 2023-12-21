@@ -1594,6 +1594,19 @@ class IOSimScheduling(SimScheduling):
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
+        
+        ### Downloading files and local Post-processing
+
+        log.info('-' * 100)
+        log.info('DOWNLOADING FILES FROM EPHEMERAL')
+        log.info('-' * 100)
+
+        try:
+            self.scp_download(log)
+            # log.info('Skipping downloading')
+        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+            log.info(f"SSH ERROR: Authentication failed: {e}")
+            return {}
 
         return {}
     

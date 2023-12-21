@@ -46,7 +46,7 @@ run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
 
 local_path = ps.plist("local_path",["/home/pdp19/Documents/SMX_DeepLearning/HAMPPSterS_main/"])
-save_path = ps.plist("save_path",["/media/pdp19/PPICO3/ML_PROJECT/int_osc_clean"])
+save_path = ps.plist("save_path",["/media/pdp19/PPICO3/ML_PROJECT/int_osc_clean/RUNS/"])
 
 ## Parameters to vary in the sample space
 osc_dict = {'epsilon': [1,1.01],'Wave_number (1/m)': [1,1.01],'Surf_tension (N/m)': [1,1.01],'Density_l (kg/m3)': [1,1.01],
