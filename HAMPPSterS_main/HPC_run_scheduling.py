@@ -1544,7 +1544,7 @@ class IOHPCScheduling(HPCScheduling):
             print(status)
             if status == 'Q' or status == 'H':
                 print("====WAIT_TIME====")
-                print(t_jobwait-3400)
+                print(t_jobwait - 3400)
             elif status == 'R':
                 print("====WAIT_TIME====")
                 print(t_jobwait - 6900)

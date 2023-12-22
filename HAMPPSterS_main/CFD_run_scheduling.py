@@ -1475,7 +1475,78 @@ class IOSimScheduling(SimScheduling):
         self.usr = pset_dict['user']
 
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
+        self.save_path_runID_post = os.path.join(self.save_path_runID,'postProcessing')
         self.main_path = os.path.join(self.run_path,'..')
+
+    def scp_download(self,log):
+
+        ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
+
+        try:
+            os.mkdir(self.save_path_runID)
+            os.mkdir(self.save_path_runID_post)
+            log.info(f'Saving folder created at {self.save_path}')
+
+        except:
+            pass
+
+        ### Config file with keys to login to the HPC
+        config = configparser.ConfigParser()
+        configfile = os.path.join(self.local_path, f'config_{self.usr}.ini')
+        config.read(configfile)
+        user = config.get('SSH', 'username')
+        key = config.get('SSH', 'password')
+        try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
+
+        for login in try_logins:
+            
+            ### Establish an SSH connection using a context manager
+            ssh = paramiko.SSHClient()
+            ssh.load_system_host_keys()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            warnings.filterwarnings("ignore", category=ResourceWarning)
+
+            try:
+                ssh.connect(login, username=user, password=key)
+                stdin, _, _ = ssh.exec_command("echo 'SSH connection test'")
+                transport = ssh.get_transport()
+                sftp = paramiko.SFTPClient.from_transport(transport)
+
+                remote_path = os.path.join(ephemeral_path,self.run_name,'RESULTS')
+                remote_files = sftp.listdir_attr(remote_path)
+
+                for file_attr in remote_files:
+                    remote_file_path = os.path.join(remote_path, file_attr.filename)
+                    local_file_path = os.path.join(self.save_path_runID_post, file_attr.filename)
+
+                    # Check if it's a regular file before copying
+                    if file_attr.st_mode & 0o100000:
+                        sftp.get(remote_file_path, local_file_path)
+
+                log.info('-' * 100)
+                log.info(f'Files successfully copied at {self.save_path}')
+
+                if stdin is not None:
+                    break
+                
+            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
+                if login == try_logins[-1]:
+                    raise e
+                else:
+                    log.info(f'SSH connection failed with login {login}, trying again ...')
+                    continue
+
+            ### closing HPC session
+            finally:
+                if 'sftp' in locals():
+                    sftp.close()
+                if 'stdin' in locals():
+                    stdin.close()
+                if 'ssh' in locals():
+                    ssh.close()
+                    
+            log.info('-' * 100)
+            log.info('-' * 100)
 
     def localrun(self,pset_dict):
 
