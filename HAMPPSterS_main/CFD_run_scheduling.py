@@ -1478,6 +1478,8 @@ class IOSimScheduling(SimScheduling):
         self.save_path_runID_post = os.path.join(self.save_path_runID,'postProcessing')
         self.main_path = os.path.join(self.run_path,'..')
 
+    ### Download final converted data to local processing machine. Creates an internal directory, 'postProcessing', where data files are stored locally
+        
     def scp_download(self,log):
 
         ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
@@ -1678,6 +1680,17 @@ class IOSimScheduling(SimScheduling):
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
+    
+        ### csv backup saving file for post-processed variables ###
+        csvbkp_file_path = os.path.join(self.local_path,'CSV_BKP',f'{self.case_type}.csv')
+
+        ### checking if a pvpython is operating on another process, if so sleeps ###
+        pvpyactive, pid = self.is_pvpython_running()
+
+        while pvpyactive:
+            log.info(f'pvpython is active in process ID: {pid}')
+            sleep(1800)
+            pvpyactive,pid =self.is_pvpython_running()
 
         return {}
     
