@@ -23,7 +23,7 @@ def pvpy(HDpath,case_name):
     pvdfiles = glob.glob('VAR_*_time=*.pvd')
     #pvdfile = f'VAR_{case_name}.pvd'
     pvdfile = 'VAR_case2_full_z.pvd'
-    times = sorted([float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles])
+    timestep = int(glob.glob('VAR_*_*.vtr')[0].split("_")[-1].split(".")[0])
 
     case_data = PVDReader(FileName=pvdfile)
     case_data.CellArrays = []
@@ -32,37 +32,43 @@ def pvpy(HDpath,case_name):
 
     print('Read data')
 
-    contour1 = Contour(Input=case_data)
-    contour1.ContourBy = ['POINTS', 'Interface']
-    contour1.Isosurfaces = [0.0]
-    contour1.PointMergeMethod = 'Uniform Binning'
+    # contour1 = Contour(Input=case_data)
+    # contour1.ContourBy = ['POINTS', 'Interface']
+    # contour1.Isosurfaces = [0.0]
+    # contour1.PointMergeMethod = 'Uniform Binning'
 
-    print('Made contour')
+    # print('Made contour')
 
-    renderView1 = GetActiveViewOrCreate('RenderView')
-    contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
-    renderView1.Update()
+    # UpdatePipeline(time=timestep, proxy=contour1)
 
-    clip1 = Clip(Input=contour1)
-    clip1.ClipType = 'Cylinder'
-    clip1.HyperTreeGridClipper = 'Cylinder'
-    clip1.Scalars = ['POINTS', 'Interface']
-    clip1.ClipType.Axis = [0.0, 0.0, 1.0]
-    clip1.ClipType.Radius = 6.8
+    # # renderView1 = GetActiveViewOrCreate('RenderView')
+    # # contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
+    # # renderView1.Update()
 
-    print('Made clip')
+    # clip1 = Clip(Input=contour1)
+    # clip1.ClipType = 'Cylinder'
+    # clip1.HyperTreeGridClipper = 'Cylinder'
+    # clip1.Scalars = ['POINTS', 'Interface']
+    # clip1.ClipType.Axis = [0.0, 0.0, 1.0]
+    # clip1.ClipType.Radius = 6.8
 
-    renderView1 = GetActiveViewOrCreate('RenderView')
-    contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
-    renderView1.Update()
+    # print('Made clip')
 
-    cellSize1 = CellSize(Input=clip1)
+    # UpdatePipeline(time=timestep, proxy=clip1)
+    
+    # # renderView1 = GetActiveViewOrCreate('RenderView')
+    # # contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
+    # # renderView1.Update()
 
-    print('Calculated cell sizes')
+    # cellSize1 = CellSize(Input=clip1)
 
-    renderView1 = GetActiveViewOrCreate('RenderView')
-    contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
-    renderView1.Update()
+    # print('Calculated cell sizes')
+
+    # UpdatePipeline(time=timestep, proxy=cellSize1)
+
+    # # renderView1 = GetActiveViewOrCreate('RenderView')
+    # # contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
+    # # renderView1.Update()
 
     t_ini = 0
     t_fin = 1
@@ -73,6 +79,32 @@ def pvpy(HDpath,case_name):
     print('Entering time loop')
 
     for i in range(t_ini,t_fin+1,1):
+
+        contour1 = Contour(Input=case_data)
+        contour1.ContourBy = ['POINTS', 'Interface']
+        contour1.Isosurfaces = [0.0]
+        contour1.PointMergeMethod = 'Uniform Binning'
+
+        print('Made contour')
+
+        UpdatePipeline(time=i, proxy=contour1)
+
+        clip1 = Clip(Input=contour1)
+        clip1.ClipType = 'Cylinder'
+        clip1.HyperTreeGridClipper = 'Cylinder'
+        clip1.Scalars = ['POINTS', 'Interface']
+        clip1.ClipType.Axis = [0.0, 0.0, 1.0]
+        clip1.ClipType.Radius = 6.8
+
+        print('Made clip')
+
+        UpdatePipeline(time=i, proxy=clip1)
+
+        cellSize1 = CellSize(Input=clip1)
+
+        print('Calculated cell sizes')
+
+        UpdatePipeline(time=timestep, proxy=cellSize1)
 
         animationScene1 = GetAnimationScene()
 

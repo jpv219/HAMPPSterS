@@ -23,7 +23,6 @@ def pvpy(HDpath,case_name):
     pvdfiles = glob.glob('VAR_*_time=*.pvd')
     #pvdfile = f'VAR_{case_name}.pvd'
     pvdfile = 'VAR_case2_full_z.pvd'
-    times = sorted([float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles])
 
     case_data = PVDReader(FileName=pvdfile)
     case_data.CellArrays = []
@@ -43,7 +42,7 @@ def pvpy(HDpath,case_name):
     clip1.ClipType = 'Plane'
     clip1.HyperTreeGridClipper = 'Plane'
     clip1.Scalars = ['POINTS', 'Interface']
-    clip1.ClipType.Origin = [7.0155, 7.0155, 7.0155]
+    clip1.ClipType.Origin = [12.27713, 7.0155, 7.0155]
     clip1.HyperTreeGridClipper.Origin = [7.0155, 7.0155, 7.0155]
     clip1.Invert = 0
 
@@ -95,17 +94,17 @@ def pvpy(HDpath,case_name):
         list = paraview.servermanager.Fetch(mergeBlocks)
         points = np.array(list.GetPoints().GetData())
 
-        selected_rows = points[points[:, 0] == 7.0155]
+        selected_rows = points[points[:, 0] == 12.27713]
         selected_y_values = selected_rows[:, 1]
         selected_z_values = selected_rows[:, 2]    
         max_z_value = np.max(selected_z_values)
         z_list.append(max_z_value)
         time_list.append(i)
-        print('Calculated ak at time = '+str(i))
+        print('Calculated ak3 at time = '+str(i))
 
     z_floats = [float(x) for x in z_list]
     time_floats = [float(x) for x in time_list]
-    value_to_add = [{'Time':time_floats, 'ak':z_floats}]
+    value_to_add = [{'Time':time_floats, 'ak3':z_floats}]
     value_json = json.dumps(value_to_add)
         
     return value_json
