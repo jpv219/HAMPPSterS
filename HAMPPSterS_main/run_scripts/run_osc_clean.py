@@ -12,7 +12,7 @@ import sys
 sys.path.append('/home/pdp19/Documents/SMX_DeepLearning/HAMPPSterS_main')
 
 import psweep as ps
-from CFD_run_scheduling import IOSimScheduling
+from IO_run_scheduling import IOSimScheduling
 from LHS_Dataspace import runIODOE
 from logger import configure_logger
 import io
