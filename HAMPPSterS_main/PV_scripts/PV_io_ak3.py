@@ -1,4 +1,4 @@
-### Stirred_Vessel_Automation_simulation_run, tailored for Paraview 5.8.1
+### Interfacial_Oscillations_Automation_simulation_run, tailored for Paraview 5.8.1
 ### Tracking of wave oscillations: ALL time steps
 ### to be run locally
 ### Author: Paula Pico,
@@ -19,10 +19,8 @@ def pvpy(HDpath,case_name):
     path = os.path.join(HDpath,case_name,'postProcessing')
     os.chdir(path)
 
-    ### find the final time steps ###
     pvdfiles = glob.glob('VAR_*_time=*.pvd')
-    #pvdfile = f'VAR_{case_name}.pvd'
-    pvdfile = 'VAR_case2_full_z.pvd'
+    pvdfile = f'VAR_{case_name}.pvd'
 
     case_data = PVDReader(FileName=pvdfile)
     case_data.CellArrays = []
@@ -67,7 +65,7 @@ def pvpy(HDpath,case_name):
     print('Merged blocks')
 
     t_ini = 0
-    t_fin = 1
+    t_fin = 2
 
     z_list = []
     time_list = []

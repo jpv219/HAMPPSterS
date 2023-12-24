@@ -1547,7 +1547,7 @@ class IOHPCScheduling(HPCScheduling):
                 print(t_jobwait - 3400)
             elif status == 'R':
                 print("====WAIT_TIME====")
-                print(t_jobwait - 6900)
+                print(t_jobwait - 1200)
 
         except JobStatError:
             print(f'Convert job {self.run_ID} failed on initial submission')

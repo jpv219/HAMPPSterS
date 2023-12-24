@@ -1,4 +1,4 @@
-### Stirred_Vessel_Automation_simulation_run, tailored for Paraview 5.8.1
+### Interfacial_Oscillations_Automation_simulation_run, tailored for Paraview 5.8.1
 ### Tracking of kinetic energy: ALL time steps
 ### to be run locally
 ### Author: Paula Pico,
@@ -19,10 +19,9 @@ def pvpy(HDpath,case_name,rho_l,rho_g):
     path = os.path.join(HDpath,case_name,'postProcessing')
     os.chdir(path)
 
-    ### find the final time steps ###
     pvdfiles = glob.glob('VAR_*_time=*.pvd')
-    #pvdfile = f'VAR_{case_name}.pvd'
-    pvdfile = 'VAR_case2_full_z.pvd'
+    pvdfile = f'VAR_{case_name}.pvd'
+    
     timestep = int(glob.glob('VAR_*_*.vtr')[0].split("_")[-1].split(".")[0])
 
     case_data = PVDReader(FileName=pvdfile)
@@ -35,7 +34,7 @@ def pvpy(HDpath,case_name,rho_l,rho_g):
     rho_g = float(rho_g)
     rho_l = float(rho_l)
     t_ini = 0
-    t_fin = 1
+    t_fin = 2
 
     Ek_list = []
     time_list = []

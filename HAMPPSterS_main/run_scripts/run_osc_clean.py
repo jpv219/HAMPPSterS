@@ -73,7 +73,7 @@ with open('../DOE/LHS_osc_clean_1.pkl', 'wb') as file:
 ### cond_csv determines which condition to use as stopping criteria from the csv
 
 # psdict['cond_csv_limit'] = psdict['t_final (s)'].apply(lambda w: w)
-psdict['cond_csv_limit'] = 0.05
+psdict['cond_csv_limit'] = 0.45
 
 cond_csv = ps.plist("cond_csv",["Time"])
 conditional = ps.plist("conditional",["<"])
