@@ -34,7 +34,7 @@ def pvpy(HDpath,case_name,rho_l,rho_g):
     rho_g = float(rho_g)
     rho_l = float(rho_l)
     t_ini = 0
-    t_fin = 2
+    t_fin = 100
 
     Ek_list = []
     time_list = []

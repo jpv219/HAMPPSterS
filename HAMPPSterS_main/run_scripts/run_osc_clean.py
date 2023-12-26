@@ -30,7 +30,7 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "osc_clean"
-nruns = 2
+nruns = 50
 nruns_list = [str(i) for i in range(1, nruns + 1)]
 runname_list = ['run_osc_clean_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
@@ -49,8 +49,8 @@ local_path = ps.plist("local_path",["/home/pdp19/Documents/SMX_DeepLearning/HAMP
 save_path = ps.plist("save_path",["/media/pdp19/PPICO3/ML_PROJECT/int_osc_clean/RUNS/"])
 
 ## Parameters to vary in the sample space
-osc_dict = {'epsilon': [1,1.01],'Wave_number (1/m)': [1,1.01],'Surf_tension (N/m)': [1,1.01],'Density_l (kg/m3)': [1,1.01],
-            'Density_g (kg/m3)': [1e-2,1.01e-2],'Viscosity_l (Pa*s)':[1e-2,1.01e-2], 'Viscosity_g (Pa*s)':[1e-4,1.1e-4],'Gravity (m/s2)': [10,10.01]}
+osc_dict = {'epsilon': [0.1,2],'Wave_number (1/m)': [1,1],'Surf_tension (N/m)': [1,1],'Density_l (kg/m3)': [1,1],
+            'Density_g (kg/m3)': [1e-3,1],'Viscosity_l (Pa*s)':[1e-2,1e-2], 'Viscosity_g (Pa*s)':[6.7e-6,1e-2],'Gravity (m/s2)': [0,100]}
 
 captured_output = io.StringIO()
 
@@ -72,8 +72,7 @@ with open('../DOE/LHS_osc_clean_1.pkl', 'wb') as file:
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
 
-# psdict['cond_csv_limit'] = psdict['t_final (s)'].apply(lambda w: w)
-psdict['cond_csv_limit'] = 0.45
+psdict['cond_csv_limit'] = psdict['t_final (s)'].apply(lambda w: w)
 
 cond_csv = ps.plist("cond_csv",["Time"])
 conditional = ps.plist("conditional",["<"])
@@ -98,7 +97,6 @@ omega_list = list(map(str,psdict['omega']))
 T_list = list(map(str,psdict['T (s)']))
 t_final_list = list(map(str,psdict['t_final (s)']))
 delta_t_sn_list = list(map(str,psdict['delta_t_sn (s)']))
-
 
 # Dynamically changing termination condition
 cond_csv_limit_list = list(map(str,psdict['cond_csv_limit']))
@@ -140,4 +138,4 @@ log.info('' * 100)
 simulator = IOSimScheduling()
 
 if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=2,save=True,tmpsave=True,skip_dups=True)
+    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)

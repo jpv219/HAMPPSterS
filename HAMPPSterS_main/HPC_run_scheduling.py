@@ -1431,7 +1431,6 @@ class IOHPCScheduling(HPCScheduling):
         
         ### replace placeholders for surfactant parametric study with fixed geometry ###
         if self.case_type == 'osc_clean':
-            os.system(f'sed -i \"s/\'t_final_val\'/{self.t_final}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'sigma_s_val\'/{self.sigma_s}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'rho_g_val\'/{self.rho_g}/\" {self.path}/job_{self.run_name}.sh')
             os.system(f'sed -i \"s/\'rho_l_val\'/{self.rho_l}/\" {self.path}/job_{self.run_name}.sh')
@@ -1544,10 +1543,10 @@ class IOHPCScheduling(HPCScheduling):
             print(status)
             if status == 'Q' or status == 'H':
                 print("====WAIT_TIME====")
-                print(t_jobwait - 3400)
+                print(t_jobwait - 1800)
             elif status == 'R':
                 print("====WAIT_TIME====")
-                print(t_jobwait - 1200)
+                print(t_jobwait)
 
         except JobStatError:
             print(f'Convert job {self.run_ID} failed on initial submission')

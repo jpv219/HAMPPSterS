@@ -164,9 +164,9 @@ class IOSimScheduling(SimScheduling):
         log.info('-' * 100)
         log.info('-' * 100)
 
-        ### wait time to connect at first, avoiding multiple simultaneuous connection ###
-        #init_wait_time = np.random.RandomState().randint(0,180)
-        #sleep(init_wait_time)
+        ## wait time to connect at first, avoiding multiple simultaneuous connection ###
+        init_wait_time = np.random.RandomState().randint(0,180)
+        sleep(init_wait_time)
 
         try:
             command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\'"

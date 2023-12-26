@@ -32,7 +32,7 @@ def pvpy(HDpath,case_name):
     print('Read data')
 
     t_ini = 0
-    t_fin = 2
+    t_fin = 100
 
     area_list = []
     time_list = []

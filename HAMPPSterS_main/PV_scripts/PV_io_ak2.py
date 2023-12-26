@@ -65,7 +65,7 @@ def pvpy(HDpath,case_name):
     print('Merged blocks')
 
     t_ini = 0
-    t_fin = 2
+    t_fin = 100
 
     z_list = []
     time_list = []
