@@ -400,9 +400,9 @@ def IOomega(row):
 def IOT(row):
     return (2*math.pi)/(IOomega(row))
 
-# Final time is 5T plus 1%
+# Final time is 5T plus 0.5%
 def IOt_final(row):
-    return 5*IOT(row) + 0.1*5*IOT(row)
+    return 5*IOT(row) + 0.005*5*IOT(row)
 
 def IOdelta_t_sn(row):
     return IOT(row)/20

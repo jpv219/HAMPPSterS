@@ -1,8 +1,8 @@
-### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
+### SMX_Automation_simulation_run, tailored for BLUE 14.0.1
 ### Main parametric running script
 ### to be run locally
 ### Author: Paula Pico,
-### First commit: July, 2023
+### First commit: December, 2023
 ### Version: 5.0
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################

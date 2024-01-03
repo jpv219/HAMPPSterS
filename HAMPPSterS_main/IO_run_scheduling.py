@@ -177,7 +177,6 @@ class IOSimScheduling(SimScheduling):
         except (ValueError, JobStatError, NameError) as e:
             log.info(f'Exited with message: {e}')
             return {}
-        
         ### Job monitor and restart nested loop ###
         ### Checks job status and restarts if needed ###
 
@@ -297,12 +296,12 @@ class IOSimScheduling(SimScheduling):
             dfak2 = self.post_process_ak2(log)
             dfak3 = self.post_process_ak3(log)
             dfintarea = self.post_process_int_area(log)
-            dfEk = self.post_process_Ek(log)
+            #dfEk = self.post_process_Ek(log)
 
-            if dfak0 is not None and dfak1 is not None and dfak2 is not None and dfintarea is not None and dfEk is not None:
+            if dfak0 is not None and dfak1 is not None and dfak2 is not None and dfintarea is not None:
                 df_run = pd.DataFrame({'Run':[self.run_name]})
                 df_run = pd.concat([df_run] * len(dfak0), ignore_index=True)
-                df_compiled = pd.concat([df_run,dfak0,dfak1["ak1"],dfak2["ak2"],dfak3["ak3"],dfintarea["Int_area"],dfEk["Ek"]], axis = 1)
+                df_compiled = pd.concat([df_run,dfak0,dfak1["ak1"],dfak2["ak2"],dfak3["ak3"],dfintarea["Int_area"]], axis = 1)
 
                 log.info('-' * 100)
                 log.info('Post processing completed succesfully')
@@ -312,7 +311,7 @@ class IOSimScheduling(SimScheduling):
                 # Check if the CSV file already exists
                 if not os.path.exists(csvbkp_file_path):
                     # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run_ID': [], 'Time': [], 'ak0': [], 'ak1': [], 'ak2': [], 'ak3': [], 'Int_area' : [], 'Ek_half' : []})
+                    df = pd.DataFrame({'Run_ID': [], 'Time': [], 'ak0': [], 'ak1': [], 'ak2': [], 'ak3': [], 'Int_area' : []})
                     df.to_csv(csvbkp_file_path, index=False)
 
                 ### Append data to csvbkp file
