@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 4.0
+### Version: 5.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
@@ -360,7 +360,7 @@ class SimScheduling:
 
         running = True
         chk_counter = 0
-        csv_check = True # Option to deacticate csv checks and only run qstat
+        csv_check = False # Option to deactivate csv checks and only run qstat
         
         while running:
             
