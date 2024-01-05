@@ -21,8 +21,7 @@ if __name__ == "__main__":
     case_name = sys.argv[2]#'run_svtest_2'#
 
     path = os.path.join(HDpath,case_name)
-    path_pp = os.path.join(path,'postProcessing')
-    os.chdir(path_pp)
+    os.chdir(path)
 
     ### find the final time steps ###
     pvdfiles = glob.glob('VAR_*_time=*.pvd')

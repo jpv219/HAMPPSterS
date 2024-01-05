@@ -673,7 +673,7 @@ class HPCScheduling:
             failed_keys = [key for key, value in checks.items() if value]
 
             ### If 2/3 checks fail, raise a diverging D status
-            if failed_checks >=3:
+            if failed_checks >=2:
                 chk_status = 'D'
                 print(f'Job seems to be diverging or unstable since it does not pass {failed_checks} checks: {failed_keys}.')
             

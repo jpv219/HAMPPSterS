@@ -31,14 +31,14 @@ log.info('-' * 100)
 
 case = "osc_clean"
 nruns = 50
-nruns_list = [str(i) for i in range(1, nruns + 1)]
+nruns_list = [str(i + 100) for i in range(1, nruns + 1)]
 runname_list = ['run_osc_clean_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
-user = 'pdp19'
+user = 'lchagot'
 
-run_path = ps.plist("run_path",["/rds/general/user/pdp19/home/BLUE-14.0.1/project/INT_OSC/RUNS"])
-base_path = ps.plist("base_path",["/rds/general/user/pdp19/home/BLUE-14.0.1/project/INT_OSC/BASE"])
-convert_path = ps.plist("convert_path",["/rds/general/user/pdp19/home/F_CONVERT"])
+run_path = ps.plist("run_path",["/rds/general/user/lchagot/home/BLUE-14.0.1/project/INT_OSC/RUNS"])
+base_path = ps.plist("base_path",["/rds/general/user/lchagot/home/BLUE-14.0.1/project/INT_OSC/BASE"])
+convert_path = ps.plist("convert_path",["/rds/general/user/lchagot/home/F_CONVERT"])
 
 case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
@@ -49,8 +49,8 @@ local_path = ps.plist("local_path",["/home/pdp19/Documents/SMX_DeepLearning/HAMP
 save_path = ps.plist("save_path",["/media/pdp19/PPICO3/ML_PROJECT/int_osc_clean/RUNS/"])
 
 ## Parameters to vary in the sample space
-osc_dict = {'epsilon': [0.1,2],'Wave_number (1/m)': [1,1],'Surf_tension (N/m)': [1,1],'Density_l (kg/m3)': [1,1],
-            'Density_g (kg/m3)': [1e-3,1],'Viscosity_l (Pa*s)':[1e-2,1e-2], 'Viscosity_g (Pa*s)':[6.7e-6,1e-2],'Gravity (m/s2)': [0,100]}
+osc_dict = {'epsilon': [0.1,0.5],'Wave_number (1/m)': [1,1],'Surf_tension (N/m)': [0.1,1],'Density_l (kg/m3)': [1e-2,1],
+            'Density_g (kg/m3)': [1e-3,1],'Viscosity_l (Pa*s)':[1e-3,1e-2], 'Viscosity_g (Pa*s)':[6.7e-6,1e-2],'Gravity (m/s2)': [0,10]}
 
 captured_output = io.StringIO()
 
@@ -66,7 +66,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_osc_clean_1.pkl', 'wb') as file:
+with open('../DOE/LHS_osc_clean_3.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -106,7 +106,7 @@ data = list(zip(epsilon_list,k_list,sigma_s_list,rho_l_list,rho_g_list,mu_l_list
                 a0_list,rho_r_list,mu_r_list,La_g_list,La_l_list,Ga_g_list,Ga_l_list,Bo_l_list,omega_list,T_list,t_final_list,delta_t_sn_list))
 
 # Save the combined data into a CSV file
-with open('../params/parameters_osc_clean_1.csv', 'w', newline='') as csvfile:
+with open('../params/parameters_osc_clean_3.csv', 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(['epsilon','k','sigma_s','rho_l','rho_g','mu_l','mu_g','gravity','cond_csv_limit',
                      'a0','rho_r','mu_r','La_g','La_l','Ga_g','Ga_l','Bo_l','omega','T','t_final','delta_t_sn'])
