@@ -91,7 +91,7 @@ df_DOE_updated = df_DOE[df_DOE.index.isin([int(run.split('_')[-1])-1 for run in 
 
 def plot_DSD(df, case_list, sorting_key, param_keys, key_map, x_axis_format):
         #plotting params:
-        color_map = sns.color_palette("husl", len(case_list))
+        color_map = sns.color_palette("viridis", len(case_list))
         markers = ['o', 's', 'D', '^', 'v', '>', '<', 'p', '*', 'h', '+', 'x']
 
 
@@ -245,7 +245,7 @@ if case == 'sp_geom':
         case_list = [f'run_sp_{n}' for n in numbers]
 
         #plotting hydrodynamics:
-        color_map = sns.color_palette("husl", len(case_list))
+        color_map = sns.color_palette("viridis", len(case_list))
         markers = ['o', 's', 'D', '^', 'v', '>', '<', 'p', '*', 'h', '+', 'x']
         ylabels = ['$e_{max}$', 'Q', '$e_{diss}$','$\dot{\gamma}$ $(s^{-1})$', 'P (Pa)', '$u$ (m/s)']
 
