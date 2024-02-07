@@ -360,7 +360,7 @@ class SimScheduling:
 
         running = True
         chk_counter = 0
-        csv_check = False # Option to deactivate csv checks and only run qstat
+        csv_check = True # Option to deactivate csv checks and only run qstat
         
         while running:
             

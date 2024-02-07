@@ -31,9 +31,11 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 case = sys.argv[1]
 
+path = '/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/'
+
 # Read backup csv with post-processed data and DOE table from pkl file
 
-file_count = len(os.listdir(f'finished_{case}'))
+file_count = len(os.listdir(os.path.join(path,'CSV_BKP',f'finished_{case}')))
 
 df_list = []
 df_DOE_list = []
@@ -45,13 +47,13 @@ for i in range(1,file_count+1):
     doe_pickle_filename = f'LHS_{case}_{i}.pkl'
     
     # Check if the CSV file exists
-    if os.path.isfile(os.path.join(f'finished_{case}/', csv_filename)):
-        data = pd.read_csv(os.path.join(f'finished_{case}/', csv_filename))
+    if os.path.isfile(os.path.join(path,'CSV_BKP',f'finished_{case}/', csv_filename)):
+        data = pd.read_csv(os.path.join(path,'CSV_BKP',f'finished_{case}/', csv_filename))
         df_list.append(data)
     
     # Check if the pickle file exists
-    if os.path.isfile(os.path.join(f'../DOE/fin_DOE_{case}', doe_pickle_filename)):
-        DOE = pd.read_pickle(os.path.join(f'../DOE/fin_DOE_{case}', doe_pickle_filename))
+    if os.path.isfile(os.path.join(path,f'DOE/fin_DOE_{case}', doe_pickle_filename)):
+        DOE = pd.read_pickle(os.path.join(path,f'DOE/fin_DOE_{case}', doe_pickle_filename))
         df_DOE_list.append(DOE)
 
 # Concatenate all files to process at the same time
