@@ -32,3 +32,8 @@ HAMPPSterS is a Python-based repository designed to facilitate the orchestration
    
    conda create --name your_environment_name --file requirements.txt
 
+## Contact
+j.valdes20@imperial.ac.uk - Juan Pablo Valdes
+p.pico20@imperial.ac.uk - Paula Pico
+fuyue.liang18@imperial.ac.uk - Fuyue Liang
+
