@@ -19,7 +19,6 @@ import io
 import contextlib
 import csv
 import pickle
-import math
 
 log = configure_logger("geom")
 

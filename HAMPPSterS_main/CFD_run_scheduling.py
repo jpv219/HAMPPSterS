@@ -12,7 +12,6 @@
 import os
 from time import sleep
 import pandas as pd
-import subprocess
 import paramiko
 import configparser
 import warnings
@@ -20,29 +19,9 @@ import json
 import numpy as np
 import logging
 import psutil
-import glob
 from datetime import datetime
 from abc import ABC, abstractmethod
 
-############################################################################ EXCEPTION CLASSES  ###################################################################################
-
-class JobStatError(Exception):
-    """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
-    def __init__(self, message="Output empty on qstat execution, job finished or removed"):
-        self.message = message
-        super().__init__(self.message)
-
-class ConvergenceError(Exception):
-    """Exception class for convergence error on job"""
-    def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
-        self.message = message
-        super().__init__(self.message)
-
-class BadTerminationError(Exception):
-    """Exception class for bad termination error on job after running"""
-    def __init__(self, message="Job run ended on bad termination error"):
-        self.message = message
-        super().__init__(self.message)
 
 ################################################################################### PARAMETRIC STUDY ################################################################################
 
@@ -52,18 +31,32 @@ class BadTerminationError(Exception):
 
 ########################################################################################### PARENT CLASS ############################################################################
 
-class SimScheduling:
+class SimScheduling(ABC):
 
-    ### Init function
-     
-    def __init__(self) -> None:
-        pass
+############################################################################ EXCEPTION CLASSES  ###################################################################################
 
-    ### Constructor function to be initialized through localrun via psweep call
+    class JobStatError(Exception):
+        """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
+        def __init__(self, message="Output empty on qstat execution, job finished or removed"):
+            self.message = message
+            super().__init__(self.message)
 
-    def __construct__(self,pset_dict):
+    class ConvergenceError(Exception):
+        """Exception class for convergence error on job"""
+        def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
+            self.message = message
+            super().__init__(self.message)
 
-        ### Initialising class attributes
+    class BadTerminationError(Exception):
+        """Exception class for bad termination error on job after running"""
+        def __init__(self, message="Job run ended on bad termination error"):
+            self.message = message
+            super().__init__(self.message)
+
+    ### Constructor function to be initialized in each child class instance through psweep local run
+    def __init__(self,pset_dict, **kwargs):
+
+        ### Initialising Parent class attributes required for all Child Classes
         self.pset_dict = pset_dict
         self.case_type = pset_dict['case']
         self.run_ID = pset_dict['run_ID']
@@ -76,8 +69,10 @@ class SimScheduling:
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
         self.main_path = os.path.join(self.run_path,'..')
 
-    ### Defining individual logging files for each run.
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
+    ### Defining individual logging files for each run.
     @staticmethod
     def set_log(log_filename):
         # Create a new logger instance for each process
@@ -97,7 +92,6 @@ class SimScheduling:
         return logger  # Return the logger instance
 
     ### Checking if a pvpython process is active
-
     @staticmethod
     def is_pvpython_running():
         for process in psutil.process_iter(['pid', 'name']):
@@ -106,7 +100,6 @@ class SimScheduling:
         return False, None
 
     ### converting dictionary input from psweep run_local into readable JSON format
-
     @staticmethod
     def convert_to_json(obj):
         if isinstance(obj, pd.Timestamp):
@@ -115,246 +108,10 @@ class SimScheduling:
             return int(obj) 
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-    ### local run assigning parametric study to HPC handling script and performing overall BLUE workflow
-
+    # Local run abstract method to enforce on child class
+    @abstractmethod
     def localrun(self,pset_dict):
-
-        ### constructor
-        self.__construct__(pset_dict)
-
-        ### Logger set-up
-        log_filename = os.path.join(self.local_path,f"output_{self.case_type}/output_{self.run_name}.txt")
-        log = self.set_log(log_filename)
-
-        dict_str = json.dumps(self.pset_dict, default=self.convert_to_json, ensure_ascii=False)
-
-        ### Exception return mapped by case type, to guarantee correct psweep completion
-        return_from_casetype = {
-            'sp_geom': {'L': 0, 'e_max': 0, 'Q': 0, 'E_diss': 0, 'Gamma': 0, 'Pressure': 0, 'Velocity': 0},
-            'surf': {"Nd": 0, "DSD": 0, "IntA": 0},
-            'geom' : {"Nd": 0, "DSD": 0, "IntA": 0}
-                                }
-
-        ### First job creation and submission
-
-        HPC_script = 'HPC_run_scheduling.py'
-        
-        log.info('-' * 100)
-        log.info('-' * 100)
-        log.info('NEW RUN')
-        log.info('-' * 100)
-        log.info('-' * 100)
-
-        ### wait time to connect at first, avoiding multiple simultaneuous connections
-        init_wait_time = np.random.RandomState().randint(0,180)
-        sleep(init_wait_time)
-
-        try:
-            command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
-            jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
-        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"SSH ERROR: Authentication failed: {e}")
-            return return_from_casetype.get(self.case_type,{})
-        except (ValueError, JobStatError, NameError) as e:
-            log.info(f'Exited with message: {e}')
-            return return_from_casetype.get(self.case_type,{})
-            
-        ### Job monitor and restarting nested loop. Checks job status and restarts if needed.
-
-        restart = True
-        while restart:
-
-            ### job monitoring loop
-
-            log.info('-' * 100)
-            log.info('JOB MONITORING')
-            log.info('-' * 100)
-
-            try:
-                self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
-            except (ValueError, NameError, ConvergenceError) as e:
-                log.info(f'Exited with message: {e}')
-                return return_from_casetype.get(self.case_type,{})
-            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                log.info(f"SSH ERROR: Authentication failed: {e}")
-                return return_from_casetype.get(self.case_type,{})
-
-            ### Job restart execution
-
-            log.info('-' * 100)
-            log.info('JOB RESTARTING')
-            log.info('-' * 100)
-
-            try:
-                log.info('-' * 100)
-                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
-                new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
-                    command=command, search=2, log=log
-                    )
-
-                log.info('-' * 100)
-
-                ### updating
-                jobid = new_jobID
-                t_wait = new_t_wait
-                status = new_status
-                restart = eval(ret_bool)
-
-            except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError,TypeError,KeyError) as e:
-                log.info(f'Exited with message: {e}')
-                return return_from_casetype.get(self.case_type,{})
-            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                log.info(f"SSH ERROR: Authentication failed: {e}")
-                return return_from_casetype.get(self.case_type,{})
-
-        ### vtk convert job creation and submission
-
-        log.info('-' * 100)
-        log.info('VTK CONVERTING')
-        log.info('-' * 100)
-
-        try:
-            log.info('-' * 100)
-            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
-            conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
-                command=command,search=0,log=log
-                )
-            log.info('-' * 100)
-        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"SSH ERROR: Authentication failed: {e}")
-            return return_from_casetype.get(self.case_type,{})
-        except (FileNotFoundError, JobStatError, ValueError, NameError) as e:
-            log.info(f'Exited with message: {e}')
-            return return_from_casetype.get(self.case_type,{})
-        
-        conv_name = 'Convert' + str(self.run_ID)
-
-        ### job convert monitoring loop
-
-        log.info('-' * 100)
-        log.info('JOB MONITORING')
-        log.info('-' * 100)
-
-        try:
-            self.jobmonitor(conv_t_wait,conv_status,conv_jobid,conv_name,HPC_script,log=log)
-        except (ValueError, NameError) as e:
-            log.info(f'Exited with message: {e}')
-            return return_from_casetype.get(self.case_type,{})
-        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"SSH ERROR: Authentication failed: {e}")
-            return return_from_casetype.get(self.case_type,{})
-
-        ### Downloading files and local Post-processing
-
-        log.info('-' * 100)
-        log.info('DOWNLOADING FILES FROM EPHEMERAL')
-        log.info('-' * 100)
-
-        try:
-            self.scp_download(log)
-        except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-            log.info(f"SSH ERROR: Authentication failed: {e}")
-            return return_from_casetype.get(self.case_type,{})
-
-        log.info('-' * 100)
-        log.info('PVPYTHON POSTPROCESSING')
-        log.info('-' * 100)
-
-        # CSV backup saving file for post-processed variables
-        csvbkp_file_path = os.path.join(self.local_path,'CSV_BKP',f'{self.case_type}.csv')
-
-        ### Checking if a pvpython is operating on another process, if so sleeps.
-
-        pvpyactive, pid = self.is_pvpython_running()
-
-        while pvpyactive:
-            log.info(f'pvpython is active in process ID : {pid}')
-            sleep(600)
-            pvpyactive, pid = self.is_pvpython_running()
-
-        ### Exectuing post-processing instructions depending on single or two-phase case type
-        if self.case_type == 'sp_geom':
-
-            ### pvpython execution
-            df_hyd = self.post_process_SP(log)
-
-            if df_hyd is not None:
-                L = df_hyd['Length']
-                emax = df_hyd['e_max']
-                Q = df_hyd['Q']
-                ediss =  df_hyd['E_diss']
-                gamma = df_hyd['Gamma']
-                P = df_hyd['Pressure']
-                u = df_hyd['Velocity']
-
-                log.info('-' * 100)
-                log.info('Post processing completed succesfully')
-                log.info('-' * 100)
-                log.info('Extracted relevant hydrodynamic data')
-
-                df_hyd.insert(0,'Run', self.run_name)
-
-                # Check if the CSV file already exists
-                if not os.path.exists(csvbkp_file_path):
-                    # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run_ID': [], 'Length': [], 'E_max': [], 
-                                       'Q': [], 'E_diss': [], 'Gamma': [], 'Pressure': [], 'Velocity':[]})
-                    df.to_csv(csvbkp_file_path, index=False)
-                
-                ### Append data to csvbkp file
-                df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
-                log.info('-' * 100)
-                log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
-                log.info('-' * 100)
-
-                return {'L': L, 'e_max':emax, 
-                        'Q': Q, 'E_diss':ediss, 'Gamma': gamma, 
-                        'Pressure': P, 'Velocity': u}
-
-            else:
-                log.info('Pvpython postprocessing failed, returning empty dictionary')
-                return {'L': 0, 'e_max':0, 
-                        'Q': 0, 'E_diss':0, 'Gamma': 0, 
-                        'Pressure': 0, 'Velocity': 0}
-
-        else:
-
-            ### pvpython execution
-            dfDSD, IntA = self.post_process(log)
-
-            if dfDSD is not None:
-
-                Nd = dfDSD.size
-
-                df_scalar = pd.DataFrame({'Run':[self.run_name],'IA': [IntA], 'Nd': [Nd]})
-                df_drops = pd.concat([df_scalar,dfDSD], axis = 1)
-
-
-                log.info('-' * 100)
-                log.info('Post processing completed succesfully')
-                log.info('-' * 100)
-                log.info(f'Number of drops in this run: {Nd}')
-                log.info(f'Drop size dist. {dfDSD}')
-                log.info(f'Interfacial Area : {IntA}')
-
-                # Check if the CSV file already exists
-                if not os.path.exists(csvbkp_file_path):
-                    # If it doesn't exist, create a new CSV file with a header
-                    df = pd.DataFrame({'Run_ID': [], 'Interfacial Area': [], 'Number of Drops': [], 
-                                        'DSD': []})
-                    df.to_csv(csvbkp_file_path, index=False)
-                
-                ### Append data to csvbkp file
-                df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
-                log.info('-' * 100)
-                log.info(f'Saved backup post-process data successfully to {csvbkp_file_path}')
-                log.info('-' * 100)
-
-                
-                return {"Nd":Nd, "DSD":dfDSD, "IntA":IntA}
-            else:
-                log.info('Pvpython postprocessing failed, returning empty dictionary')
-                return{"Nd":0, "DSD":0, "IntA":0}
+        pass
     
     ### calling monitoring and restart function to check in on jobs
 
@@ -618,6 +375,9 @@ class SimScheduling:
 
         try:
             os.mkdir(self.save_path_runID)
+            if hasattr(self, 'save_path_runID_post'):
+                os.mkdir(self.save_path_runID_post)
+
             log.info(f'Saving folder created at {self.save_path}')
         except:
             pass
@@ -680,103 +440,6 @@ class SimScheduling:
             log.info('-' * 100)
             log.info('-' * 100)
 
-    ### Post-processing function for two-phase cases extracting relevant outputs from sim's final timestep.
-
-    def post_process(self,log):
-
-        ### Extracting Interfacial Area from CSV
-        os.chdir(self.save_path_runID) 
-        pvdfiles = glob.glob('VAR_*_time=*.pvd')
-        maxpvd_tf = max(float(filename.split('=')[-1].split('.pvd')[0]) for filename in pvdfiles)
-
-        df_csv = pd.read_csv(os.path.join(self.save_path_runID,f'{self.run_name}.csv' if os.path.exists(f'{self.run_name}.csv') else f'HST_{self.run_name}.csv'))
-        df_csv['diff'] = abs(df_csv['Time']-maxpvd_tf)
-        log.info('Reading data from csv')
-        log.info('-'*100)
-
-        tf_row = df_csv.sort_values(by='diff')
-
-        IntA = tf_row.iloc[0]['INTERFACE_SURFACE_AREA']
-        log.info('Interfacial area extracted')
-        log.info('-'*100)
-
-        os.chdir(self.local_path)
-
-        ### Running pvpython script for Nd and DSD
-        script_path = os.path.join(self.local_path,'PV_scripts/PV_ndrop_DSD.py')
-
-        log.info('Executing pvpython script')
-        log.info('-'*100)
-
-        try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
-            outlines= []
-            for i, line in enumerate(captured_stdout):
-                stripline = line.strip()
-                outlines.append(stripline)
-                if i < len(captured_stdout) - 1:
-                    log.info(stripline)
-            
-            df_DSD = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
-
-
-        except subprocess.CalledProcessError as e:
-            log.info(f"Error executing the script with pvpython: {e}")
-            df_DSD = None
-        except FileNotFoundError:
-            log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
-            df_DSD = None
-        except ValueError as e:
-            log.info(f'ValueError, Exited with message: {e}')
-            df_DSD = None
-
-        return df_DSD, IntA
-    
-    ### Post-processing function for single-phase cases extracting relevant outputs from sim's final timestep.
-
-    def post_process_SP(self,log):
-
-        ### Attributes not defined in class constructor as they are case-specific
-        self.n_ele = self.pset_dict['n_ele']
-        self.pipe_radius = self.pset_dict['pipe_radius']
-        domain_length = (1 + float(self.n_ele))*float(self.pipe_radius)*2
-
-        ### Running pvpython script for Nd and DSD
-        script_path = os.path.join(self.local_path,'PV_scripts/PV_sp_PP.py')
-
-        log.info('-'*100)
-        log.info('Executing pvpython script')
-        log.info('-'*100)
-
-        try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name, str(domain_length), str(self.pipe_radius)], 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
-            outlines= []
-            for i, line in enumerate(captured_stdout):
-                stripline = line.strip()
-                outlines.append(stripline)
-                if i < len(captured_stdout) - 1:
-                    log.info(stripline)
-            
-            df_hyd = pd.read_json(outlines[-1], orient='split', dtype=float, precise_float=True)
-
-        except subprocess.CalledProcessError as e:
-            log.info(f"Error executing the script with pvpython: {e}")
-            return None 
-        except FileNotFoundError:
-            log.info("pvpython command not found. Make sure Paraview is installed and accessible in your environment.")
-            return None
-        except ValueError as e:
-            log.info(f'ValueError, Exited with message: {e}')
-            return None
-
-
-        return df_hyd
 
 ################################################################################################################################################################################
 
@@ -787,30 +450,26 @@ class SimScheduling:
 ################################################################################# General Application for BLUE 12 onwards #####################################################
 
 ########################################################################################### CHILD CLASS ############################################################################
+
 class SimMonitoring(SimScheduling):
     
     ### Init function
      
-    def __init__(self,pset_dict) -> None:
-        
-        ### Initialising class attributes
-        self.pset_dict = pset_dict
-        self.local_path = pset_dict['local_path']
-        self.save_path = pset_dict['save_path']
-        self.save_path_csv = pset_dict['save_path_csv']
-        self.run_path = pset_dict['run_path']
-        self.jobID = pset_dict['jobID']
-        self.run_name = pset_dict['run_name']
-        self.run_ID = pset_dict['run_ID']
-        self.usr = pset_dict['user']
-
-        self.main_path = os.path.join(self.run_path,'..')
-        self.path = os.path.join(self.run_path)
+    def __init__(self) -> None:
+        pass
 
     ### Local monitoring of existing jobs in HPC and performing overall BLUE workflow
     
-    def localmonitor(self,pset_dict):
+    def localrun(self,pset_dict):
 
+        ## Study specific attrbiuted to be constructed
+        save_path_csv = pset_dict['save_path_csv']
+        jobID = pset_dict['jobID']
+        
+        ### constructor from parent class SimScheduling ###
+        super().__init__(pset_dict,save_path_csv = save_path_csv,
+                         jobID=jobID)
+    
         ### Logger set-up
         log_filename = f"output_{self.run_name}.txt"
         log = self.set_log(log_filename)
@@ -834,7 +493,7 @@ class SimMonitoring(SimScheduling):
 
             try:
                 self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
-            except (ValueError, FileNotFoundError,NameError) as e:
+            except (ValueError, FileNotFoundError,NameError,SimScheduling.ConvergenceError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -875,7 +534,8 @@ class SimMonitoring(SimScheduling):
                 status = new_status
                 restart = eval(ret_bool)
 
-            except (ValueError,FileNotFoundError,NameError) as e:
+            except (ValueError,FileNotFoundError,NameError,
+                    SimScheduling.BadTerminationError,SimScheduling.JobStatError,TypeError,KeyError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:

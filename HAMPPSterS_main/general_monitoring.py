@@ -10,11 +10,8 @@
 
 from CFD_run_scheduling import SimMonitoring
 from logger import configure_logger
-import io
-import contextlib
 import operator
 import json
-import os
 
 log = configure_logger("gen")
 
@@ -40,7 +37,7 @@ def main():
 
     if pset_dict['conditional'] in operator_map:
         comparison_func = operator_map[pset_dict['conditional']]
-        simulator.localmonitor(pset_dict)
+        simulator.localrun(pset_dict)
 
     else:
         raise ValueError("Invalid operator. Please provide a correct operator (<,>,<=,>=,==,!=)")
