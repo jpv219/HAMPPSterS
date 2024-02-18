@@ -153,8 +153,8 @@ class SimScheduling(ABC):
 
                         log.info('-' * 100)
                         log.info(f'Job {run} with id {jobid} status is {status}. Updated sleeping time: {t_wait/60} mins')
-                    except (JobStatError, ValueError, NameError) as e:  
-                        if isinstance(e, JobStatError):
+                    except (SimScheduling.JobStatError, ValueError, NameError) as e:  
+                        if isinstance(e, SimScheduling.JobStatError):
 
                             log.info('-' * 100)
                             log.info(f'Exited with message: {e}')
@@ -215,8 +215,8 @@ class SimScheduling(ABC):
 
                         log.info('-' * 100)
                         log.info(f'Job {run} with id {jobid} status is {status}. Continuing checks')
-                    except (JobStatError, ValueError, NameError, ConvergenceError) as e:  
-                        if isinstance(e, JobStatError):
+                    except (SimScheduling.JobStatError, ValueError, NameError, SimScheduling.ConvergenceError) as e:  
+                        if isinstance(e, SimScheduling.JobStatError):
 
                             log.info('-' * 100)
                             log.info(f'Exited with message: {e}')
@@ -287,7 +287,7 @@ class SimScheduling(ABC):
                 ### Handle exceptions
                 if exc is not None:
                     if exc == "JobStatError":
-                        raise JobStatError('qstat output empty, job finished or deleted from HPC run queue')
+                        raise SimScheduling.JobStatError('qstat output empty, job finished or deleted from HPC run queue')
                     elif exc == "ValueError":
                         raise ValueError('Exception raised from job sh creation, qstat in job_wait \
                                          or attempting to search restart in job_restart')
@@ -295,9 +295,9 @@ class SimScheduling(ABC):
                         raise FileNotFoundError('File not found: either .out or .csv files not found when attempting restart \
                                                 or vtk/pvd/convert files not found when attempting to convert')
                     elif exc == "ConvergenceError":
-                        raise ConvergenceError('Convergence checks on HPC failed, job killed as a result')
+                        raise SimScheduling.ConvergenceError('Convergence checks on HPC failed, job killed as a result')
                     elif exc == "BadTerminationError":
-                        raise BadTerminationError("Job run ended with a bad termination error message in the output file. Check convergence or setup issues")
+                        raise SimScheduling.BadTerminationError("Job run ended with a bad termination error message in the output file. Check convergence or setup issues")
                     elif exc == 'KeyError':
                         raise KeyError('Error while attempting to restart: Stop condition key name does not exist in the CSV file checked')
                     else:
