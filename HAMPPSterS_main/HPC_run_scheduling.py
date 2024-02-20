@@ -3,7 +3,7 @@
 ### to be run in the HPC node
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 5.0
+### Version: 6.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
@@ -23,6 +23,7 @@ import argparse
 import json
 import numpy as np
 import operator
+from abc import ABC, abstractmethod
 
 operator_map = {
     "<": operator.lt,
@@ -33,40 +34,26 @@ operator_map = {
     "!=": operator.ne
 }
 
-############################################################################ EXCEPTION CLASSES  #######################################################################################
-
-class JobStatError(Exception):
-    """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
-    def __init__(self, message="Output empty on qstat execution, job finished or removed"):
-        self.message = message
-        super().__init__(self.message)
-
-class ConvergenceError(Exception):
-    """Exception class for convergence error on job"""
-    def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
-        self.message = message
-        super().__init__(self.message)
-
-class BadTerminationError(Exception):
-    """Exception class for bad termination error on job after running"""
-    def __init__(self, message="Job run ended on bad termination error"):
-        self.message = message
-        super().__init__(self.message)
-
-
-################################################################################### PARAMETRIC STUDY ################################################################################
+################################################################################### PARENT CLASS ################################################################################
 
 ################################################################################# Author: Juan Pablo Valdes #########################################################################
 
-################################################################################# Tailored for SMX static mixer study ###############################################################
+################################################################################# HPC SCHEDULING ###############################################################
 
 ########################################################################################### PARENT CLASS ############################################################################
 
 
-class HPCScheduling:
+class HPCScheduling(ABC):
 
-    ### Init function
-     
+############################################################################ EXCEPTION CLASSES  #######################################################################################
+
+    class JobStatError(Exception):
+        """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
+        def __init__(self, message="Output empty on qstat execution, job finished or removed"):
+            self.message = message
+            super().__init__(self.message)
+
+    ### Init function  
     def __init__(self,pset_dict) -> None:
                 
         ### Initialising class attributes
@@ -83,39 +70,6 @@ class HPCScheduling:
         self.cond_csv = pset_dict['cond_csv']
         self.conditional = pset_dict['conditional']
         self.cond_csv_limit = pset_dict['cond_csv_limit']
-
-        if self.case_type == 'geom' or self.case_type == 'sp_geom':
-
-            ### Geometry features
-            self.bar_width = pset_dict['bar_width']
-            self.bar_thickness = pset_dict['bar_thickness']
-            self.bar_angle = pset_dict['bar_angle']
-            self.pipe_radius = pset_dict['pipe_radius']
-            self.n_bars = pset_dict['n_bars']
-            self.flowrate = pset_dict['flowrate']
-            self.smx_pos = pset_dict['smx_pos']
-            # two-phase
-            if self.case_type == 'geom':
-                self.d_per_level = pset_dict['d_per_level']
-                self.n_levels = pset_dict['n_levels']
-                self.d_radius = pset_dict['d_radius']
-            # single-phase
-            elif self.case_type == 'sp_geom':
-                self.n_ele = pset_dict['n_ele']
-
-        elif self.case_type == 'surf':
-
-            ### Surfactant features
-            self.diff1 = pset_dict['D_d']
-            self.diff2 = format(float(pset_dict['D_b']),'.10f')
-            self.ka = format(float(pset_dict['ka']),'.10f')
-            self.kd = format(float(pset_dict['kd']),'.10f')
-            self.ginf = format(float(pset_dict['ginf']),'.10f')
-            self.gini = format(float(pset_dict['gini']),'.10f')
-            self.diffs = format(float(pset_dict['D_s']),'.10f')
-            self.beta = format(float(pset_dict['beta']),'.10f')
-        else:
-            pass
 
         self.path = os.path.join(self.run_path, self.run_name)
         self.mainpath = os.path.join(self.run_path,'..')
@@ -172,7 +126,7 @@ class HPCScheduling:
             print("====WAIT_TIME====")
             print(t_jobwait)
 
-        except JobStatError:
+        except HPCScheduling.JobStatError:
             print(f'Job {self.run_ID} failed on initial submission')
             print("====EXCEPTION====")
             print("JobStatError")
@@ -232,7 +186,7 @@ class HPCScheduling:
                     print(f'Required convergence checks for job {self.run_ID} have passed successfully')
                     print('-' * 100)
 
-        except JobStatError:
+        except HPCScheduling.JobStatError:
             print("====EXCEPTION====")
             print("JobStatError")
         except ValueError as e:
@@ -241,268 +195,19 @@ class HPCScheduling:
             print(f'Exited with message: {e}')
            
     ### creating f90 instance and executable
-
+    @abstractmethod
     def makef90(self):
-
-        ## Create run_ID directory
-        os.mkdir(self.path)
-        base_path = self.pset_dict['base_path']
-        base_case_dir = os.path.join(base_path, self.case_type)
-
-        ## Copy base files and rename to current run accordingly
-        os.system(f'cp -r {base_case_dir}/* {self.path}')
-        os.system(f'mv {self.path}/base_SMX.f90 {self.path}/{self.run_name}_SMX.f90')
-        print('-' * 100)
-        print(f'Run directory {self.path} created and base files copied')
-
-        if self.case_type == 'geom' or self.case_type == 'sp_geom':
-
-            ## Assign values to placeholders
-            os.system(f'sed -i \"s/\'pipe_radius\'/{self.pipe_radius}/\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'smx_pos\'/{self.smx_pos}/\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'bar_width\'/{self.bar_width}/g\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'bar_thickness\'/{self.bar_thickness}/\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'bar_angle\'/{self.bar_angle}/\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'n_bars\'/{self.n_bars}/\" {self.path}/{self.run_name}_SMX.f90')
-            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
-
-            if self.case_type == 'geom':
-                os.system(f'sed -i \"s/\'d_per_level\'/{self.d_per_level}/\" {self.path}/{self.run_name}_SMX.f90')
-                os.system(f'sed -i \"s/\'n_levels\'/{self.n_levels}/\" {self.path}/{self.run_name}_SMX.f90')
-                os.system(f'sed -i \"s/\'d_radius\'/{self.d_radius}/\" {self.path}/{self.run_name}_SMX.f90')
-
-            else:
-                os.system(f'sed -i \"s/\'n_elements\'/{self.n_ele}/\" {self.path}/{self.run_name}_SMX.f90')
-
-            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
-            print('-' * 100)
-            print(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
-        
-        #modify the Makefile
-
-        os.system(f'sed -i s/file/{self.run_name}_SMX/g {self.path}/Makefile')
-
-        #compile the f90 into an executable
-
-        os.chdir(self.path)
-        subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
-        print('-' * 100)
-        print('Makefile created succesfully')
-        os.system(f'mv {self.run_name}_SMX.x {self.run_name}.x')
-        subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
-        os.chdir('..')
+        pass
 
     ### modifying .sh instance accordingly
-
+    @abstractmethod
     def setjobsh(self):
-        
-        ## rename job with current run
-        os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
+        pass
 
-        ## Assign values to placeholders
-        os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
-
-        ### If geometry variations are studied, construct domain and mesh specifications in job.sh accordingly
-        if self.case_type == 'geom' or self.case_type == 'sp_geom':
-
-            radius = float(self.pipe_radius)
-            d_pipe = 2*radius
-
-            if self.case_type == 'geom':
-                min_res = 18000
-                n_ele = 1
-                ### Resolution and domain size condition: highest res scenario is with 6^3 and 128^3 cells
-                if 128*5/d_pipe<min_res:
-                    raise ValueError("Pipe diameter doesn't comply with min. res.")
-            else:
-                min_res = 6400
-                n_ele = float(self.n_ele)
-                ### Resolution and domain size condition: highest res scenario depending on the number of elements and the limit of cpus pre node = 256
-                if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele>3 and 128*3/d_pipe<min_res):
-                    raise ValueError("Pipe diameter and n_elements doesn't comply with min. res.")
-
-            ## x-subdomain (length) is (n_ele+1)*diameter large
-            box_2 = math.ceil((n_ele+1)*2*radius*1000)/1000
-            box_4 = math.ceil(2*radius*1000)/1000
-            box_6 = math.ceil(2*radius*1000)/1000
-
-            os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
-
-            ### High and low cell number cases
-            yz_cpus_l = (min_res*d_pipe)/64
-
-            yz_cpus_h = (min_res*d_pipe)/128
-
-            ### Two phase case with only one element
-            # Settings designed to operate with only one node in the short queue in the HPC
-            if n_ele == 1:
-                
-                if yz_cpus_l <= 5:
-                    xsub = math.ceil(yz_cpus_l)*2
-                    ysub = zsub = int(xsub/2)
-                    mem = 200 
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                elif yz_cpus_l <=6:
-                    xsub = math.ceil(yz_cpus_l)
-                    ysub = zsub = int(xsub)
-                    mem = 300 
-                    cell1 = 128
-                    cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                else:
-                    xsub = math.ceil(yz_cpus_h)
-                    ysub = zsub = int(xsub)
-                    mem = 768
-                    cell1 = cell2 = cell3 = 128
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-            ### Single phase case with multiple elements
-            ### First if looking for 64 cells and second else augmenting to 128 cell cases or moving the queue to capability to keep 64 as resolution
-            elif n_ele <=3:
-
-                if yz_cpus_l<=4:
-                    ysub = zsub = math.ceil(yz_cpus_l)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 200
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                else:
-                    ysub = zsub = math.ceil(yz_cpus_h)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 768
-                    cell1 = cell2 = cell3 = 128
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-            elif n_ele==4:
-                
-                if yz_cpus_l<=3:
-                    ysub = zsub = math.ceil(yz_cpus_l)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 200
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                else:
-                    ysub = zsub = 4
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 256
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub/4)
-                    n_nodes = 4
-
-            elif n_ele==5:
-                
-                if yz_cpus_l<=3:
-                    ysub = zsub = math.ceil(yz_cpus_l)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 200
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                else:
-                    ysub = zsub = 4
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 256
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub/3)
-                    n_nodes = 3
-
-            elif n_ele==6:
-                
-                if yz_cpus_l<=3:
-                    ysub = zsub = math.ceil(yz_cpus_l)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 200
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                else:
-                    ysub = zsub = 4
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 256
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub/4)
-                    n_nodes = 4
-
-            elif n_ele==7:
-
-                if yz_cpus_l<=3:
-                    ysub = zsub = math.ceil(yz_cpus_l)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 200
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                else:
-                    ysub = zsub = 4
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 256
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub/4)
-                    n_nodes = 4
-
-            else:
-
-                if yz_cpus_l<=3:
-                    ysub = zsub = math.ceil(yz_cpus_l)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 200
-                    cell1 = cell2 = cell3 = 64
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-                else:
-                    ysub = zsub = math.ceil(yz_cpus_h)
-                    xsub = int(ysub*(n_ele+1))
-                    mem = 768
-                    cell1 = cell2 = cell3 = 128
-                    ncpus = int(xsub*ysub*zsub)
-                    n_nodes = 1
-
-            ### Replacing placeholders in job.sh file after resolution calculations
-            os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'y_subd\'/{ysub}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'z_subd\'/{zsub}/\" {self.path}/job_{self.run_name}.sh')
-
-            os.system(f'sed -i \"s/\'n_cpus\'/{ncpus}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'n_nodes\'/{n_nodes}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'mem\'/{mem}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'cell1\'/{cell1}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
-
-            print('-' * 100)
-            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
-
-        elif self.case_type == 'surf':
-
-            ### Replacing placeholders for surfactant parametric study with fixed geometry
-            os.system(f'sed -i \"s/\'diff1\'/{self.diff1}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'diff2\'/{self.diff2}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'ka\'/{self.ka}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'kd\'/{self.kd}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'ginf\'/{self.ginf}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'gini\'/{self.gini}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'diffs\'/{self.diffs}/\" {self.path}/job_{self.run_name}.sh')
-            os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
-
-            print('-' * 100)
-            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
+    ### Converting vtk to vtr
+    @abstractmethod
+    def vtk_convert(self):
+        pass
 
     ### checking job status and sending exceptions as fitting
 
@@ -554,7 +259,7 @@ class HPCScheduling:
                 t_wait = 0
                 
         except subprocess.CalledProcessError:
-            raise JobStatError("qstat output empty, job finished or deleted from HPC run queue")
+            raise HPCScheduling.JobStatError("qstat output empty, job finished or deleted from HPC run queue")
         
         except ValueError as e:
             print(f"Error: {e}")
@@ -879,7 +584,7 @@ class HPCScheduling:
                 print("====RETURN_BOOL====")
                 print("True")
                 return True
-            except JobStatError:
+            except HPCScheduling.JobStatError:
                 print(f'Restart job {self.run_ID} failed on initial re-submission')
                 print("====EXCEPTION====")
                 print("JobStatError")
@@ -893,8 +598,356 @@ class HPCScheduling:
                 print(line)
             return False
 
-    ### Converting vtk to vtr
+    ### submitting the SMX job and recording job_id
 
+    def submit_job(self,path,name):
+
+        proc = []
+        os.chdir(f'{path}')
+        proc = Popen(['qsub', f"job_{name}.sh"], stdout=PIPE)
+
+        output = proc.communicate()[0].decode('utf-8').split()
+
+        ### Search job id from output after qsub
+        jobid = int(re.search(r'\b\d+\b',output[0]).group())
+
+        return jobid
+
+    ### clean previous rst file from ephemeral
+    def rst_cleaning(self,cleanrst=True, saverstnum=1):
+        os.chdir(self.ephemeral_path)
+        saverstnum = int(saverstnum)
+
+        if cleanrst:
+            rstfiles = glob.glob('*rst')
+            last_rst = max(int(filename.split('_')[-1].split('.')[1]) for filename in rstfiles)
+            for rst in rstfiles:
+                rstnum = int(rst.split('_')[-1].split('.')[1])
+                if rstnum <= int(last_rst-saverstnum):
+                    file_path = os.path.join(self.ephemeral_path, rst)
+                    os.remove(file_path)
+        cleaned_rst = glob.glob('*rst')
+        rstlist = sorted([int(filename.split('_')[-1].split('.')[1]) for filename in cleaned_rst])
+        rstcount = int(rstlist[-1]-rstlist[0]+1)
+
+        print(f'Restart file are saved from time step {rstlist[0]} to {rstlist[-1]}.')
+        print(f'{rstcount} sets of Restart files are saved')
+
+
+#####################################################################################################################################################################################
+
+################################################################################### PARAMETRIC STUDY ################################################################################
+
+################################################################################# Author: Juan Pablo Valdes #########################################################################
+
+################################################################################# Tailored for static mixer study ###############################################################
+
+########################################################################################### CHILD CLASS ############################################################################
+
+class SMHPCScheduling(HPCScheduling):
+    
+    def __init__(self,pset_dict) -> None:
+                
+        ## Initialize case agnostic attributes from parent class
+        super().__init__(pset_dict)
+        
+        ## Define case specific attributes
+        if self.case_type == 'geom' or self.case_type == 'sp_geom':
+
+            ### Geometry features
+            self.bar_width = pset_dict['bar_width']
+            self.bar_thickness = pset_dict['bar_thickness']
+            self.bar_angle = pset_dict['bar_angle']
+            self.pipe_radius = pset_dict['pipe_radius']
+            self.n_bars = pset_dict['n_bars']
+            self.flowrate = pset_dict['flowrate']
+            self.smx_pos = pset_dict['smx_pos']
+            # two-phase
+            if self.case_type == 'geom':
+                self.d_per_level = pset_dict['d_per_level']
+                self.n_levels = pset_dict['n_levels']
+                self.d_radius = pset_dict['d_radius']
+            # single-phase
+            elif self.case_type == 'sp_geom':
+                self.n_ele = pset_dict['n_ele']
+
+        elif self.case_type == 'surf':
+
+            ### Surfactant features
+            self.diff1 = pset_dict['D_d']
+            self.diff2 = format(float(pset_dict['D_b']),'.10f')
+            self.ka = format(float(pset_dict['ka']),'.10f')
+            self.kd = format(float(pset_dict['kd']),'.10f')
+            self.ginf = format(float(pset_dict['ginf']),'.10f')
+            self.gini = format(float(pset_dict['gini']),'.10f')
+            self.diffs = format(float(pset_dict['D_s']),'.10f')
+            self.beta = format(float(pset_dict['beta']),'.10f')
+        else:
+            pass
+
+    ### creating f90 instance and executable
+    def makef90(self):
+
+        ## Create run_ID directory
+        os.mkdir(self.path)
+        base_path = self.pset_dict['base_path']
+        base_case_dir = os.path.join(base_path, self.case_type)
+
+        ## Copy base files and rename to current run accordingly
+        os.system(f'cp -r {base_case_dir}/* {self.path}')
+        os.system(f'mv {self.path}/base_SMX.f90 {self.path}/{self.run_name}_SMX.f90')
+        print('-' * 100)
+        print(f'Run directory {self.path} created and base files copied')
+
+        if self.case_type == 'geom' or self.case_type == 'sp_geom':
+
+            ## Assign values to placeholders
+            os.system(f'sed -i \"s/\'pipe_radius\'/{self.pipe_radius}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'smx_pos\'/{self.smx_pos}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'bar_width\'/{self.bar_width}/g\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'bar_thickness\'/{self.bar_thickness}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'bar_angle\'/{self.bar_angle}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'n_bars\'/{self.n_bars}/\" {self.path}/{self.run_name}_SMX.f90')
+            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
+
+            if self.case_type == 'geom':
+                os.system(f'sed -i \"s/\'d_per_level\'/{self.d_per_level}/\" {self.path}/{self.run_name}_SMX.f90')
+                os.system(f'sed -i \"s/\'n_levels\'/{self.n_levels}/\" {self.path}/{self.run_name}_SMX.f90')
+                os.system(f'sed -i \"s/\'d_radius\'/{self.d_radius}/\" {self.path}/{self.run_name}_SMX.f90')
+
+            else:
+                os.system(f'sed -i \"s/\'n_elements\'/{self.n_ele}/\" {self.path}/{self.run_name}_SMX.f90')
+
+            os.system(f'sed -i \"s/\'flowrate\'/{self.flowrate}/\" {self.path}/{self.run_name}_SMX.f90')
+            print('-' * 100)
+            print(f'Placeholders for geometry specs in {self.run_name}_SMX.f90 modified correctly')
+        
+        #modify the Makefile
+
+        os.system(f'sed -i s/file/{self.run_name}_SMX/g {self.path}/Makefile')
+
+        #compile the f90 into an executable
+
+        os.chdir(self.path)
+        subprocess.run('make',shell=True, capture_output=True, text=True, check=True)
+        print('-' * 100)
+        print('Makefile created succesfully')
+        os.system(f'mv {self.run_name}_SMX.x {self.run_name}.x')
+        subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
+        os.chdir('..')
+
+    ### modifying .sh instance accordingly
+    def setjobsh(self):
+        
+        ## rename job with current run
+        os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
+
+        ## Assign values to placeholders
+        os.system(f'sed -i \"s/RUN_NAME/{self.run_name}/g\" {self.path}/job_{self.run_name}.sh')
+
+        ### If geometry variations are studied, construct domain and mesh specifications in job.sh accordingly
+        if self.case_type == 'geom' or self.case_type == 'sp_geom':
+
+            radius = float(self.pipe_radius)
+            d_pipe = 2*radius
+
+            if self.case_type == 'geom':
+                min_res = 18000
+                n_ele = 1
+                ### Resolution and domain size condition: highest res scenario is with 6^3 and 128^3 cells
+                if 128*5/d_pipe<min_res:
+                    raise ValueError("Pipe diameter doesn't comply with min. res.")
+            else:
+                min_res = 6400
+                n_ele = float(self.n_ele)
+                ### Resolution and domain size condition: highest res scenario depending on the number of elements and the limit of cpus pre node = 256
+                if (n_ele<=3 and 128*4/d_pipe<min_res) or (n_ele>3 and 128*3/d_pipe<min_res):
+                    raise ValueError("Pipe diameter and n_elements doesn't comply with min. res.")
+
+            ## x-subdomain (length) is (n_ele+1)*diameter large
+            box_2 = math.ceil((n_ele+1)*2*radius*1000)/1000
+            box_4 = math.ceil(2*radius*1000)/1000
+            box_6 = math.ceil(2*radius*1000)/1000
+
+            os.system(f'sed -i \"s/\'box2\'/{box_2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'box4\'/{box_4}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'box6\'/{box_6}/\" {self.path}/job_{self.run_name}.sh')
+
+            ### High and low cell number cases
+            yz_cpus_l = (min_res*d_pipe)/64
+
+            yz_cpus_h = (min_res*d_pipe)/128
+
+            ### Two phase case with only one element
+            # Settings designed to operate with only one node in the short queue in the HPC
+            if n_ele == 1:
+                
+                if yz_cpus_l <= 5:
+                    xsub = math.ceil(yz_cpus_l)*2
+                    ysub = zsub = int(xsub/2)
+                    mem = 200 
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                elif yz_cpus_l <=6:
+                    xsub = math.ceil(yz_cpus_l)
+                    ysub = zsub = int(xsub)
+                    mem = 300 
+                    cell1 = 128
+                    cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    xsub = math.ceil(yz_cpus_h)
+                    ysub = zsub = int(xsub)
+                    mem = 768
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+            ### Single phase case with multiple elements
+            ### First if looking for 64 cells and second else augmenting to 128 cell cases or moving the queue to capability to keep 64 as resolution
+            elif n_ele <=3:
+
+                if yz_cpus_l<=4:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = math.ceil(yz_cpus_h)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 768
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+            elif n_ele==4:
+                
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = 4
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub/4)
+                    n_nodes = 4
+
+            elif n_ele==5:
+                
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = 4
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub/3)
+                    n_nodes = 3
+
+            elif n_ele==6:
+                
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = 4
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub/4)
+                    n_nodes = 4
+
+            elif n_ele==7:
+
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = 4
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 256
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub/4)
+                    n_nodes = 4
+
+            else:
+
+                if yz_cpus_l<=3:
+                    ysub = zsub = math.ceil(yz_cpus_l)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 200
+                    cell1 = cell2 = cell3 = 64
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+                else:
+                    ysub = zsub = math.ceil(yz_cpus_h)
+                    xsub = int(ysub*(n_ele+1))
+                    mem = 768
+                    cell1 = cell2 = cell3 = 128
+                    ncpus = int(xsub*ysub*zsub)
+                    n_nodes = 1
+
+            ### Replacing placeholders in job.sh file after resolution calculations
+            os.system(f'sed -i \"s/\'x_subd\'/{xsub}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'y_subd\'/{ysub}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'z_subd\'/{zsub}/\" {self.path}/job_{self.run_name}.sh')
+
+            os.system(f'sed -i \"s/\'n_cpus\'/{ncpus}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'n_nodes\'/{n_nodes}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'mem\'/{mem}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'cell1\'/{cell1}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'cell2\'/{cell2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'cell3\'/{cell3}/\" {self.path}/job_{self.run_name}.sh')
+
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
+
+        elif self.case_type == 'surf':
+
+            ### Replacing placeholders for surfactant parametric study with fixed geometry
+            os.system(f'sed -i \"s/\'diff1\'/{self.diff1}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diff2\'/{self.diff2}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ka\'/{self.ka}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'kd\'/{self.kd}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'ginf\'/{self.ginf}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'gini\'/{self.gini}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'diffs\'/{self.diffs}/\" {self.path}/job_{self.run_name}.sh')
+            os.system(f'sed -i \"s/\'beta\'/{self.beta}/\" {self.path}/job_{self.run_name}.sh')
+
+            print('-' * 100)
+            print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
+
+    ### Converting vtk to vtr
     def vtk_convert(self):
 
         ### Move to ephemeral and create RESULTS saving folder
@@ -1022,7 +1075,7 @@ class HPCScheduling:
                 print("====WAIT_TIME====")
                 print(t_jobwait)
 
-        except JobStatError:
+        except HPCScheduling.JobStatError:
             print(f'Convert job {self.run_ID} failed on initial submission')
             print("====EXCEPTION====")
             print("JobStatError")
@@ -1030,41 +1083,6 @@ class HPCScheduling:
         except ValueError:
             print("====EXCEPTION====")
             print("ValueError")
-
-    ### submitting the SMX job and recording job_id
-
-    def submit_job(self,path,name):
-
-        proc = []
-        os.chdir(f'{path}')
-        proc = Popen(['qsub', f"job_{name}.sh"], stdout=PIPE)
-
-        output = proc.communicate()[0].decode('utf-8').split()
-
-        ### Search job id from output after qsub
-        jobid = int(re.search(r'\b\d+\b',output[0]).group())
-
-        return jobid
-
-    ### clean previous rst file from ephemeral
-    def rst_cleaning(self,cleanrst=True, saverstnum=1):
-        os.chdir(self.ephemeral_path)
-        saverstnum = int(saverstnum)
-
-        if cleanrst:
-            rstfiles = glob.glob('*rst')
-            last_rst = max(int(filename.split('_')[-1].split('.')[1]) for filename in rstfiles)
-            for rst in rstfiles:
-                rstnum = int(rst.split('_')[-1].split('.')[1])
-                if rstnum <= int(last_rst-saverstnum):
-                    file_path = os.path.join(self.ephemeral_path, rst)
-                    os.remove(file_path)
-        cleaned_rst = glob.glob('*rst')
-        rstlist = sorted([int(filename.split('_')[-1].split('.')[1]) for filename in cleaned_rst])
-        rstcount = int(rstlist[-1]-rstlist[0]+1)
-
-        print(f'Restart file are saved from time step {rstlist[0]} to {rstlist[-1]}.')
-        print(f'{rstcount} sets of Restart files are saved')
 
 #####################################################################################################################################################################################
 
@@ -1078,23 +1096,13 @@ class HPCScheduling:
 
 class SVHPCScheduling(HPCScheduling):
 
-        ### Init function
-    def __init__(self,pset_dict) -> None:
+    ### Init function
+    def __init__(self,pset_dict):
                 
-        ### Initialising class attributes
-        self.pset_dict = pset_dict
-        self.run_path = pset_dict['run_path']
-        self.convert_path = pset_dict['convert_path']
-        self.case_type = pset_dict['case']
-        self.run_ID = pset_dict['run_ID']
-        self.run_name = pset_dict['run_name']
-        self.local_path = pset_dict['local_path']
-        self.save_path = pset_dict['save_path']
-        self.convert_path = pset_dict['convert_path']
-
-        self.cond_csv = pset_dict['cond_csv']
-        self.conditional = pset_dict['conditional']
-        self.cond_csv_limit = pset_dict['cond_csv_limit']
+        ## Initialize case agnostic attributes from parent class
+        super().__init__(pset_dict)
+        
+        ### Initialising case specific attributes
         self.vtk_conv_mode = pset_dict['vtk_conv_mode']
 
         ### Geometry parametric study ###
@@ -1118,13 +1126,8 @@ class SVHPCScheduling(HPCScheduling):
             self.diffs = format(float(pset_dict['D_s']),'.10f')
             self.beta = format(float(pset_dict['beta']),'.10f')
 
-
-        self.path = os.path.join(self.run_path, self.run_name)
-        self.mainpath = os.path.join(self.run_path,'..')
-        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
-        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
-
-
+    ### creating f90 instance and executable
+            
     def makef90(self):
         ### create run_ID directory ###
         os.mkdir(self.path)
@@ -1159,6 +1162,8 @@ class SVHPCScheduling(HPCScheduling):
         subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
         os.chdir('..')
 
+    ### modifying .sh instance accordingly
+        
     def setjobsh(self):
         ### rename job with current run ###
         os.system(f'mv {self.path}/job_base.sh {self.path}/job_{self.run_name}.sh')
@@ -1188,8 +1193,8 @@ class SVHPCScheduling(HPCScheduling):
             print('-' * 100)
             print(f'Placeholders replaced succesfully in job.sh for run:{self.run_ID}')
 
-
-    ### Convert last vtk to vtr ###
+    ### Convert last vtk to vtr
+            
     def vtk_convert(self):
         ### vtk convert mode: last or all ###
         vtk_conv_mode = self.vtk_conv_mode
@@ -1335,7 +1340,7 @@ class SVHPCScheduling(HPCScheduling):
                 print("====WAIT_TIME====")
                 print(t_jobwait)
 
-        except JobStatError:
+        except HPCScheduling.JobStatError:
             print(f'Convert job {self.run_ID} failed on initial submission')
             print("====EXCEPTION====")
             print("JobStatError")
@@ -1343,7 +1348,6 @@ class SVHPCScheduling(HPCScheduling):
         except ValueError:
             print("====EXCEPTION====")
             print("ValueError")
-
 
 #####################################################################################################################################################################################
 
@@ -1358,23 +1362,11 @@ class SVHPCScheduling(HPCScheduling):
 class IOHPCScheduling(HPCScheduling):
 
     ### Init function
-    def __init__(self,pset_dict) -> None:
+    def __init__(self,pset_dict):
+
+        ## Initialize case agnostic attributes from parent class
+        super().__init__(pset_dict)
                 
-        ### Initialising class attributes
-        self.pset_dict = pset_dict
-        self.run_path = pset_dict['run_path']
-        self.convert_path = pset_dict['convert_path']
-        self.case_type = pset_dict['case']
-        self.run_ID = pset_dict['run_ID']
-        self.run_name = pset_dict['run_name']
-        self.local_path = pset_dict['local_path']
-        self.save_path = pset_dict['save_path']
-        self.convert_path = pset_dict['convert_path']
-
-        self.cond_csv = pset_dict['cond_csv']
-        self.conditional = pset_dict['conditional']
-        self.cond_csv_limit = pset_dict['cond_csv_limit']
-
         ### Clean parametric study ###
         if self.case_type == 'osc_clean':
             self.epsilon = pset_dict['epsilon']
@@ -1388,11 +1380,7 @@ class IOHPCScheduling(HPCScheduling):
             self.gravity = format(float(pset_dict['gravity']),'.10f')
             self.delta_t_sn = format(float(pset_dict['delta_t_sn']),'.10f')
 
-        self.path = os.path.join(self.run_path, self.run_name)
-        self.mainpath = os.path.join(self.run_path,'..')
-        self.output_file_path = os.path.join(self.path,f'{self.run_name}.out')
-        self.ephemeral_path = os.path.join(os.environ['EPHEMERAL'],self.run_name)
-
+    ### creating f90 instance and executable
     def makef90(self):
         ### create run_ID directory ###
         os.mkdir(self.path)
@@ -1422,6 +1410,7 @@ class IOHPCScheduling(HPCScheduling):
         subprocess.run('make cleanall',shell=True, capture_output=True, text=True, check=True)
         os.chdir('..')
 
+    ### modifying .sh instance accordingly
     def setjobsh(self):
         ### rename job with current run ###
         os.system(f'mv {self.path}/job_base_osc_clean.sh {self.path}/job_{self.run_name}.sh')
@@ -1548,7 +1537,7 @@ class IOHPCScheduling(HPCScheduling):
                 print("====WAIT_TIME====")
                 print(t_jobwait)
 
-        except JobStatError:
+        except HPCScheduling.JobStatError:
             print(f'Convert job {self.run_ID} failed on initial submission')
             print("====EXCEPTION====")
             print("JobStatError")
@@ -1572,15 +1561,23 @@ def main():
         type=json.loads,
     )
 
+    parser.add_argument(
+        "--study",
+        type=str,
+    )
+
     args = parser.parse_args()
 
     ### choose class to run according to pdict given ###
-    if 'vtk_conv_mode' in args.pdict:
-        simulator = SVHPCScheduling(args.pdict)
-    elif 'mu_g' in args.pdict:
-        simulator = IOHPCScheduling(args.pdict)
+    if args.study:
+        if args.study == 'SV':
+            simulator = SVHPCScheduling(args.pdict)
+        elif args.study == 'IO':
+            simulator = IOHPCScheduling(args.pdict)
+        elif args.study == 'SM':
+            simulator = SMHPCScheduling(args.pdict)
     else:
-        simulator = HPCScheduling(args.pdict)
+        print("No study ID provided. Double check run.py psweep script and pset_dict initialization")
 
     if hasattr(simulator, args.function):
         func = getattr(simulator, args.function)

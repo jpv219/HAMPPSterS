@@ -35,6 +35,7 @@ runname_list = ['run_surf_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
 user = 'nkahouad'
+study_ID = 'SM'
 
 run_path = ps.plist("run_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/nkahouad/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
@@ -44,6 +45,7 @@ case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
+study_list = ps.plist("study_ID",study_ID)
 
 local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/"])
 save_path = ps.plist("save_path",["/media/jpv219/ML/Surf_Runs"])
@@ -131,7 +133,7 @@ beta = ps.plist("beta",beta_list)
 #creates parameter grid (list of dictionarys)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,
                   save_path,cond_csv,conditional,cond_csv_limit,
-                  diff1,user_ps,
+                  diff1,user_ps,study_list,
                   zip(run_ID,run_name,diff2,ka,kd,ginf,gini,diffs,beta))
 
 ######################################################################################################################################################################################

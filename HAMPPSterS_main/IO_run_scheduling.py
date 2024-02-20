@@ -63,7 +63,7 @@ class IOSimScheduling(SS):
         sleep(init_wait_time)
 
         try:
-            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\'"
+            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\'"
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException,paramiko.SSHException) as e:
             log.info(f'SSH EEROR: Authentication failed: {e}')
@@ -97,7 +97,7 @@ class IOSimScheduling(SS):
 
             try:
                 log.info('-' * 100)
-                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
                 new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
                     command=command, search=2, log=log
                     )
@@ -124,7 +124,7 @@ class IOSimScheduling(SS):
 
         try:
             log.info('-' * 100)
-            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
+            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
             conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
                 command=command,search=0,log=log
                 )

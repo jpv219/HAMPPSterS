@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### Contributors: Fuyue Liang
-### Version: 5.0
+### Version: 6.0
 ### First commit: February, 2024
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
@@ -68,7 +68,7 @@ class SMSimScheduling(SS):
         sleep(init_wait_time)
 
         try:
-            command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\''
+            command = f'python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
@@ -105,7 +105,7 @@ class SMSimScheduling(SS):
 
             try:
                 log.info('-' * 100)
-                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
                 new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
                     command=command, search=2, log=log
                     )
@@ -133,7 +133,7 @@ class SMSimScheduling(SS):
 
         try:
             log.info('-' * 100)
-            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
+            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
             conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
                 command=command,search=0,log=log
                 )
@@ -425,7 +425,7 @@ class SVSimScheduling(SS):
         sleep(init_wait_time)
 
         try:
-            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\'"
+            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\'"
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException,paramiko.SSHException) as e:
             log.info(f'SSH EEROR: Authentication failed: {e}')
@@ -460,7 +460,7 @@ class SVSimScheduling(SS):
 
             try:
                 log.info('-' * 100)
-                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
                 new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
                     command=command, search=2, log=log
                     )
@@ -487,7 +487,7 @@ class SVSimScheduling(SS):
 
         try:
             log.info('-' * 100)
-            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
+            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
             conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
                 command=command,search=0,log=log
                 )

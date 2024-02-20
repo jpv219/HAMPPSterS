@@ -27,7 +27,7 @@ from abc import ABC, abstractmethod
 
 ################################################################################# Author: Juan Pablo Valdes #########################################################################
 
-################################################################################# Tailored for SMX static mixer study ###############################################################
+################################################################################# LOCAL CFD SCHEDULING ###############################################################
 
 ########################################################################################### PARENT CLASS ############################################################################
 
@@ -65,6 +65,7 @@ class SimScheduling(ABC):
         self.run_path = pset_dict['run_path']
         self.run_name = pset_dict['run_name']
         self.usr = pset_dict['user']
+        self.study_ID = pset_dict['study_ID']
 
         self.save_path_runID = os.path.join(self.save_path,self.run_name)
         self.main_path = os.path.join(self.run_path,'..')
@@ -141,7 +142,7 @@ class SimScheduling(ABC):
                     sleep(t_wait)
                     try:
                         ### Execute monitor function in HPC to check job status
-                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\' --study \'{str(self.study_ID)}\''
                         new_jobid, new_t_wait, new_status, _ = self.execute_remote_command(
                             command=command,search=0,log=log
                             )
@@ -202,7 +203,7 @@ class SimScheduling(ABC):
 
                     try:
                         ### Execute monitor function in HPC to check job status
-                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\''
+                        command = f'python {self.main_path}/{HPC_script} monitor --pdict \'{mdict_str}\' --study \'{str(self.study_ID)}\''
                         _, run_t_wait, run_status, _ = self.execute_remote_command(
                             command=command,search=0,log=log
                             )
@@ -521,7 +522,7 @@ class SimMonitoring(SimScheduling):
 
             try:
                 log.info('-' * 100)
-                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
                 new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
                     command=command, search=2, log=log
                     )
