@@ -410,7 +410,11 @@ class SimScheduling(ABC):
 
                 for file_attr in remote_files:
                     remote_file_path = os.path.join(remote_path, file_attr.filename)
-                    local_file_path = os.path.join(self.save_path_runID, file_attr.filename)
+
+                    if hasattr(self, 'save_path_runID_post'):
+                        local_file_path = os.path.join(self.save_path_runID_post, file_attr.filename)
+                    else:
+                        local_file_path = os.path.join(self.save_path_runID, file_attr.filename)
 
                     # Check if it's a regular file before copying
                     if file_attr.st_mode & 0o100000:
