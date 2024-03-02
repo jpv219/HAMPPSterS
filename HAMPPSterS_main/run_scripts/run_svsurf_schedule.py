@@ -10,7 +10,7 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning')
+sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main')
 
 import psweep as ps
 from CFD_run_scheduling import SVSimScheduling
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     case = "svsurf"
     nruns = 20
-    nruns_list = [str(i+18) for i in range(1, nruns + 1)]
+    nruns_list = [str(i+38) for i in range(1, nruns + 1)]
     runname_list = ['run_svsurf_' + item for item in nruns_list]
     log.info(f'Case {case} studied with {nruns} runs')
     re_run = False
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     run_ID = ps.plist("run_ID",nruns_list)
     run_name = ps.plist("run_name",runname_list)
 
-    local_path = ps.plist("local_path",["/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning"])
+    local_path = ps.plist("local_path",["/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main"])
     save_path = ps.plist("save_path",["/media/fl18/Elements/surf_ML"])
 
     ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     Surf_dict = {'Bulk Diffusivity (m2/s)': [1e-8,1e-4],'Adsorption Coeff (m3/mol s)': [0.1,1e3],
                 'Desorption Coeff (1/s)': [1e-3,10],'Maximum packing conc (mol/ m2)':[1e-6,1e-4],
                 'Initial surface conc (mol/m2)': [1e-6,1e-4],'Surface diffusivity (m2/s)':[1e-8,1e-4],
-                'Elasticity Coeff':[0.05,0.95]
+                'Elasticity Coeff':[0.2,0.7] # [0.05,0.95]
                 }
 
     captured_output = io.StringIO()

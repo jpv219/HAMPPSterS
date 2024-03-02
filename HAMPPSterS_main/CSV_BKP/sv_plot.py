@@ -27,9 +27,9 @@ plt.rcParams.update({
     "font.family": "serif",
     "font.serif": ['Times']})
 
-case = 'svgeom'#'sp_svgeom'#sys.srgv[1]
-csv_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP'
-doe_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/DOE'
+case = 'sp_svgeom'#sys.argv[1]#'svsurf'#'sp_svgeom'#'svgeom'#
+csv_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/CSV_BKP'
+doe_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/DOE'
 
 # Read the backup csv with post-processed data and DOE table from pkl file #
 file_count = len(os.listdir(os.path.join(csv_path, f'finished_{case}')))
