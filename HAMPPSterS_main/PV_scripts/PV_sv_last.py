@@ -3,16 +3,14 @@
 ### to be run locally
 ### Author: Fuyue Liang,
 ### First commit: Sep, 2023
-### Version: 1.0
+### Version: 6.0
 ### Department of Chemical Engineering, Imperial College London
 #####################################################################
 from paraview.simple import *
 import sys
 import pandas as pd
-import numpy as np
 import os 
 import glob
-import shutil
 
 if __name__ == "__main__":
 

@@ -1,6 +1,6 @@
 ### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
 ### HPC scheduling and monitoring script
-### to be run in the HPC node
+### to be run in the HPC
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
 ### Version: 6.0

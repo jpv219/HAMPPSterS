@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### Contributors: Paula Pico, Fuyue Liang
-### Version: 5.0
+### Version: 6.0
 ### First commit: July, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
@@ -32,6 +32,7 @@ from abc import ABC, abstractmethod
 ########################################################################################### PARENT CLASS ############################################################################
 
 class SimScheduling(ABC):
+    """Abstract base class for simulation scheduling."""
 
 ############################################################################ EXCEPTION CLASSES  ###################################################################################
 

@@ -1,9 +1,9 @@
-### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
+### Automation_simulation_run, tailored for BLUE 12.5.1
 ### LHS DOE Sample experiments generator
 ### to be run locally in psweep script
 ### Author: Juan Pablo Valdes, Fuyue Liang, Paula Pico
 ### First commit: July, 2023
-### Version: 5.0
+### Version: 6.0
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
 #######################################################################################################################################################################################

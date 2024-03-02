@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Paula Pico,
 ### Contributors: Juan Pablo Valdes, Fuyue Liang
-### Version: 5.0
+### Version: 6.0
 ### First commit: December, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
