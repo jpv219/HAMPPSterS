@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Paula Pico,
 ### Contributors: Juan Pablo Valdes, Fuyue Liang
-### Version: 5.0
+### Version: 6.0
 ### First commit: December, 2023
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
@@ -14,31 +14,10 @@ from time import sleep
 import pandas as pd
 import subprocess
 import paramiko
-import configparser
-import warnings
 import json
 import numpy as np
-from CFD_run_scheduling import SimScheduling
+from CFD_run_scheduling import SimScheduling as SS
 
-############################################################################ EXCEPTION CLASSES  ###################################################################################
-
-class JobStatError(Exception):
-    """Exception class for qstat exception when job has finished or has been removed from HPC run queue"""
-    def __init__(self, message="Output empty on qstat execution, job finished or removed"):
-        self.message = message
-        super().__init__(self.message)
-
-class ConvergenceError(Exception):
-    """Exception class for convergence error on job"""
-    def __init__(self, message="Convergence checks from csv have failed, job not converging and will be deleted"):
-        self.message = message
-        super().__init__(self.message)
-
-class BadTerminationError(Exception):
-    """Exception class for bad termination error on job after running"""
-    def __init__(self, message="Job run ended on bad termination error"):
-        self.message = message
-        super().__init__(self.message)
 
 ################################################################################### PARAMETRIC STUDY ################################################################################
 
@@ -48,105 +27,20 @@ class BadTerminationError(Exception):
 
 ########################################################################################### CHILD CLASS ############################################################################
 
-class IOSimScheduling(SimScheduling):
+class IOSimScheduling(SS):
 
     ### Init Function ###
     def __init__(self) -> None:
         pass
 
-    ### Constructor function to be initilized through localrun via psweep call ###
-    def __construct__(self, pset_dict):
-        ### Initialising class attributes ###
-        self.pset_dict = pset_dict
-        self.case_type = pset_dict['case']
-        self.run_ID = pset_dict['run_ID']
-        self.local_path = pset_dict['local_path']
-        self.save_path = pset_dict['save_path']
-        self.run_path = pset_dict['run_path']
-        self.run_name = pset_dict['run_name']
-        self.usr = pset_dict['user']
-
-        self.save_path_runID = os.path.join(self.save_path,self.run_name)
-        self.save_path_runID_post = os.path.join(self.save_path_runID,'postProcessing')
-        self.main_path = os.path.join(self.run_path,'..')
-
-    ### Download final converted data to local processing machine. Creates an internal directory, 'postProcessing', where data files are stored locally
-        
-    def scp_download(self,log):
-
-        ephemeral_path = f'/rds/general/user/{self.usr}/ephemeral/'
-
-        try:
-            os.mkdir(self.save_path_runID)
-            os.mkdir(self.save_path_runID_post)
-            log.info(f'Saving folder created at {self.save_path}')
-
-        except:
-            pass
-
-        ### Config file with keys to login to the HPC
-        config = configparser.ConfigParser()
-        configfile = os.path.join(self.local_path, f'config_{self.usr}.ini')
-        config.read(configfile)
-        user = config.get('SSH', 'username')
-        key = config.get('SSH', 'password')
-        try_logins = ['login.hpc.ic.ac.uk','login-a.hpc.ic.ac.uk','login-b.hpc.ic.ac.uk','login-c.hpc.ic.ac.uk']
-
-        for login in try_logins:
-            
-            ### Establish an SSH connection using a context manager
-            ssh = paramiko.SSHClient()
-            ssh.load_system_host_keys()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            warnings.filterwarnings("ignore", category=ResourceWarning)
-
-            try:
-                ssh.connect(login, username=user, password=key)
-                stdin, _, _ = ssh.exec_command("echo 'SSH connection test'")
-                transport = ssh.get_transport()
-                sftp = paramiko.SFTPClient.from_transport(transport)
-
-                remote_path = os.path.join(ephemeral_path,self.run_name,'RESULTS')
-                remote_files = sftp.listdir_attr(remote_path)
-
-                for file_attr in remote_files:
-                    remote_file_path = os.path.join(remote_path, file_attr.filename)
-                    local_file_path = os.path.join(self.save_path_runID_post, file_attr.filename)
-
-                    # Check if it's a regular file before copying
-                    if file_attr.st_mode & 0o100000:
-                        sftp.get(remote_file_path, local_file_path)
-
-                log.info('-' * 100)
-                log.info(f'Files successfully copied at {self.save_path}')
-
-                if stdin is not None:
-                    break
-                
-            except (paramiko.AuthenticationException, paramiko.SSHException) as e:
-                if login == try_logins[-1]:
-                    raise e
-                else:
-                    log.info(f'SSH connection failed with login {login}, trying again ...')
-                    continue
-
-            ### closing HPC session
-            finally:
-                if 'sftp' in locals():
-                    sftp.close()
-                if 'stdin' in locals():
-                    stdin.close()
-                if 'ssh' in locals():
-                    ssh.close()
-                    
-            log.info('-' * 100)
-            log.info('-' * 100)
-
     def localrun(self,pset_dict):
 
-        ### constructor ###
-        self.__construct__(pset_dict)
+        ### constructor from parent class SimScheduling ###
+        super().__init__(pset_dict)
 
+        ## Study specific attributes constructed from basic attributes
+        self.save_path_runID_post = os.path.join(self.save_path_runID,'postProcessing')
+        
         ### Logger setup ###
         log_filename = os.path.join(self.local_path,f"output_{self.case_type}/output_{self.run_name}.txt")
         log = self.set_log(log_filename)
@@ -169,12 +63,12 @@ class IOSimScheduling(SimScheduling):
         sleep(init_wait_time)
 
         try:
-            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\'"
+            command = f"python {self.main_path}/{HPC_script} run --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\'"
             jobid, t_wait, status, _ = self.execute_remote_command(command=command,search=0,log=log)
         except (paramiko.AuthenticationException,paramiko.SSHException) as e:
             log.info(f'SSH EEROR: Authentication failed: {e}')
             return {}
-        except (ValueError, JobStatError, NameError) as e:
+        except (ValueError, SS.JobStatError, NameError) as e:
             log.info(f'Exited with message: {e}')
             return {}
         ### Job monitor and restart nested loop ###
@@ -189,7 +83,7 @@ class IOSimScheduling(SimScheduling):
 
             try:
                 self.jobmonitor(t_wait, status, jobid, self.run_ID, HPC_script,log)
-            except (ValueError, NameError, ConvergenceError) as e:
+            except (ValueError, NameError, SS.ConvergenceError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -203,7 +97,7 @@ class IOSimScheduling(SimScheduling):
 
             try:
                 log.info('-' * 100)
-                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\''
+                command = f'python {self.main_path}/{HPC_script} job_restart --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
                 new_jobID, new_t_wait, new_status, ret_bool = self.execute_remote_command(
                     command=command, search=2, log=log
                     )
@@ -216,7 +110,7 @@ class IOSimScheduling(SimScheduling):
                 status = new_status
                 restart = eval(ret_bool)
 
-            except (ValueError,FileNotFoundError,NameError,BadTerminationError,JobStatError,TypeError,KeyError) as e:
+            except (ValueError,FileNotFoundError,NameError,SS.BadTerminationError,SS.JobStatError,TypeError,KeyError) as e:
                 log.info(f'Exited with message: {e}')
                 return {}
             except (paramiko.AuthenticationException, paramiko.SSHException) as e:
@@ -230,7 +124,7 @@ class IOSimScheduling(SimScheduling):
 
         try:
             log.info('-' * 100)
-            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\''
+            command = f'python {self.main_path}/{HPC_script} vtk_convert --pdict \'{dict_str}\' --study \'{str(self.study_ID)}\''
             conv_jobid, conv_t_wait, conv_status, _ = self.execute_remote_command(
                 command=command,search=0,log=log
                 )
@@ -238,7 +132,7 @@ class IOSimScheduling(SimScheduling):
         except (paramiko.AuthenticationException, paramiko.SSHException) as e:
             log.info(f"SSH ERROR: Authentication failed: {e}")
             return {}
-        except (FileNotFoundError, JobStatError, ValueError, NameError) as e:
+        except (FileNotFoundError, SS.JobStatError, ValueError, NameError) as e:
             log.info(f'Exited with message: {e}')
             return {}
         

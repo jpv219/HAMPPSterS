@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Paula Pico,
 ### First commit: December, 2023
-### Version: 5.0
+### Version: 6.0
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
 #######################################################################################################################################################################################
@@ -19,7 +19,6 @@ import io
 import contextlib
 import csv
 import pickle
-import math
 
 log = configure_logger("geom")
 
@@ -30,11 +29,12 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "osc_clean"
-nruns = 50
-nruns_list = [str(i + 100) for i in range(1, nruns + 1)]
+nruns = 2
+nruns_list = [str(i + 10000) for i in range(1, nruns + 1)]
 runname_list = ['run_osc_clean_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 user = 'lchagot'
+study = 'IO'
 
 run_path = ps.plist("run_path",["/rds/general/user/lchagot/home/BLUE-14.0.1/project/INT_OSC/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/lchagot/home/BLUE-14.0.1/project/INT_OSC/BASE"])
@@ -44,6 +44,7 @@ case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
+study_list = ps.plist("study_ID",[study])
 
 local_path = ps.plist("local_path",["/home/pdp19/Documents/SMX_DeepLearning/HAMPPSterS_main/"])
 save_path = ps.plist("save_path",["/media/pdp19/PPICO3/ML_PROJECT/int_osc_clean/RUNS/"])
@@ -66,7 +67,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_osc_clean_3.pkl', 'wb') as file:
+with open('../DOE/LHS_osc_clean_1000.pkl', 'wb') as file:
     pickle.dump(psdict, file)
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -106,7 +107,7 @@ data = list(zip(epsilon_list,k_list,sigma_s_list,rho_l_list,rho_g_list,mu_l_list
                 a0_list,rho_r_list,mu_r_list,La_g_list,La_l_list,Ga_g_list,Ga_l_list,Bo_l_list,omega_list,T_list,t_final_list,delta_t_sn_list))
 
 # Save the combined data into a CSV file
-with open('../params/parameters_osc_clean_3.csv', 'w', newline='') as csvfile:
+with open('../params/parameters_osc_clean_1000.csv', 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(['epsilon','k','sigma_s','rho_l','rho_g','mu_l','mu_g','gravity','cond_csv_limit',
                      'a0','rho_r','mu_r','La_g','La_l','Ga_g','Ga_l','Bo_l','omega','T','t_final','delta_t_sn'])
@@ -126,7 +127,7 @@ delta_t_sn = ps.plist("delta_t_sn",delta_t_sn_list)
 cond_csv_limit = ps.plist("cond_csv_limit",cond_csv_limit_list)
 
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
-                  cond_csv,conditional,user_ps,zip(run_ID, run_name, epsilon, k, t_final, sigma_s,
+                  cond_csv,conditional,user_ps,study_list,zip(run_ID, run_name, epsilon, k, t_final, sigma_s,
                                                     rho_l, rho_g, mu_l, mu_g, gravity, delta_t_sn, cond_csv_limit))
 
 ######################################################################################################################################################################################

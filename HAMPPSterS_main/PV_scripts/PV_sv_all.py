@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Fuyue Liang,
 ### First commit: Sep, 2023
-### Version: 1.0
+### Version: 6.0
 ### Department of Chemical Engineering, Imperial College London
 #####################################################################
 from paraview.simple import *

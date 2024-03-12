@@ -6,11 +6,22 @@ import os
 
 def post_process_lastsp(run_name):
 
-    script_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/PV_scripts/PV_sv_sp.py'
-    local_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/'
+    script_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/PV_scripts/PV_sv_sp.py'
+    local_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/'
     save_path = '/media/fl18/Elements/spgeom_ML/'
-    C_path = os.path.join(local_path,'DOE/finished_sp_svgeom/LHS_sp_svgeom_1.pkl')
+    doe_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/DOE'
+    C_path = os.path.join(local_path,'DOE/finished_sp_svgeom/LHS_sp_svgeom_7.pkl')
     save_path_runID = os.path.join(save_path,run_name)
+
+    # Read the backup csv with post-processed data and DOE table from pkl file #
+    file_count = len(os.listdir(os.path.join(doe_path, 'finished_sp_svgeom')))
+
+    df_DOE_list = []
+    # Loop concatenating DOE and csv files from different paramatric sweeps
+    for i in range(1,file_count+1):
+        doe_pickle_filename = f'LHS_sp_svgeom_{i}.pkl'
+        DOE = pd.read_pickle(os.path.join(doe_path, 'finished_sp_svgeom', doe_pickle_filename))
+        df_DOE_list.append(DOE)
 
     os.chdir(save_path_runID)
     pvdfiles = glob.glob('VAR_*_time=*.pvd')
@@ -18,8 +29,10 @@ def post_process_lastsp(run_name):
     
     os.chdir(local_path)
     C_num = int(run_name.split('_')[-1])
-    df = pd.read_pickle(C_path)
-    C = df['Clearance (m)'][C_num-1]
+    print(C_num)
+    df_DOE = pd.concat(df_DOE_list, ignore_index=True)
+    # df = pd.read_pickle(C_path)
+    C = df_DOE['Clearance (m)'][C_num-1]
     print(C)
 
     print('Executing pvpython script')
@@ -53,8 +66,8 @@ def post_process_lastsp(run_name):
 
 def post_process_last(run_name):
 
-    script_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/PV_scripts/PV_sv_last.py'
-    local_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/'
+    script_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/PV_scripts/PV_sv_last.py'
+    local_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/'
     save_path = '/media/fl18/Elements/surf_ML/'
     save_path_runID = os.path.join(save_path,run_name)
 
@@ -105,8 +118,8 @@ def post_process_last(run_name):
 
 def post_process_all(run_name):
 
-    script_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/PV_scripts/PV_sv_sp.py'
-    local_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/'
+    script_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/PV_scripts/PV_sv_sp.py'
+    local_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/'
     save_path = '/media/fl18/Elements/surf_ML/'
     save_path_runID = os.path.join(save_path,run_name)
 
@@ -162,51 +175,51 @@ def post_process_all(run_name):
     return df_join
 
 def main():
-    for i in [3,5,6,9]:
-        run_name = f'run_svsurf_{i}'         
+    for i in [152,153,155,160,161,163,165]:
+        run_name = f'run_spsv_{i}'         
     # ### pvpython execution
     #########################
     ### single phase last ###
     #########################
-        # df_sp, maxtime = post_process_lastsp(run_name)
+        df_sp, maxtime = post_process_lastsp(run_name)
 
-        # if df_sp is not None:
+        if df_sp is not None:
 
-        #     df_hyd = pd.DataFrame({'Run':run_name,'Time':maxtime,
-        #                                     'Height':df_sp['Height'],'Q':df_sp['Q'],'Pres':df_sp['Pressure'],
-        #                                     'Ur': df_sp['Ur'], 'Uth':df_sp['Uth'], 'Uz':df_sp['Uz'],
-        #                                     'arc_length':df_sp['arc_length'],'Q_over_line':df_sp['Q_over_line'], 
-        #                                     'Ur_over_line':df_sp['Ur_over_line'],'Uz_over_line':df_sp['Uz_over_line']
-        #                 })
+            df_hyd = pd.DataFrame({'Run':run_name,'Time':maxtime,
+                                            'Height':df_sp['Height'],'Q':df_sp['Q'],'Pres':df_sp['Pressure'],
+                                            'Ur': df_sp['Ur'], 'Uth':df_sp['Uth'], 'Uz':df_sp['Uz'],
+                                            'arc_length':df_sp['arc_length'],'Q_over_line':df_sp['Q_over_line'], 
+                                            'Ur_over_line':df_sp['Ur_over_line'],'Uz_over_line':df_sp['Uz_over_line']
+                        })
 
-        #     print('-' * 100)
-        #     print(f'Post processing completed succesfully for {run_name}.')
-        #     print('-' * 100)
-        #     print('Extracted flow features')
-        #     print(f'{df_sp}')
+            print('-' * 100)
+            print(f'Post processing completed succesfully for {run_name}.')
+            print('-' * 100)
+            print('Extracted flow features')
+            print(f'{df_sp}')
 
-        #     csvbkp_file_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP/finished_sp_svgeom/sp_svgeom_1.csv'
+            csvbkp_file_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/CSV_BKP/sp_svgeom.csv'
 
 
-        #     # Check if the CSV file already exists
-        #     if not os.path.exists(csvbkp_file_path):
-        #         # If it doesn't exist, create a new CSV file with a header
-        #         df = pd.DataFrame({'Run':[],'Time':[],
-        #                                     'Height':[],'Q':[],'Pres':[],
-        #                                     'Ur': [], 'Uth':[], 'Uz':[],
-        #                                     'arc_length':[],'Q_over_line':[], 
-        #                                     'Ur_over_line':[],'Uz_over_line':[]
-        #                     })
-        #         df.to_csv(csvbkp_file_path, index=False)
+            # Check if the CSV file already exists
+            if not os.path.exists(csvbkp_file_path):
+                # If it doesn't exist, create a new CSV file with a header
+                df = pd.DataFrame({'Run':[],'Time':[],
+                                            'Height':[],'Q':[],'Pres':[],
+                                            'Ur': [], 'Uth':[], 'Uz':[],
+                                            'arc_length':[],'Q_over_line':[], 
+                                            'Ur_over_line':[],'Uz_over_line':[]
+                            })
+                df.to_csv(csvbkp_file_path, index=False)
             
-        #     ### Append data to csvbkp file
-        #     df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
-        #     print('-' * 100)
-        #     print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
-        #     print('-' * 100)
+            ### Append data to csvbkp file
+            df_hyd.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+            print('-' * 100)
+            print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+            print('-' * 100)
 
-        # else:
-        #     print('pvpython post-processing failed, returning empty')
+        else:
+            print('pvpython post-processing failed, returning empty')
         
 
     ### pvpython execution
@@ -214,37 +227,37 @@ def main():
     ### two phases LAST ####
     ########################
         
-        dfDSD, IntA, maxtime = post_process_last(run_name)
+        # dfDSD, IntA, maxtime = post_process_last(run_name)
 
-        if dfDSD is not None:
-            df_drops = pd.DataFrame({'Run':run_name,
-                                            'Time': maxtime,'IntA': IntA, 
-                                            'Nd': dfDSD['Nd'], 'DSD': dfDSD['Volume']})
+        # if dfDSD is not None:
+        #     df_drops = pd.DataFrame({'Run':run_name,
+        #                                     'Time': maxtime,'IntA': IntA, 
+        #                                     'Nd': dfDSD['Nd'], 'DSD': dfDSD['Volume']})
 
-            print('-' * 100)
-            print(f'Post processing completed succesfully for {run_name}')
-            print('-' * 100)
-            print(f'Drop size dist and Nd in this run at time {maxtime}[s]:')
-            print(f'{dfDSD}')
-            print(f'Interfacial Area : {IntA}')
+        #     print('-' * 100)
+        #     print(f'Post processing completed succesfully for {run_name}')
+        #     print('-' * 100)
+        #     print(f'Drop size dist and Nd in this run at time {maxtime}[s]:')
+        #     print(f'{dfDSD}')
+        #     print(f'Interfacial Area : {IntA}')
 
-            csvbkp_file_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP/svsurf.csv'
+        #     csvbkp_file_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/CSV_BKP/svsurf.csv'
 
-            # Check if the CSV file already exists
-            if not os.path.exists(csvbkp_file_path):
-                # If it doesn't exist, create a new CSV file with a header
-                df = pd.DataFrame({'Run': [], 
-                                'Time': [], 'IntA': [], 'Nd': [], 'DSD': []})
-                df.to_csv(csvbkp_file_path, index=False)
+        #     # Check if the CSV file already exists
+        #     if not os.path.exists(csvbkp_file_path):
+        #         # If it doesn't exist, create a new CSV file with a header
+        #         df = pd.DataFrame({'Run': [], 
+        #                         'Time': [], 'IntA': [], 'Nd': [], 'DSD': []})
+        #         df.to_csv(csvbkp_file_path, index=False)
 
-            ### Append data to csvbkp file
-            df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
-            print('-' * 100)
-            print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
-            print('-' * 100)
+        #     ### Append data to csvbkp file
+        #     df_drops.to_csv(csvbkp_file_path, mode='a', header= False, index=False)
+        #     print('-' * 100)
+        #     print(f'Saved backup post-process data successfully to {csvbkp_file_path}')
+        #     print('-' * 100)
         
-        else:
-            print(f'Pvpython postprocessing failed for {run_name}.')
+        # else:
+        #     print(f'Pvpython postprocessing failed for {run_name}.')
 
 ### pvpython execution
     ########################
@@ -263,7 +276,7 @@ def main():
         #     print('Results for the last 10 time steps in this run:')
         #     print(f'{df_drops[:10]}')
 
-        #     csvbkp_file_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/Database-ActiveLearning/CSV_BKP/svsurf.csv'
+        #     csvbkp_file_path = '/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main/CSV_BKP/svsurf.csv'
 
         #     # Check if the CSV file already exists
         #     if not os.path.exists(csvbkp_file_path):

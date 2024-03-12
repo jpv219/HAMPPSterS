@@ -3,7 +3,7 @@
 ### to be run locally
 ### Author: Juan Pablo Valdes,
 ### First commit: July, 2023
-### Version: 4.0
+### Version: 6.0
 ### Department of Chemical Engineering, Imperial College London
 #######################################################################################################################################################################################
 #######################################################################################################################################################################################
@@ -13,7 +13,7 @@ import sys
 sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
-from CFD_run_scheduling import SimScheduling
+from Mixing_run_scheduling import SMSimScheduling
 from LHS_Dataspace import runDOESP
 from logger import configure_logger
 import io
@@ -30,12 +30,13 @@ log.info('-' * 100)
 log.info('-' * 100)
 
 case = "sp_geom"
-nruns = 50
-nruns_list = [str(i+349) for i in range(1, nruns + 1)]
+nruns = 10
+nruns_list = [str(i+404) for i in range(1, nruns + 1)]
 runname_list = ['run_sp_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 re_run = False
 user = 'nkovalc1'
+study_ID = 'SM'
 
 run_path = ps.plist("run_path",["/rds/general/user/nkovalc1/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
 base_path = ps.plist("base_path",["/rds/general/user/nkovalc1/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
@@ -45,6 +46,7 @@ case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
 run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
+study_list = ps.plist("study_ID",[study_ID])
 
 local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/"])
 save_path = ps.plist("save_path",["/media/jpv219/ML/SP_Runs"])
@@ -69,8 +71,8 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_sp_geom_11.pkl', 'wb') as file:
-    pickle.dump(psdict, file)
+with open('../DOE/LHS_sp_geom_13.pkl', 'wb') as file:
+   pickle.dump(psdict, file)
 
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -111,7 +113,7 @@ if not re_run:
                     cond_csv_limit_list))
 
     # Save the combined data into a CSV file
-    with open('../params/parameters_SP_11.csv', 'w', newline='') as csvfile:
+    with open('../params/parameters_SP_13.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
         writer.writerows(data)
@@ -129,7 +131,7 @@ else:
     cond_csv_limit_list = []
 
     # Load data from CSV file
-    with open('../params/parameters_SP_11.csv', 'r') as csvfile:
+    with open('../params/parameters_SP_13.csv', 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             bar_width_list.append(row['bar_width'])
@@ -154,7 +156,7 @@ cond_csv_limit = ps.plist("cond_csv_limit",cond_csv_limit_list)
 
 ## creates parameter grid (list of dictionarys)
 params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path,
-                  cond_csv,conditional,user_ps,
+                  cond_csv,conditional,user_ps,study_list,
                   zip(run_ID,run_name,bar_width,bar_thickness,bar_angle,pipe_radius,
                       n_bars,flowrate,smx_pos,n_ele,cond_csv_limit))
 
@@ -164,7 +166,7 @@ log.info('-' * 100)
 log.info('' * 100)
 
 
-simulator = SimScheduling()
+simulator = SMSimScheduling()
 
 if __name__ == '__main__':
     df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
