@@ -14,7 +14,7 @@ sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from Mixing_run_scheduling import SMSimScheduling
-from LHS_Dataspace import runDOESP
+from LHS_Dataspace import SMX_SP
 from logger import configure_logger
 import io
 import contextlib
@@ -59,8 +59,10 @@ SMX_dict = {'Bar_Width (mm)': [1,25],'Bar_Thickness (mm)': [1,8],
 
 captured_output = io.StringIO()
 
+LHS_sampler = SMX_SP(SMX_dict, nruns)
+
 with contextlib.redirect_stdout(captured_output):
-    psdict = runDOESP(SMX_dict,nruns)
+    psdict = LHS_sampler()
     log.info('-' * 100)
     log.info('Modifications to the DOE')
     log.info(captured_output.getvalue())

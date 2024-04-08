@@ -16,15 +16,15 @@ from abc import ABC, abstractmethod
 
 class LHS_Sampler(ABC):
 
-    def __init__(self,DOE: dict,n_samples: int) -> None:
+    def __init__(self,LHS_space: dict,n_samples: int) -> None:
 
-        self.DOE = DOE
+        self.LHS_space = LHS_space
         self.n_samples = n_samples
         self.param_funs = None
 
     def __call__(self) -> dict:
 
-        LHS_space = build.space_filling_lhs(self.DOE, self.n_samples)
+        LHS_space = build.space_filling_lhs(self.LHS_space, self.n_samples)
 
         modified_space = self.apply_restrictions(LHS_space)
 
@@ -36,7 +36,6 @@ class LHS_Sampler(ABC):
     def apply_restrictions(self, LHS_space: dict) -> dict:
         pass
 
-    @abstractmethod
     def add_parameters(self, modified_space: dict) -> dict:
         
         for param, function in self.param_funs.items():
@@ -48,12 +47,14 @@ class LHS_Sampler(ABC):
 
 class SMX_Sampler(LHS_Sampler):
 
-    def __init__(self,DOE, n_samples) -> None:
-        super().__init__(DOE, n_samples)
+    def __init__(self, LHS_space: dict, n_samples: int) -> None:
+        super().__init__(LHS_space, n_samples)
 
-        self.param_funs = {'Re' : self.calcRe,
-                           'SMX_pos (mm)': calcPos,
-                           'We': calcWe}
+        cls = SMX_Sampler
+
+        self.param_funs = {'Re' : cls.calcRe,
+                           'SMX_pos (mm)': cls.calcPos,
+                           'We': cls.calcWe}
 
     def __call__(self) -> dict:
         return super().__call__()
@@ -98,9 +99,6 @@ class SMX_Sampler(LHS_Sampler):
             LHS_space.loc[i,'Nbars'] = N
         
         return LHS_space
-
-    def add_parameters(self, modified_space: dict) -> dict:
-        return super().add_parameters(modified_space)
     
     @staticmethod
     def calcRe(row):
@@ -114,63 +112,62 @@ class SMX_Sampler(LHS_Sampler):
     def calcWe(row):
         return 1364*((row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))**2)*(2*row['Radius (mm)']/1000)/0.036
 
+class SMX_SP(LHS_Sampler):
 
-def apply_rest_sp(DOE):
-    #Loading features
-    for i in range(DOE.shape[0]):
-        W = DOE.loc[i,'Bar_Width (mm)']
-        R = DOE.loc[i,'Radius (mm)']
-        N = round(DOE.loc[i,'Nbars'])
-        Q = DOE.loc[i,'Flowrate (m3/s)']
-        N_ele = round(DOE.loc[i,'NElements'])
-        #W- N -D considerations
-        OldW = W
-        OldQ = Q
+    def __init__(self, LHS_space: dict, n_samples: int) -> None:
+        super().__init__(LHS_space, n_samples)
 
-        Max_W = 2*R/N
-            
-        W = min(W,Max_W)
+        cls = SMX_Sampler
 
-        ## Maintaining consistent width with the number of bars and the pipe diameter
-        if W != OldW:
-            print('W in row ' + str(i) + ' modified from ' + str(OldW) + ' to ' + str(W))
+        self.param_funs = {'Re' : cls.calcRe,
+                           'SMX_pos (mm)': cls.calcPos}
+        
+    def __call__(self) -> dict:
+        return super().__call__()
+        
+    def apply_restrictions(self, LHS_space: dict) -> dict:
+        
+        #Loading features
+        for i in range(LHS_space.shape[0]):
+            W = LHS_space.loc[i,'Bar_Width (mm)']
+            R = LHS_space.loc[i,'Radius (mm)']
+            N = round(LHS_space.loc[i,'Nbars'])
+            Q = LHS_space.loc[i,'Flowrate (m3/s)']
+            N_ele = round(LHS_space.loc[i,'NElements'])
+            #W- N -D considerations
+            OldW = W
+            OldQ = Q
 
-        Re = 1364*(Q/(math.pi*(R/1000)**2))*((2*R)/1000)/0.615
+            Max_W = 2*R/N
+                
+            W = min(W,Max_W)
 
-        ### Keeping laminar conditions
-        if Re > 500:
-            Q = (np.random.uniform(5,500)*0.615/1364)*((math.pi*(R/1000)**2)/((2*R)/1000))
-            print('Re modification')
-            print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
+            ## Maintaining consistent width with the number of bars and the pipe diameter
+            if W != OldW:
+                print('W in row ' + str(i) + ' modified from ' + str(OldW) + ' to ' + str(W))
 
-        DOE.loc[i,'Bar_Width (mm)'] = W
-        DOE.loc[i,'Flowrate (m3/s)']  = Q
-        DOE.loc[i,'Nbars'] = N
-        DOE.loc[i,'NElements'] = N_ele
+            Re = 1364*(Q/(math.pi*(R/1000)**2))*((2*R)/1000)/0.615
 
-    return DOE
+            ### Keeping laminar conditions
+            if Re > 500:
+                Q = (np.random.uniform(5,500)*0.615/1364)*((math.pi*(R/1000)**2)/((2*R)/1000))
+                print('Re modification')
+                print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
 
-def calcRe(row):
-    return 1364*(row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))*(2*row['Radius (mm)']/1000)/0.615
-
-def calcPos(row):
-    return row['Radius (mm)']
-
-def calcWe(row):
-    return 1364*((row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))**2)*(2*row['Radius (mm)']/1000)/0.036
-
-
-def runDOESP(SMX_dict,numsamples):
-
-    ## Initial LHS with no restrictions
-    LHS_DOE = build.space_filling_lhs(SMX_dict,num_samples = numsamples) 
-
-    modifiedLHS = apply_rest_sp(LHS_DOE)
-
-    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcRe(row), axis = 1)
-    modifiedLHS['SMX_pos (mm)'] = modifiedLHS.apply(lambda row: calcPos(row), axis = 1)
+            LHS_space.loc[i,'Bar_Width (mm)'] = W
+            LHS_space.loc[i,'Flowrate (m3/s)']  = Q
+            LHS_space.loc[i,'Nbars'] = N
+            LHS_space.loc[i,'NElements'] = N_ele
+        
+        return LHS_space
     
-    return modifiedLHS
+    @staticmethod
+    def calcRe(row):
+        return 1364*(row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))*(2*row['Radius (mm)']/1000)/0.615
+
+    @staticmethod
+    def calcPos(row):
+        return row['Radius (mm)']
 
 
 ####################################################################################### SURFACTANT PROPERTIES SMX - LHS ###################################################################################
