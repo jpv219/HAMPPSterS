@@ -11,50 +11,109 @@
 from doepy import build
 import math
 import numpy as np
+from abc import ABC, abstractmethod
+
+
+class LHS_Sampler(ABC):
+
+    def __init__(self,DOE: dict,n_samples: int) -> None:
+
+        self.DOE = DOE
+        self.n_samples = n_samples
+        self.param_funs = None
+
+    def __call__(self) -> dict:
+
+        LHS_space = build.space_filling_lhs(self.DOE, self.n_samples)
+
+        modified_space = self.apply_restrictions(LHS_space)
+
+        final_space = self.add_parameters(modified_space)
+
+        return final_space
+    
+    @abstractmethod
+    def apply_restrictions(self, LHS_space: dict) -> dict:
+        pass
+
+    @abstractmethod
+    def add_parameters(self, modified_space: dict) -> dict:
+        
+        for param, function in self.param_funs.items():
+            modified_space[param] = modified_space.apply(lambda row: function(row), axis = 1)
+
+        return modified_space
 
 ####################################################################################### GEOMETRY FEATURES SMX - LHS ###################################################################################
 
-## Function applying restrictions
+class SMX_Sampler(LHS_Sampler):
 
-def apply_restrictions(DOE):
-    #Loading features
-    for i in range(DOE.shape[0]):
-        W = DOE.loc[i,'Bar_Width (mm)']
-        R = DOE.loc[i,'Radius (mm)']
-        N = round(DOE.loc[i,'Nbars'])
-        Q = DOE.loc[i,'Flowrate (m3/s)']
-        #W- N -D considerations
-        OldW = W
-        OldQ = Q
+    def __init__(self,DOE, n_samples) -> None:
+        super().__init__(DOE, n_samples)
 
-        Max_W = 2*R/N
+        self.param_funs = {'Re' : self.calcRe,
+                           'SMX_pos (mm)': calcPos,
+                           'We': calcWe}
+
+    def __call__(self) -> dict:
+        return super().__call__()
+    
+    def apply_restrictions(self, LHS_space: dict) -> dict:
+        
+        for i in range(LHS_space.shape[0]):
             
-        W = min(W,Max_W)
+            W = LHS_space.loc[i,'Bar_Width (mm)']
+            R = LHS_space.loc[i,'Radius (mm)']
+            N = round(LHS_space.loc[i,'Nbars'])
+            Q = LHS_space.loc[i,'Flowrate (m3/s)']
+            #W- N -D considerations
+            OldW = W
+            OldQ = Q
 
-        ## Maintaining consistent width with the number of bars and the pipe diameter
-        if W != OldW:
-            print('W in row ' + str(i) + ' modified from ' + str(OldW) + ' to ' + str(W))
+            Max_W = 2*R/N
+                
+            W = min(W,Max_W)
 
-        Re = 1364*(Q/(math.pi*(R/1000)**2))*((2*R)/1000)/0.615
-        We = 1364*((Q/(math.pi*(R/1000)**2))**2)*((2*R)/1000)/0.036
+            ## Maintaining consistent width with the number of bars and the pipe diameter
+            if W != OldW:
+                print('W in row ' + str(i) + ' modified from ' + str(OldW) + ' to ' + str(W))
 
-        ### Keeping laminar conditions
-        if Re > 50:
-            Q = (50*0.615/1364)*((math.pi*(R/1000)**2)/((2*R)/1000))
-            print('Re modification')
-            print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
+            Re = 1364*(Q/(math.pi*(R/1000)**2))*((2*R)/1000)/0.615
+            We = 1364*((Q/(math.pi*(R/1000)**2))**2)*((2*R)/1000)/0.036
 
-        ## Avoiding high Weber that slows down BLUE
-        if We > 10:
-            Q = math.sqrt(((10*0.036/1364)*(1/((2*R)/1000))))*(math.pi*(R/1000)**2)
-            print('We modification')
-            print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
+            ### Keeping laminar conditions
+            if Re > 50:
+                Q = (50*0.615/1364)*((math.pi*(R/1000)**2)/((2*R)/1000))
+                print('Re modification')
+                print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
 
-        DOE.loc[i,'Bar_Width (mm)'] = W
-        DOE.loc[i,'Flowrate (m3/s)']  = Q
-        DOE.loc[i,'Nbars'] = N
+            ## Avoiding high Weber that slows down BLUE
+            if We > 10:
+                Q = math.sqrt(((10*0.036/1364)*(1/((2*R)/1000))))*(math.pi*(R/1000)**2)
+                print('We modification')
+                print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(Q))
 
-    return DOE
+            LHS_space.loc[i,'Bar_Width (mm)'] = W
+            LHS_space.loc[i,'Flowrate (m3/s)']  = Q
+            LHS_space.loc[i,'Nbars'] = N
+        
+        return LHS_space
+
+    def add_parameters(self, modified_space: dict) -> dict:
+        return super().add_parameters(modified_space)
+    
+    @staticmethod
+    def calcRe(row):
+        return 1364*(row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))*(2*row['Radius (mm)']/1000)/0.615
+
+    @staticmethod
+    def calcPos(row):
+        return row['Radius (mm)']
+
+    @staticmethod
+    def calcWe(row):
+        return 1364*((row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))**2)*(2*row['Radius (mm)']/1000)/0.036
+
 
 def apply_rest_sp(DOE):
     #Loading features
@@ -100,18 +159,6 @@ def calcPos(row):
 def calcWe(row):
     return 1364*((row['Flowrate (m3/s)']/(math.pi*(row['Radius (mm)']/1000)**2))**2)*(2*row['Radius (mm)']/1000)/0.036
 
-def runDOE(SMX_dict,numsamples):
-
-    ## Initial LHS with no restrictions
-    LHS_DOE = build.space_filling_lhs(SMX_dict,num_samples = numsamples) 
-
-    modifiedLHS = apply_restrictions(LHS_DOE)
-
-    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcRe(row), axis = 1)
-    modifiedLHS['SMX_pos (mm)'] = modifiedLHS.apply(lambda row: calcPos(row), axis = 1)
-    modifiedLHS['We'] = modifiedLHS.apply(lambda row: calcWe(row), axis = 1)
-    
-    return modifiedLHS
 
 def runDOESP(SMX_dict,numsamples):
 

@@ -13,7 +13,7 @@ sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from CFD_run_scheduling import SimScheduling
-from LHS_Dataspace import runDOE
+from LHS_Dataspace import SMX_Sampler
 from logger import configure_logger
 import io
 import contextlib
@@ -57,8 +57,10 @@ SMX_dict = {'Bar_Width (mm)': [1,18],'Bar_Thickness (mm)': [1,6],'Radius (mm)': 
 
 captured_output = io.StringIO()
 
+LHS_sampler = SMX_Sampler(SMX_dict, nruns)
+
 with contextlib.redirect_stdout(captured_output):
-    psdict = runDOE(SMX_dict,nruns)
+    psdict = LHS_sampler()
     log.info('-' * 100)
     log.info('Modifications to the DOE')
     log.info(captured_output.getvalue())
