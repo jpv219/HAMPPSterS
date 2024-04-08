@@ -241,78 +241,75 @@ class SMX_Surf(LHS_Sampler):
 # # STIRRED VESSEL GEOMETRY FEATURES - LHS #
 # ##################################################################################
 
-## Function applying restrictions
+class SV_Geom(LHS_Sampler):
 
-def svgeom_restrictions(DOE):
-    for i in range(DOE.shape[0]):
-        # make sure blade number is an integer
-        N = round(DOE.loc[i,'Nblades'])
-        DOE.loc[i,'Nblades'] = N
+    def __init__(self, LHS_space: dict, n_samples: int) -> None:
+        super().__init__(LHS_space, n_samples)
 
-        # make sure Re > 500
-        F = round(DOE.loc[i, 'Frequency (1/s)'],2)
-        D = DOE.loc[i,'Impeller_Diameter (m)']
-        oldF = F
+        cls = SV_Geom
 
-        Re = (998*F*D**2)/1e-3
-
-        if Re < 500:
-            F = round((500*1e-3)/(998*D**2),2)
-            print('Re modification')
-            print(f'Frequency (1/s) in row {i} is modified from {oldF} to {F}.')
-        DOE.loc[i,'Frequency (1/s)'] = F
-
-        # make sure the combination of clearance and blade width is within domain
-        C = DOE.loc[i,'Clearance (m)']
-        bw = DOE.loc[i, 'Blade_width (m)']
-        oldC = C
-        # bw/2 < C and C + bw/2 < 0.05
-        if bw/2 >= C:
-            C = 0.005+bw/2 # 0.005 is the lower bound of clearance
-            print('Clearance modification')
-            print(f'Clearance (m) in row {i} is modified from {oldC}')
-        DOE.loc[i,'Clearance (m)'] = C
-
-        if bw/2+C >= 0.05:
-            C = 0.041-bw/2 
-            # 0.041 is chosen to make the new distance from vessel bottom is 0.005
-            print('Clearance modification')
-            print(f'Clearance (m) in row {i} is modified from {oldC}')
-        DOE.loc[i,'Clearance (m)'] = C
-
-    return DOE
-
-
-def calcsvRe(row):
-    return (998*row['Frequency (1/s)']*row['Impeller_Diameter (m)']**2)/1e-3
-
-def calcsvWe(row):
-    return (998* row['Frequency (1/s)']**2 * row['Impeller_Diameter (m)']**3)/0.035
-
-def runSVDOE(SV_dict,numsamples):
-
-    ## Initial LHS with no restrictions
-    LHS_DOE = build.space_filling_lhs(SV_dict,num_samples = numsamples) 
-
-    modifiedLHS = svgeom_restrictions(LHS_DOE)
-
-    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcsvRe(row), axis = 1)
-    modifiedLHS['We'] = modifiedLHS.apply(lambda row: calcsvWe(row), axis = 1)
+        self.param_funs = {'Re': cls.calcsvRe,
+                           'We': cls.calcsvWe}
+        
+    def __call__(self) -> dict:
+        return super().__call__()
     
-    return modifiedLHS
+    def apply_restrictions(self, LHS_space: dict) -> dict:
 
-####################################################################################
-# # STIRRED VESSEL GEOMETRY FEATURES Single Phase - LHS #
-# ##################################################################################
-def runSVSPDOE(SV_dict,numsamples):
-    ## Initial LHS with no restrictions
-    LHS_DOE = build.space_filling_lhs(SV_dict,num_samples = numsamples)
-    modifiedLHS = svgeom_restrictions(LHS_DOE)
+        for i in range(LHS_space.shape[0]):
+            # make sure blade number is an integer
+            N = round(LHS_space.loc[i,'Nblades'])
+            LHS_space.loc[i,'Nblades'] = N
 
-    modifiedLHS['Re'] = modifiedLHS.apply(lambda row: calcsvRe(row), axis = 1)
-    modifiedLHS['We'] = modifiedLHS.apply(lambda row: calcsvWe(row), axis = 1)
-    
-    return modifiedLHS
+            # make sure Re > 500
+            F = round(LHS_space.loc[i, 'Frequency (1/s)'],2)
+            D = LHS_space.loc[i,'Impeller_Diameter (m)']
+            oldF = F
+
+            Re = (998*F*D**2)/1e-3
+
+            if Re < 500:
+                F = round((500*1e-3)/(998*D**2),2)
+                print('Re modification')
+                print(f'Frequency (1/s) in row {i} is modified from {oldF} to {F}.')
+            LHS_space.loc[i,'Frequency (1/s)'] = F
+
+            # make sure the combination of clearance and blade width is within domain
+            C = LHS_space.loc[i,'Clearance (m)']
+            bw = LHS_space.loc[i, 'Blade_width (m)']
+            oldC = C
+            # bw/2 < C and C + bw/2 < 0.05
+            if bw/2 >= C:
+                C = 0.005+bw/2 # 0.005 is the lower bound of clearance
+                print('Clearance modification')
+                print(f'Clearance (m) in row {i} is modified from {oldC}')
+            LHS_space.loc[i,'Clearance (m)'] = C
+
+            if bw/2+C >= 0.05:
+                C = 0.041-bw/2 
+                # 0.041 is chosen to make the new distance from vessel bottom is 0.005
+                print('Clearance modification')
+                print(f'Clearance (m) in row {i} is modified from {oldC}')
+            LHS_space.loc[i,'Clearance (m)'] = C
+
+        return LHS_space
+
+    @staticmethod
+    def calcsvRe(row):
+        return (998*row['Frequency (1/s)']*row['Impeller_Diameter (m)']**2)/1e-3
+
+    @staticmethod
+    def calcsvWe(row):
+        return (998* row['Frequency (1/s)']**2 * row['Impeller_Diameter (m)']**3)/0.035
+
+class SV_SP(SV_Geom):
+
+    def __init__(self, LHS_space: dict, n_samples: int) -> None:
+        super().__init__(LHS_space, n_samples)
+
+    def __call__(self) -> dict:
+        return super().__call__()
+
 
 ####################################################################################
 # STIRRED VESSEL SURFACTANT PROPERTIES - LHS #
