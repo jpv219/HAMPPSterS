@@ -314,72 +314,86 @@ class SV_SP(SV_Geom):
 ####################################################################################
 # STIRRED VESSEL SURFACTANT PROPERTIES - LHS #
 # ##################################################################################
-def svsurf_restriction(DOE):
-    for i in range(DOE.shape[0]):
-        # make sure ginf > gini
-        ginf = DOE.loc[i,'Maximum packing conc (mol/ m2)']
-        gini = DOE.loc[i,'Initial surface conc (mol/m2)']
 
-        old_gini = gini
+class SV_Surf(LHS_Sampler):
 
-        if gini>=ginf:
-            random_float = np.random.uniform(low=0.05, high=0.95)  
-            random_float = round(random_float, 2) 
-            gini = random_float*ginf
-            print(f'G_ini (mol/m2) in row {i} is modified from {old_gini} to {gini}')
-        DOE.loc[i,'Initial surface conc (mol/m2)'] = gini
+    def __init__(self, LHS_space: dict, n_samples: int) -> None:
+        super().__init__(LHS_space, n_samples)
 
-        # make sure Bi <= 1 or BiPeBh < 1 by modifying Bi < 1
-        kd = DOE.loc[i, 'Desorption Coeff (1/s)']
-        Db = DOE.loc[i, 'Bulk Diffusivity (m2/s)']
+        cls = SV_Surf
+
+        self.param_funs = {'G0/Ginf': cls.svgamma_ratio,
+                           'PeS': cls.svPeS,
+                           'PeB': cls.svPeB,
+                           'Bi': cls.svBi,
+                           'C0': cls.svC0,
+                           'h': cls.svh,
+                           'K': cls.svK,
+                           'BiPeBh': cls.svBiPeBh}
+
+    def __call__(self) -> dict:
+        return super().__call__()
+    
+    def apply_restrictions(self, LHS_space: dict) -> dict:
         
-        Bi = kd/5
-        C0 = ginf/0.02125
-        BiPeBh = (kd*ginf)/(Db*C0)
-        
-        old_kd = kd
+        for i in range(LHS_space.shape[0]):
 
-        if Bi>1 and BiPeBh>1:
-            random_float = np.random.uniform(low=0.05, high=0.95)
-            random_float = round(random_float, 2)
-            kd = random_float*5
-            print(f'kd (1/s) in row {i} is modified from {old_kd} to {kd}')
-        DOE.loc[i,'Desorption Coeff (1/s)'] = kd
+            # make sure ginf > gini
+            ginf = LHS_space.loc[i,'Maximum packing conc (mol/ m2)']
+            gini = LHS_space.loc[i,'Initial surface conc (mol/m2)']
 
-    return DOE
+            old_gini = gini
 
-def svgamma_ratio(row):
-    return (row['Initial surface conc (mol/m2)']/row['Maximum packing conc (mol/ m2)'])
-def svPeS(row):
-    return (5*0.00180625/row['Surface diffusivity (m2/s)'])
-def svPeB(row):
-    return (5*0.00180625/row['Bulk Diffusivity (m2/s)'])
-def svBi(row):
-    return (row['Desorption Coeff (1/s)']/5)
-def svC0(row):
-    return (row['Maximum packing conc (mol/ m2)']/0.02125)
-def svh(row):
-    return (row['Maximum packing conc (mol/ m2)']/(0.0425*row['C0']))
-def svK(row):
-    return (row['Adsorption Coeff (m3/mol s)']*row['C0']/row['Desorption Coeff (1/s)'])
-def svBiPeBh(row):
-    return (row['Bi']*row['PeB']*row['h'])
+            if gini>=ginf:
+                random_float = np.random.uniform(low=0.05, high=0.95)  
+                random_float = round(random_float, 2) 
+                gini = random_float*ginf
+                print(f'G_ini (mol/m2) in row {i} is modified from {old_gini} to {gini}')
+            LHS_space.loc[i,'Initial surface conc (mol/m2)'] = gini
 
-def runSVSurfDOE(Surf_dict,numsamples):
+            # make sure Bi <= 1 or BiPeBh < 1 by modifying Bi < 1
+            kd = LHS_space.loc[i, 'Desorption Coeff (1/s)']
+            Db = LHS_space.loc[i, 'Bulk Diffusivity (m2/s)']
+            
+            Bi = kd/5
+            C0 = ginf/0.02125
+            BiPeBh = (kd*ginf)/(Db*C0)
+            
+            old_kd = kd
 
-    SurfDOE = build.space_filling_lhs(Surf_dict, num_samples=numsamples)
-    #### Adding dimensionless parameter calculation for easier post processing
-    Modified_SurfDOE = svsurf_restriction(SurfDOE)
-    Modified_SurfDOE['G0/Ginf'] = Modified_SurfDOE.apply(lambda row: svgamma_ratio(row), axis = 1)
-    Modified_SurfDOE['PeS'] = Modified_SurfDOE.apply(lambda row: svPeS(row), axis = 1)
-    Modified_SurfDOE['PeB'] = Modified_SurfDOE.apply(lambda row: svPeB(row), axis = 1)
-    Modified_SurfDOE['Bi'] = Modified_SurfDOE.apply(lambda row: svBi(row), axis = 1)
-    Modified_SurfDOE['C0'] = Modified_SurfDOE.apply(lambda row: svC0(row), axis = 1)
-    Modified_SurfDOE['h'] = Modified_SurfDOE.apply(lambda row: svh(row), axis = 1)
-    Modified_SurfDOE['K'] = Modified_SurfDOE.apply(lambda row: svK(row), axis = 1)
-    Modified_SurfDOE['BiPeBh'] = Modified_SurfDOE.apply(lambda row: svBiPeBh(row), axis=1)
+            if Bi>1 and BiPeBh>1:
+                random_float = np.random.uniform(low=0.05, high=0.95)
+                random_float = round(random_float, 2)
+                kd = random_float*5
+                print(f'kd (1/s) in row {i} is modified from {old_kd} to {kd}')
+            LHS_space.loc[i,'Desorption Coeff (1/s)'] = kd
 
-    return Modified_SurfDOE
+        return LHS_space
+
+    @staticmethod
+    def svgamma_ratio(row):
+        return (row['Initial surface conc (mol/m2)']/row['Maximum packing conc (mol/ m2)'])
+    @staticmethod
+    def svPeS(row):
+        return (5*0.00180625/row['Surface diffusivity (m2/s)'])
+    @staticmethod
+    def svPeB(row):
+        return (5*0.00180625/row['Bulk Diffusivity (m2/s)'])
+    @staticmethod
+    def svBi(row):
+        return (row['Desorption Coeff (1/s)']/5)
+    @staticmethod
+    def svC0(row):
+        return (row['Maximum packing conc (mol/ m2)']/0.02125)
+    @staticmethod
+    def svh(row):
+        return (row['Maximum packing conc (mol/ m2)']/(0.0425*row['C0']))
+    @staticmethod
+    def svK(row):
+        return (row['Adsorption Coeff (m3/mol s)']*row['C0']/row['Desorption Coeff (1/s)'])
+    @staticmethod
+    def svBiPeBh(row):
+        return (row['Bi']*row['PeB']*row['h'])
 
 ####################################################################################
 # # INTERFACIAL OSCILLATION CLEAN FEATURES - LHS #
