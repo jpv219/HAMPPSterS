@@ -10,11 +10,12 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main')
+#sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main')
+sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from Mixing_run_scheduling import SVSimScheduling
-from LHS_Dataspace import runSVSPDOE
+from LHS_Dataspace import SV_SP
 from logger import configure_logger
 import io
 import contextlib
@@ -71,8 +72,10 @@ SV_dict = {'Impeller_Diameter (m)': [0.3*tank_diameter,0.8*tank_diameter],#[0.15
 
 captured_output = io.StringIO()
 
+LHS_sampler = SV_SP(SV_dict, nruns)
+
 with contextlib.redirect_stdout(captured_output):
-    psdict = runSVSPDOE(SV_dict,nruns)
+    psdict = LHS_sampler()
     log.info('-' * 100)
     log.info('Modifications to the DOE')
     log.info(captured_output.getvalue())

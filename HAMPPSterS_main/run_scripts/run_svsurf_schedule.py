@@ -10,11 +10,12 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main')
+#sys.path.append('/home/fl18/Desktop/automatework/ML_auto/SMX_DeepLearning/HAMPPSterS_main')
+sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
-from CFD_run_scheduling import SVSimScheduling
-from LHS_Dataspace import runSVSurfDOE
+from Mixing_run_scheduling import SVSimScheduling
+from LHS_Dataspace import SV_Surf
 from logger import configure_logger
 import io
 import contextlib
@@ -69,8 +70,10 @@ if __name__ == '__main__':
 
     captured_output = io.StringIO()
 
+    LHS_sampler = SV_Surf(Surf_dict, nruns)
+
     with contextlib.redirect_stdout(captured_output):
-        psdict = runSVSurfDOE(Surf_dict,nruns)
+        psdict = LHS_sampler()
         log.info('-' * 100)
         log.info('Modifications to the DOE')
         log.info(captured_output.getvalue())
