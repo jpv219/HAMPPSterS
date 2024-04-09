@@ -14,6 +14,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 
+## PARENT CLASS - LHS SAMPLER
 class LHS_Sampler(ABC):
 
     def __init__(self,LHS_space: dict,n_samples: int) -> None:
@@ -399,101 +400,106 @@ class SV_Surf(LHS_Sampler):
 # # INTERFACIAL OSCILLATION CLEAN FEATURES - LHS #
 # ##################################################################################
 
-# Apply restrictions to chosen properties
-def IOclean_restrictions(DOE):
+class IO_clean(LHS_Sampler):
 
-    for i in range(DOE.shape[0]):
+    def __init__(self, LHS_space: dict, n_samples: int) -> None:
+        super().__init__(LHS_space, n_samples)
 
-        # Ensure wave number is an integer
-        K = round(DOE.loc[i,'Wave_number (1/m)'])
-        DOE.loc[i,'Wave_number (1/m)'] = K
+        cls = IO_clean
 
-        # Ensure rho_l >= rho_g by changing rho_g
-        rho_l = DOE.loc[i,'Density_l (kg/m3)']
-        rho_g = DOE.loc[i,'Density_g (kg/m3)']
+        self.param_funs = {'a0': cls.IOa0,
+                           'Density_ratio': cls.IOrho_r,
+                           'Viscosity_ratio': cls.IOmu_r,
+                           'La_g': cls.IOLa_g,
+                           'La_l': cls.IOLa_l,
+                           'Ga_g': cls.IOGa_g,
+                           'Ga_l': cls.IOGa_l,
+                           'Bo_l': cls.IOBo_l,
+                           'omega': cls.IOomega,
+                           'T (s)': cls.IOT,
+                           't_final (s)': cls.IOt_final,
+                           'delta_t_sn (s)': cls.IOdelta_t_sn}
 
-        old_rho_g = rho_g
-
-        if rho_g>rho_l:
-            random_float = np.random.uniform(low=1, high=1e3)  
-            random_float = round(random_float, 2) 
-            rho_g = rho_l/random_float
-            print(f'rho_g (kg/m3) in row {i} is modified from {old_rho_g} to {rho_g}')
-        DOE.loc[i,'Density_g (kg/m3)'] = rho_g
-
-        # Ensure mu_l >= mu_g by changing mu_g
-        mu_l = DOE.loc[i,'Viscosity_l (Pa*s)']
-        mu_g = DOE.loc[i,'Viscosity_g (Pa*s)']
-
-        old_mu_g = mu_g
-
-        if mu_g>mu_l:
-            random_float = np.random.uniform(low=1, high=1e3)  
-            random_float = round(random_float, 2) 
-            mu_g = mu_l/random_float
-            print(f'mu_g (Pa*s) in row {i} is modified from {old_mu_g} to {mu_g}')
-        DOE.loc[i,'Viscosity_g (Pa*s)'] = mu_g
-
-    return DOE
-
-def IOa0(row):
-    return row['epsilon']/row['Wave_number (1/m)']
-
-def IOrho_r(row):
-    return row['Density_l (kg/m3)']/row['Density_g (kg/m3)']
-
-def IOmu_r(row):
-    return row['Viscosity_l (Pa*s)']/row['Viscosity_g (Pa*s)']
-
-def IOLa_g(row):
-    return ((row['Surf_tension (N/m)']*row['Density_g (kg/m3)'])/(row['Wave_number (1/m)']*row['Viscosity_g (Pa*s)']**2))
-
-def IOLa_l(row):
-    return ((row['Surf_tension (N/m)']*row['Density_l (kg/m3)'])/(row['Wave_number (1/m)']*row['Viscosity_l (Pa*s)']**2))
-
-def IOGa_g(row):
-    return ((row['Gravity (m/s2)']*row['Density_g (kg/m3)']**2)/((row['Viscosity_g (Pa*s)']**2)*(row['Wave_number (1/m)']**3)))
-
-def IOGa_l(row):
-    return ((row['Gravity (m/s2)']*row['Density_l (kg/m3)']**2)/((row['Viscosity_l (Pa*s)']**2)*(row['Wave_number (1/m)']**3)))
-
-def IOBo_l(row):
-    return ((row['Density_l (kg/m3)']*row['Gravity (m/s2)'])/(row['Surf_tension (N/m)']*row['Wave_number (1/m)']**2))
-
-def IOomegasq(row):
-    return (((row['Gravity (m/s2)']*row['Wave_number (1/m)']*(row['Density_l (kg/m3)'] - row['Density_g (kg/m3)']))/(row['Density_l (kg/m3)'] + row['Density_g (kg/m3)'])) 
-            + ((row['Surf_tension (N/m)']*row['Wave_number (1/m)']**3)/(row['Density_l (kg/m3)'] + row['Density_g (kg/m3)'])))
-
-def IOomega(row):
-    omega_sq = IOomegasq(row)
-    return omega_sq**(1/2)
-
-def IOT(row):
-    return (2*math.pi)/(IOomega(row))
-
-# Final time is 5T plus 0.5%
-def IOt_final(row):
-    return 5*IOT(row) + 0.005*5*IOT(row)
-
-def IOdelta_t_sn(row):
-    return IOT(row)/20
-
-def runIODOE(IO_dict,numsamples):
-
-    ## Initial LHS with no restrictions
-    LHS_DOE = build.space_filling_lhs(IO_dict,num_samples = numsamples)
-    Modified_DOE = IOclean_restrictions(LHS_DOE)
-    Modified_DOE['a0'] = Modified_DOE.apply(lambda row: IOa0(row), axis = 1)
-    Modified_DOE['Density_ratio'] = Modified_DOE.apply(lambda row: IOrho_r(row), axis = 1)
-    Modified_DOE['Viscosity_ratio'] = Modified_DOE.apply(lambda row: IOmu_r(row), axis = 1)
-    Modified_DOE['La_g'] = Modified_DOE.apply(lambda row: IOLa_g(row), axis = 1)
-    Modified_DOE['La_l'] = Modified_DOE.apply(lambda row: IOLa_l(row), axis = 1)
-    Modified_DOE['Ga_g'] = Modified_DOE.apply(lambda row: IOGa_g(row), axis = 1)
-    Modified_DOE['Ga_l'] = Modified_DOE.apply(lambda row: IOGa_l(row), axis = 1)
-    Modified_DOE['Bo_l'] = Modified_DOE.apply(lambda row: IOBo_l(row), axis = 1)
-    Modified_DOE['omega'] = Modified_DOE.apply(lambda row: IOomega(row), axis = 1)
-    Modified_DOE['T (s)'] = Modified_DOE.apply(lambda row: IOT(row), axis = 1)
-    Modified_DOE['t_final (s)'] = Modified_DOE.apply(lambda row: IOt_final(row), axis = 1)
-    Modified_DOE['delta_t_sn (s)'] = Modified_DOE.apply(lambda row: IOdelta_t_sn(row), axis = 1)
+    def __call__(self) -> dict:
+        return super().__call__()
     
-    return Modified_DOE
+    def apply_restrictions(self, LHS_space: dict) -> dict:
+        for i in range(LHS_space.shape[0]):
+
+            # Ensure wave number is an integer
+            K = round(LHS_space.loc[i,'Wave_number (1/m)'])
+            LHS_space.loc[i,'Wave_number (1/m)'] = K
+
+            # Ensure rho_l >= rho_g by changing rho_g
+            rho_l = LHS_space.loc[i,'Density_l (kg/m3)']
+            rho_g = LHS_space.loc[i,'Density_g (kg/m3)']
+
+            old_rho_g = rho_g
+
+            if rho_g>rho_l:
+                random_float = np.random.uniform(low=1, high=1e3)  
+                random_float = round(random_float, 2) 
+                rho_g = rho_l/random_float
+                print(f'rho_g (kg/m3) in row {i} is modified from {old_rho_g} to {rho_g}')
+            LHS_space.loc[i,'Density_g (kg/m3)'] = rho_g
+
+            # Ensure mu_l >= mu_g by changing mu_g
+            mu_l = LHS_space.loc[i,'Viscosity_l (Pa*s)']
+            mu_g = LHS_space.loc[i,'Viscosity_g (Pa*s)']
+
+            old_mu_g = mu_g
+
+            if mu_g>mu_l:
+                random_float = np.random.uniform(low=1, high=1e3)  
+                random_float = round(random_float, 2) 
+                mu_g = mu_l/random_float
+                print(f'mu_g (Pa*s) in row {i} is modified from {old_mu_g} to {mu_g}')
+            LHS_space.loc[i,'Viscosity_g (Pa*s)'] = mu_g
+
+        return LHS_space
+
+    @staticmethod
+    def IOa0(row):
+        return row['epsilon']/row['Wave_number (1/m)']
+    @staticmethod
+    def IOrho_r(row):
+        return row['Density_l (kg/m3)']/row['Density_g (kg/m3)']
+    @staticmethod
+    def IOmu_r(row):
+        return row['Viscosity_l (Pa*s)']/row['Viscosity_g (Pa*s)']
+    @staticmethod
+    def IOLa_g(row):
+        return ((row['Surf_tension (N/m)']*row['Density_g (kg/m3)'])/(row['Wave_number (1/m)']*row['Viscosity_g (Pa*s)']**2))
+    @staticmethod
+    def IOLa_l(row):
+        return ((row['Surf_tension (N/m)']*row['Density_l (kg/m3)'])/(row['Wave_number (1/m)']*row['Viscosity_l (Pa*s)']**2))
+    @staticmethod
+    def IOGa_g(row):
+        return ((row['Gravity (m/s2)']*row['Density_g (kg/m3)']**2)/((row['Viscosity_g (Pa*s)']**2)*(row['Wave_number (1/m)']**3)))
+    @staticmethod
+    def IOGa_l(row):
+        return ((row['Gravity (m/s2)']*row['Density_l (kg/m3)']**2)/((row['Viscosity_l (Pa*s)']**2)*(row['Wave_number (1/m)']**3)))
+    @staticmethod
+    def IOBo_l(row):
+        return ((row['Density_l (kg/m3)']*row['Gravity (m/s2)'])/(row['Surf_tension (N/m)']*row['Wave_number (1/m)']**2))
+    @staticmethod
+    def IOomegasq(row):
+        return (((row['Gravity (m/s2)']*row['Wave_number (1/m)']*(row['Density_l (kg/m3)'] - row['Density_g (kg/m3)']))/(row['Density_l (kg/m3)'] + row['Density_g (kg/m3)'])) 
+                + ((row['Surf_tension (N/m)']*row['Wave_number (1/m)']**3)/(row['Density_l (kg/m3)'] + row['Density_g (kg/m3)'])))
+    
+    @classmethod
+    def IOomega(cls,row):
+        omega_sq = cls.IOomegasq(row)
+        return omega_sq**(1/2)
+    
+    @classmethod
+    def IOT(cls,row):
+        return (2*math.pi)/(cls.IOomega(row))
+
+    @classmethod
+    def IOt_final(cls,row):
+        return 5*cls.IOT(row) + 0.005*5*cls.IOT(row)
+    
+    @classmethod
+    def IOdelta_t_sn(cls,row):
+        return cls.IOT(row)/20
