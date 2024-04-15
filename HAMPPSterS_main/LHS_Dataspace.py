@@ -44,26 +44,26 @@ class LHS_Sampler(ABC):
 
         return modified_space
 
-class CCD_Sampler(LHS_Sampler):
+class UR_Sampler(LHS_Sampler):
 
-    def __init__(self, CCD_space: dict, num_samples: int, rules) -> None:
-        self.CCD_space = CCD_space
+    def __init__(self, UR_space: dict, num_samples: int, rules) -> None:
+        self.UR_space = UR_space
         self.param_funs = None
         self.rules = rules
         self.num_samples = num_samples
 
     def __call__(self) -> dict:
         
-        CCD_space = build.uniform_random(self.CCD_space, self.num_samples)
+        UR_space = build.uniform_random(self.UR_space, self.num_samples)
 
-        modified_space = self.apply_restrictions(CCD_space)
+        modified_space = self.apply_restrictions(UR_space)
 
         final_space = self.add_parameters(modified_space)
 
         return final_space
     
     @abstractmethod
-    def apply_restrictions(self, CCD_space: dict, rules) -> dict:
+    def apply_restrictions(self, UR_space: dict, rules) -> dict:
         pass
 
     def add_parameters(self, modified_space: dict) -> dict:
@@ -197,10 +197,10 @@ class SMX_SP(LHS_Sampler):
     def calcPos(row):
         return row['Radius (mm)']
 
-class SMX_SP_CCD(CCD_Sampler):
+class SMX_SP_UR(UR_Sampler):
 
-    def __init__(self, CCD_space: dict, num_samples: int, rules) -> None:
-        super().__init__(CCD_space, num_samples, rules)
+    def __init__(self, UR_space: dict, num_samples: int, rules) -> None:
+        super().__init__(UR_space, num_samples, rules)
 
         cls = SMX_SP
 
@@ -210,18 +210,18 @@ class SMX_SP_CCD(CCD_Sampler):
     def __call__(self) -> dict:
         return super().__call__()
 
-    def apply_restrictions(self, CCD_space: dict) -> dict:
+    def apply_restrictions(self, UR_space: dict) -> dict:
 
         # Loading rules
         min_Re,max_Re = self.rules
         
         #Loading features
-        for i in range(CCD_space.shape[0]):
-            w = CCD_space.loc[i,'Bar_Width (mm)']
-            r = CCD_space.loc[i,'Radius (mm)']
-            nbars = round(CCD_space.loc[i,'Nbars'])
-            q = CCD_space.loc[i,'Flowrate (m3/s)']
-            n_ele = round(CCD_space.loc[i,'NElements'])
+        for i in range(UR_space.shape[0]):
+            w = UR_space.loc[i,'Bar_Width (mm)']
+            r = UR_space.loc[i,'Radius (mm)']
+            nbars = round(UR_space.loc[i,'Nbars'])
+            q = UR_space.loc[i,'Flowrate (m3/s)']
+            n_ele = round(UR_space.loc[i,'NElements'])
             
             #W- N -D considerations
             OldW = w
@@ -243,12 +243,12 @@ class SMX_SP_CCD(CCD_Sampler):
                 print('Re modification')
                 print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(q))
 
-            CCD_space.loc[i,'Bar_Width (mm)'] = w
-            CCD_space.loc[i,'Flowrate (m3/s)']  = q
-            CCD_space.loc[i,'Nbars'] = nbars
-            CCD_space.loc[i,'NElements'] = n_ele
+            UR_space.loc[i,'Bar_Width (mm)'] = w
+            UR_space.loc[i,'Flowrate (m3/s)']  = q
+            UR_space.loc[i,'Nbars'] = nbars
+            UR_space.loc[i,'NElements'] = n_ele
         
-        return CCD_space
+        return UR_space
 
 ####################################################################################### SURFACTANT PROPERTIES SMX - LHS ###################################################################################
 

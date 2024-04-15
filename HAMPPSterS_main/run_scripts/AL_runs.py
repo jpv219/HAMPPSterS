@@ -14,7 +14,7 @@ sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from Mixing_run_scheduling import SMSimScheduling
-from LHS_Dataspace import SMX_SP_CCD
+from LHS_Dataspace import SMX_SP_UR
 from logger import configure_logger
 import io
 import contextlib
@@ -69,7 +69,7 @@ Re_rules = (50.997, 251.697)
 
 captured_output = io.StringIO()
 
-LHS_sampler = SMX_SP_CCD(AL_dict, nruns, Re_rules)
+LHS_sampler = SMX_SP_UR(AL_dict, nruns, Re_rules)
 
 with contextlib.redirect_stdout(captured_output):
     psdict = LHS_sampler()
@@ -83,7 +83,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open(f'../DOE/CCD_sp_geom_{AL_space}.pkl', 'wb') as file:
+with open(f'../DOE/sp_geom_AL_{AL_space}.pkl', 'wb') as file:
    pickle.dump(psdict, file)
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -118,7 +118,7 @@ data = list(zip(bar_width_list, bar_thickness_list,
                 cond_csv_limit_list))
 
 # Save the combined data into a CSV file
-with open(f'../params/parameters_SP_{AL_space}.csv', 'w', newline='') as csvfile:
+with open(f'../params/parameters_sp_AL_{AL_space}.csv', 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
     writer.writerows(data)
