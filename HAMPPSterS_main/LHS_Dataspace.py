@@ -44,7 +44,32 @@ class LHS_Sampler(ABC):
 
         return modified_space
 
-####################################################################################### GEOMETRY FEATURES SMX - LHS ###################################################################################
+class CCD_Sampler(LHS_Sampler):
+
+    def __init__(self, CCD_space: dict) -> None:
+        self.CCD_space = CCD_space
+        self.param_funs = None
+
+    def __call__(self) -> dict:
+        
+        CCD_space = build.central_composite(self.CCD_space, face='ccf')
+
+        modified_space = self.apply_restrictions(CCD_space)
+
+        final_space = self.add_parameters(modified_space)
+
+        return final_space
+    
+    @abstractmethod
+    def apply_restrictions(self, CCD_space: dict) -> dict:
+        pass
+
+    def add_parameters(self, modified_space: dict) -> dict:
+        return super().add_parameters(modified_space)
+
+####################################################################################
+# # STATIC MIXER STUDIES - LHS #
+# ##################################################################################
 
 class SMX_Sampler(LHS_Sampler):
 
@@ -170,6 +195,24 @@ class SMX_SP(LHS_Sampler):
     def calcPos(row):
         return row['Radius (mm)']
 
+class SMX_SP_CCD(CCD_Sampler):
+
+    def __init__(self, CCD_space: dict) -> None:
+        super().__init__(CCD_space)
+
+        cls = SMX_SP
+
+        self.param_funs = {'Re' : cls.calcRe,
+                           'SMX_pos (mm)': cls.calcPos}
+    
+    def __call__(self) -> dict:
+        return super().__call__()
+
+    def apply_restrictions(self, CCD_space: dict) -> dict:
+
+        modified_space = SMX_SP.apply_restrictions(CCD_space)
+
+        return modified_space
 
 ####################################################################################### SURFACTANT PROPERTIES SMX - LHS ###################################################################################
 
