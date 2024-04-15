@@ -46,13 +46,15 @@ class LHS_Sampler(ABC):
 
 class CCD_Sampler(LHS_Sampler):
 
-    def __init__(self, CCD_space: dict) -> None:
+    def __init__(self, CCD_space: dict, num_samples: int, rules) -> None:
         self.CCD_space = CCD_space
         self.param_funs = None
+        self.rules = rules
+        self.num_samples = num_samples
 
     def __call__(self) -> dict:
         
-        CCD_space = build.central_composite(self.CCD_space, face='ccf')
+        CCD_space = build.uniform_random(self.CCD_space, self.num_samples)
 
         modified_space = self.apply_restrictions(CCD_space)
 
@@ -61,7 +63,7 @@ class CCD_Sampler(LHS_Sampler):
         return final_space
     
     @abstractmethod
-    def apply_restrictions(self, CCD_space: dict) -> dict:
+    def apply_restrictions(self, CCD_space: dict, rules) -> dict:
         pass
 
     def add_parameters(self, modified_space: dict) -> dict:
@@ -197,8 +199,8 @@ class SMX_SP(LHS_Sampler):
 
 class SMX_SP_CCD(CCD_Sampler):
 
-    def __init__(self, CCD_space: dict) -> None:
-        super().__init__(CCD_space)
+    def __init__(self, CCD_space: dict, num_samples: int, rules) -> None:
+        super().__init__(CCD_space, num_samples, rules)
 
         cls = SMX_SP
 
@@ -210,9 +212,43 @@ class SMX_SP_CCD(CCD_Sampler):
 
     def apply_restrictions(self, CCD_space: dict) -> dict:
 
-        modified_space = SMX_SP.apply_restrictions(CCD_space)
+        # Loading rules
+        min_Re,max_Re = self.rules
+        
+        #Loading features
+        for i in range(CCD_space.shape[0]):
+            w = CCD_space.loc[i,'Bar_Width (mm)']
+            r = CCD_space.loc[i,'Radius (mm)']
+            nbars = round(CCD_space.loc[i,'Nbars'])
+            q = CCD_space.loc[i,'Flowrate (m3/s)']
+            n_ele = round(CCD_space.loc[i,'NElements'])
+            
+            #W- N -D considerations
+            OldW = w
+            OldQ = q
 
-        return modified_space
+            Max_W = 2*r/nbars
+                
+            w = min(w,Max_W)
+
+            ## Maintaining consistent width with the number of bars and the pipe diameter
+            if w != OldW:
+                print('W in row ' + str(i) + ' modified from ' + str(OldW) + ' to ' + str(w))
+
+            Re = 1364*(q/(math.pi*(r/1000)**2))*((2*r)/1000)/0.615
+
+            ### following Reynolds ranges according to AL
+            if Re > max_Re or Re <= min_Re:
+                q = (np.random.uniform(min_Re, max_Re)*0.615/1364)*((math.pi*(r/1000)**2)/((2*r)/1000))
+                print('Re modification')
+                print('Q in row ' + str(i) + ' modified from ' + str(OldQ) + ' to ' + str(q))
+
+            CCD_space.loc[i,'Bar_Width (mm)'] = w
+            CCD_space.loc[i,'Flowrate (m3/s)']  = q
+            CCD_space.loc[i,'Nbars'] = nbars
+            CCD_space.loc[i,'NElements'] = n_ele
+        
+        return CCD_space
 
 ####################################################################################### SURFACTANT PROPERTIES SMX - LHS ###################################################################################
 

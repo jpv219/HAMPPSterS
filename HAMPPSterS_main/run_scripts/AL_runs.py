@@ -23,7 +23,7 @@ import pickle
 import configparser
 import os
 
-log = configure_logger("sp_geom")
+log = configure_logger("AL_dt")
 
 log.info('-' * 100)
 log.info('-' * 100)
@@ -35,13 +35,13 @@ log.info('-' * 100)
 # read data from config file
 config = configparser.ConfigParser()
 package_dir = os.path.dirname(os.path.abspath(__file__)) # by tracing the file directory
-config.read(os.path.join(package_dir, 'config/run_config.ini'))
+config.read(os.path.join(package_dir, 'config/nkovalc1_config.ini'))
 
 case = "sp_geom"
 AL_space = 'dt'
 nruns = 15
 nruns_list = [str(i) for i in range(1, nruns + 1)]
-runname_list = ['run_dt_' + item for item in nruns_list]
+runname_list = ['run_AL_dt_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 user = config['Run']['user']
 study_ID = 'SM'
@@ -61,13 +61,15 @@ local_path = ps.plist("local_path",[config['Paths']['local_path']])
 save_path = ps.plist("save_path",[config['Paths']['save_path']])
 
 ## Parameters to vary in the sample space
-AL_dict = {'Bar_Width (mm)': [1,25],'Bar_Thickness (mm)': [1,8],
-            'Radius (mm)': [4,5],'Nbars':[3,16],
-            'Flowrate (m3/s)': [5e-7,1e-2],'Angle':[15,85], 'NElements': [2,8]}
+AL_dict = {'Bar_Width (mm)': [2,25],'Bar_Thickness (mm)': [1,3.538],
+            'Radius (mm)': [4,7.865],'Nbars':[10,16],
+            'Flowrate (m3/s)': [5e-7,1e-2],'Angle':[20,80], 'NElements': [2,8]}
+
+Re_rules = (50.997, 251.697)
 
 captured_output = io.StringIO()
 
-LHS_sampler = SMX_SP_CCD(AL_dict, nruns)
+LHS_sampler = SMX_SP_CCD(AL_dict, nruns, Re_rules)
 
 with contextlib.redirect_stdout(captured_output):
     psdict = LHS_sampler()
@@ -142,8 +144,9 @@ params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path
 log.info('-' * 100)
 log.info('' * 100)
 
+print(params)
 
 simulator = SMSimScheduling()
 
-if __name__ == '__main__':
-    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
+# if __name__ == '__main__':
+#     df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
