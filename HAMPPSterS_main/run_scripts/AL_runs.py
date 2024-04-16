@@ -40,7 +40,7 @@ config.read(os.path.join(package_dir, 'config/nkovalc1_config.ini'))
 case = "sp_geom"
 AL_space = 'dt'
 nruns = 15
-nruns_list = [str(i) for i in range(1, nruns + 1)]
+nruns_list = [str(i+30) for i in range(1, nruns + 1)]
 runname_list = ['run_AL_dt_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 user = config['Run']['user']
@@ -61,11 +61,11 @@ local_path = ps.plist("local_path",[config['Paths']['local_path']])
 save_path = ps.plist("save_path",[config['Paths']['save_path']])
 
 ## Parameters to vary in the sample space
-AL_dict = {'Bar_Width (mm)': [2,25],'Bar_Thickness (mm)': [1,3.538],
-            'Radius (mm)': [4,7.865],'Nbars':[10,16],
-            'Flowrate (m3/s)': [5e-7,1e-2],'Angle':[20,80], 'NElements': [2,8]}
+AL_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [2,4],
+            'Radius (mm)': [6,14],'Nbars':[8,16],
+            'Flowrate (m3/s)': [5e-7,1e-2],'Angle':[20,80], 'NElements': [2,4]}
 
-Re_rules = (50.997, 251.697)
+Re_rules = (36, 138)
 
 captured_output = io.StringIO()
 
@@ -83,7 +83,7 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open(f'../DOE/sp_geom_AL_{AL_space}.pkl', 'wb') as file:
+with open(f'../DOE/sp_AL_{AL_space}_3.pkl', 'wb') as file:
    pickle.dump(psdict, file)
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
@@ -118,7 +118,7 @@ data = list(zip(bar_width_list, bar_thickness_list,
                 cond_csv_limit_list))
 
 # Save the combined data into a CSV file
-with open(f'../params/parameters_sp_AL_{AL_space}.csv', 'w', newline='') as csvfile:
+with open(f'../params/parameters_sp_AL_{AL_space}_3.csv', 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
     writer.writerows(data)
@@ -144,9 +144,8 @@ params = ps.pgrid(base_path,run_path,convert_path,case_type,local_path,save_path
 log.info('-' * 100)
 log.info('' * 100)
 
-print(params)
 
 simulator = SMSimScheduling()
 
-# if __name__ == '__main__':
-#     df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
+if __name__ == '__main__':
+    df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
