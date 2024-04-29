@@ -9,11 +9,12 @@
 #######################################################################################################################################################################################
 # Local path
 import sys
-sys.path.append('/home/pdp19/Documents/SMX_DeepLearning/HAMPPSterS_main')
+#sys.path.append('/home/pdp19/Documents/SMX_DeepLearning/HAMPPSterS_main')
+sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from IO_run_scheduling import IOSimScheduling
-from LHS_Dataspace import runIODOE
+from LHS_Dataspace import IO_clean
 from logger import configure_logger
 import io
 import contextlib
@@ -55,8 +56,10 @@ osc_dict = {'epsilon': [1,1],'Wave_number (1/m)': [2,2],'Surf_tension (N/m)': [1
 
 captured_output = io.StringIO()
 
+LHS_sampler = IO_clean(osc_dict, nruns)
+
 with contextlib.redirect_stdout(captured_output):
-    psdict = runIODOE(osc_dict,nruns)
+    psdict = LHS_sampler()
     log.info('-' * 100)
     log.info('Modifications to the DOE')
     log.info(captured_output.getvalue())

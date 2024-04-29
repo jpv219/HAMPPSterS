@@ -1,4 +1,4 @@
-### SMX_Automation_simulation_run, tailored for BLUE 12.5.1
+### ALeRT AL sampling runs, tailored for BLUE 12.5.1
 ### Main parametric running script
 ### to be run locally
 ### Author: Juan Pablo Valdes,
@@ -14,14 +14,16 @@ sys.path.append('/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/')
 
 import psweep as ps
 from Mixing_run_scheduling import SMSimScheduling
-from LHS_Dataspace import SMX_SP
+from LHS_Dataspace import SMX_SP_UR
 from logger import configure_logger
 import io
 import contextlib
 import csv
 import pickle
+import configparser
+import os
 
-log = configure_logger("sp_geom")
+log = configure_logger("AL_dt")
 
 log.info('-' * 100)
 log.info('-' * 100)
@@ -29,18 +31,25 @@ log.info('Parametric study launch')
 log.info('-' * 100)
 log.info('-' * 100)
 
+
+# read data from config file
+config = configparser.ConfigParser()
+package_dir = os.path.dirname(os.path.abspath(__file__)) # by tracing the file directory
+config.read(os.path.join(package_dir, 'config/nkovalc1_config.ini'))
+
 case = "sp_geom"
-nruns = 10
-nruns_list = [str(i+404) for i in range(1, nruns + 1)]
-runname_list = ['run_sp_' + item for item in nruns_list]
+AL_space = 'dt'
+nruns = 15
+nruns_list = [str(i+30) for i in range(1, nruns + 1)]
+runname_list = ['run_AL_dt_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
-re_run = False
-user = 'nkovalc1'
+user = config['Run']['user']
 study_ID = 'SM'
 
-run_path = ps.plist("run_path",["/rds/general/user/nkovalc1/home/BLUE-12.5.1/project/ACTIVE_LEARNING/RUNS"])
-base_path = ps.plist("base_path",["/rds/general/user/nkovalc1/home/BLUE-12.5.1/project/ACTIVE_LEARNING/BASE"])
-convert_path = ps.plist("convert_path",["/rds/general/user/nkovalc1/home/F_CONVERT"])
+
+run_path = ps.plist("run_path",[config['Paths']['run_path']])
+base_path = ps.plist("base_path",[config['Paths']['base_path']])
+convert_path = ps.plist("convert_path",[config['Paths']['convert_path']])
 
 case_type = ps.plist("case",[case])
 user_ps = ps.plist("user",[user])
@@ -48,18 +57,19 @@ run_ID = ps.plist("run_ID",nruns_list)
 run_name = ps.plist("run_name",runname_list)
 study_list = ps.plist("study_ID",[study_ID])
 
-local_path = ps.plist("local_path",["/home/jpv219/Documents/ML/SMX_DeepLearning/HAMPPSterS_main/"])
-save_path = ps.plist("save_path",["/media/jpv219/ML/SP_Runs"])
+local_path = ps.plist("local_path",[config['Paths']['local_path']])
+save_path = ps.plist("save_path",[config['Paths']['save_path']])
 
 ## Parameters to vary in the sample space
-max_diameter = 0.032
-SMX_dict = {'Bar_Width (mm)': [1,25],'Bar_Thickness (mm)': [1,8],
-            'Radius (mm)': [4,max_diameter*1000/2],'Nbars':[3,16],
-            'Flowrate (m3/s)': [5e-7,1e-2],'Angle':[15,85], 'NElements': [2,8]}
+AL_dict = {'Bar_Width (mm)': [1,20],'Bar_Thickness (mm)': [2,4],
+            'Radius (mm)': [6,14],'Nbars':[8,16],
+            'Flowrate (m3/s)': [5e-7,1e-2],'Angle':[20,80], 'NElements': [2,4]}
+
+Re_rules = (36, 138)
 
 captured_output = io.StringIO()
 
-LHS_sampler = SMX_SP(SMX_dict, nruns)
+LHS_sampler = SMX_SP_UR(AL_dict, nruns, Re_rules)
 
 with contextlib.redirect_stdout(captured_output):
     psdict = LHS_sampler()
@@ -73,9 +83,8 @@ log.info('-' * 100)
 
 ### Save LHS dictionary for later
 
-with open('../DOE/LHS_sp_geom_13.pkl', 'wb') as file:
+with open(f'../DOE/sp_AL_{AL_space}_3.pkl', 'wb') as file:
    pickle.dump(psdict, file)
-
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
@@ -87,64 +96,32 @@ m = 0.577
 
 psdict['cond_csv_limit'] = psdict['Re'].apply(lambda Re: (1-Re/500)*ninf + 0.90*((n0-ninf)/(1+(k*Re)**m)))
 
-
 cond_csv = ps.plist("cond_csv",["Time(s)"])
 conditional = ps.plist("conditional",["<"])
 
+bar_width_list = list(map(str,psdict['Bar_Width (mm)'] / 1000))
+bar_thickness_list = list(map(str,psdict['Bar_Thickness (mm)'] / 1000))
+bar_angle_list = list(map(str,psdict['Angle']))
+radius_list = list(map(str,psdict['Radius (mm)'] / 1000))
+nbars_list = list(map(str,psdict['Nbars']))
+flowrate_list = list(map(str,psdict['Flowrate (m3/s)']))
+smx_pos_list = list(map(str,psdict['SMX_pos (mm)'] / 1000))
+nele_list = list(map(str,psdict['NElements']))
 
-## Geometry parameters
+# Dynamically changing termination condition
+cond_csv_limit_list = list(map(str,psdict['cond_csv_limit']))
 
-if not re_run:
+# Combine the lists
+data = list(zip(bar_width_list, bar_thickness_list, 
+                bar_angle_list, radius_list, nbars_list, 
+                flowrate_list, smx_pos_list,nele_list,
+                cond_csv_limit_list))
 
-    bar_width_list = list(map(str,psdict['Bar_Width (mm)'] / 1000))
-    bar_thickness_list = list(map(str,psdict['Bar_Thickness (mm)'] / 1000))
-    bar_angle_list = list(map(str,psdict['Angle']))
-    radius_list = list(map(str,psdict['Radius (mm)'] / 1000))
-    nbars_list = list(map(str,psdict['Nbars']))
-    flowrate_list = list(map(str,psdict['Flowrate (m3/s)']))
-    smx_pos_list = list(map(str,psdict['SMX_pos (mm)'] / 1000))
-    nele_list = list(map(str,psdict['NElements']))
-
-    # Dynamically changing termination condition
-    cond_csv_limit_list = list(map(str,psdict['cond_csv_limit']))
-
-    # Combine the lists
-    data = list(zip(bar_width_list, bar_thickness_list, 
-                    bar_angle_list, radius_list, nbars_list, 
-                    flowrate_list, smx_pos_list,nele_list,
-                    cond_csv_limit_list))
-
-    # Save the combined data into a CSV file
-    with open('../params/parameters_SP_13.csv', 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
-        writer.writerows(data)
-
-else:
-    # Initialize empty lists for each parameter
-    bar_width_list = []
-    bar_thickness_list = []
-    bar_angle_list = []
-    radius_list = []
-    nbars_list = []
-    flowrate_list = []
-    smx_pos_list = []
-    nele_list = []
-    cond_csv_limit_list = []
-
-    # Load data from CSV file
-    with open('../params/parameters_SP_13.csv', 'r') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            bar_width_list.append(row['bar_width'])
-            bar_thickness_list.append(row['bar_thickness'])
-            bar_angle_list.append(row['bar_angle'])
-            radius_list.append(row['radius'])
-            nbars_list.append(row['nbars'])
-            flowrate_list.append(row['flowrate'])
-            smx_pos_list.append(row['smx_pos'])
-            nele_list.append(row['NElements'])
-            cond_csv_limit_list.append(row['cond_csv_limit'])
+# Save the combined data into a CSV file
+with open(f'../params/parameters_sp_AL_{AL_space}_3.csv', 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(['bar_width', 'bar_thickness', 'bar_angle', 'radius', 'nbars', 'flowrate', 'smx_pos','NElements','cond_csv_limit'])
+    writer.writerows(data)
 
 bar_width = ps.plist("bar_width",bar_width_list)
 bar_thickness = ps.plist("bar_thickness",bar_thickness_list)
@@ -172,5 +149,3 @@ simulator = SMSimScheduling()
 
 if __name__ == '__main__':
     df = ps.run_local(simulator.localrun, params, poolsize=5,save=True,tmpsave=True,skip_dups=True)   
-
-

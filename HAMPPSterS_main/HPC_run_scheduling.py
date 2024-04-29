@@ -599,8 +599,8 @@ class HPCScheduling(ABC):
             return False
 
     ### submitting the SMX job and recording job_id
-
-    def submit_job(self,path,name):
+    @staticmethod
+    def submit_job(path,name):
 
         proc = []
         os.chdir(f'{path}')

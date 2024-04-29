@@ -329,7 +329,8 @@ class SimScheduling(ABC):
  
     ### Search and extract communications from the functions executed remotely on the HPC
 
-    def search(self,out_lines,search):
+    @staticmethod
+    def search(out_lines,search):
         ##### search = 0 : looks for JobID, status and wait time
         ##### search = 1 : looks for wait time, status
         ##### search = 2 : looks for JobID, status and wait time and boolean return values
