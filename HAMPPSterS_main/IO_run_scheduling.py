@@ -227,7 +227,7 @@ class IOSimScheduling(SS):
         log.info('-' * 100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+            output = subprocess.run(['/home/orig-pdp19/ParaView-5.8.1-MPI-Linux-Python3.7-64bit/bin/pvpython', script_path, self.save_path , self.run_name], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
@@ -263,7 +263,7 @@ class IOSimScheduling(SS):
         log.info('-' * 100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+            output = subprocess.run(['/home/orig-pdp19/ParaView-5.8.1-MPI-Linux-Python3.7-64bit/bin/pvpython', script_path, self.save_path , self.run_name], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
@@ -299,7 +299,7 @@ class IOSimScheduling(SS):
         log.info('-' * 100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+            output = subprocess.run(['/home/orig-pdp19/ParaView-5.8.1-MPI-Linux-Python3.7-64bit/bin/pvpython', script_path, self.save_path , self.run_name], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
@@ -335,7 +335,7 @@ class IOSimScheduling(SS):
         log.info('-' * 100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+            output = subprocess.run(['/home/orig-pdp19/ParaView-5.8.1-MPI-Linux-Python3.7-64bit/bin/pvpython', script_path, self.save_path , self.run_name], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
@@ -371,7 +371,7 @@ class IOSimScheduling(SS):
         log.info('-' * 100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name], 
+            output = subprocess.run(['/home/orig-pdp19/ParaView-5.8.1-MPI-Linux-Python3.7-64bit/bin/pvpython', script_path, self.save_path , self.run_name], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
@@ -411,7 +411,7 @@ class IOSimScheduling(SS):
         log.info('-' * 100)
 
         try:
-            output = subprocess.run(['pvpython', script_path, self.save_path , self.run_name, str(self.rho_l),str(self.rho_g)], 
+            output = subprocess.run(['/home/orig-pdp19/ParaView-5.8.1-MPI-Linux-Python3.7-64bit/bin/pvpython', script_path, self.save_path , self.run_name, str(self.rho_l),str(self.rho_g)], 
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             captured_stdout = output.stdout.decode('utf-8').strip().split('\n')
