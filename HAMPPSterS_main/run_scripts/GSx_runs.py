@@ -64,14 +64,19 @@ local_path = ps.plist("local_path",[config['Paths']['local_path']])
 save_path = ps.plist("save_path",[config['Paths']['save_path']])
 
 
-bar_width = ps.plist("bar_width",GSx_space['Bar_Width (mm)'].tolist())
-bar_thickness = ps.plist("bar_thickness",GSx_space['Bar_Thickness (mm)'].tolist())
-bar_angle = ps.plist("bar_angle",GSx_space['Angle'].tolist())
-pipe_radius = ps.plist("pipe_radius",GSx_space['Radius (mm)'].tolist())
-n_bars = ps.plist("n_bars",GSx_space['Nbars'].tolist())
-flowrate = ps.plist("flowrate",GSx_space['Flowrate (m3/s)'].tolist())
-smx_pos = ps.plist("smx_pos",GSx_space['Radius (mm)'].tolist())
-n_ele = ps.plist("n_ele",GSx_space['NElements'].tolist())
+bar_width_list = [str(x/1000) for x in GSx_space['Bar_Width (mm)']]
+bar_thickness_list = [str(x/1000) for x in GSx_space['Bar_Thickness (mm)']]
+radius_list = [str(x/1000) for x in GSx_space['Radius (mm)']]
+smx_pos_list = [str(x/1000) for x in GSx_space['Radius (mm)']]
+
+bar_width = ps.plist("bar_width",bar_width_list)
+bar_thickness = ps.plist("bar_thickness",bar_thickness_list)
+bar_angle = ps.plist("bar_angle",GSx_space['Angle'].apply(str).tolist())
+pipe_radius = ps.plist("pipe_radius",radius_list)
+n_bars = ps.plist("n_bars",GSx_space['Nbars'].apply(str).tolist())
+flowrate = ps.plist("flowrate",GSx_space['Flowrate (m3/s)'].apply(str).tolist())
+smx_pos = ps.plist("smx_pos",smx_pos_list)
+n_ele = ps.plist("n_ele",GSx_space['NElements'].apply(str).tolist())
 
 ### Termination condition to be written as: check_value --operator-- cond_csv_limit. Once condition is false, stop job
 ### cond_csv determines which condition to use as stopping criteria from the csv
@@ -85,7 +90,7 @@ m = 0.577
 Re_list = [1364*(Q/(math.pi*(R/1000)**2))*((2*R)/1000)/0.615 
            for Q,R in zip(GSx_space['Flowrate (m3/s)'],GSx_space['Radius (mm)'])]
 
-cond_csv_limit_list = [(1-Re/500)*ninf + 0.90*((n0-ninf)/(1+(k*Re)**m)) for Re in Re_list]
+cond_csv_limit_list = [str((1-Re/500)*ninf + 0.90*((n0-ninf)/(1+(k*Re)**m))) for Re in Re_list]
 
 cond_csv = ps.plist("cond_csv",["Time(s)"])
 conditional = ps.plist("conditional",["<"])
