@@ -115,7 +115,6 @@ with open('../params/parameters_osc_clean_13.csv', 'w', newline='') as csvfile:
                      'a0','rho_r','mu_r','La_g','La_l','Ga_g','Ga_l','Bo_l','omega','T','t_final','delta_t_sn'])
     writer.writerows(data)
 
-
 epsilon = ps.plist("epsilon",epsilon_list)
 k = ps.plist("k",k_list)
 t_final = ps.plist("t_final",t_final_list)
