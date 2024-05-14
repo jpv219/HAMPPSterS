@@ -1,0 +1,40 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  HAMPPSterS: Hybrid PC-HPC Automated Monitoring and
+  Post-processing: Parametric Study Scheduler for
+  Simulations
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Juan Pablo
+    family-names: Valdes
+    email: j.valdes20@imperial.ac.uk
+    affiliation: Imperial College London
+    orcid: 'https://orcid.org/0000-0003-3249-5194'
+  - given-names: Fuyue
+    family-names: Liang
+    email: fuyue.liang18@imperial.ac.uk
+    affiliation: Imperial College London
+    orcid: 'https://orcid.org/0000-0002-4159-6993'
+  - given-names: Paula
+    family-names: Pico
+    email: p.pico20@imperial.ac.uk
+    affiliation: Imperial College London
+    orcid: 'https://orcid.org/0000-0002-2641-5162'
+repository-code: 'https://github.com/jpv219/HAMPPSterS'
+abstract: >-
+  HAMPPSterS is a Python-based repository designed to
+  facilitate the orchestration of simulations in a hybrid
+  environment, utilising both a local PC and a remote
+  High-Performance Computing (HPC) system. This tool
+  streamlines the simulation workflow, covering parametric
+  run generation, job submission, monitoring, convergence
+  checks, restarting, file conversion, and post-processing.
+commit: ' 1caeff2'
+version: '6.1'
+date-released: '2024-04-09'
