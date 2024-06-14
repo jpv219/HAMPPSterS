@@ -35,12 +35,12 @@ log.info('-' * 100)
 # read data from config file
 config = configparser.ConfigParser()
 package_dir = os.path.dirname(os.path.abspath(__file__)) # by tracing the file directory
-config.read(os.path.join(package_dir, 'config/jpv219_config.ini'))
+config.read(os.path.join(package_dir, 'config/nkahouad_config.ini'))
 
 case = "sp_geom"
 AL_space = 'dt'
-nruns = 10
-nruns_list = [str(i+60) for i in range(1, nruns + 1)]
+nruns = 15
+nruns_list = [str(i+70) for i in range(1, nruns + 1)]
 runname_list = ['run_AL_dt_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 user = config['Run']['user']
@@ -61,11 +61,11 @@ local_path = ps.plist("local_path",[config['Paths']['local_path']])
 save_path = ps.plist("save_path",[config['Paths']['save_path']])
 
 ## Parameters to vary in the sample space
-AL_dict = {'Bar_Width (mm)': [1,25],'Bar_Thickness (mm)': [3,10],
-            'Radius (mm)': [10.9,11.9],'Nbars':[3,16],
+AL_dict = {'Bar_Width (mm)': [1,25],'Bar_Thickness (mm)': [4.0,8.77],
+            'Radius (mm)': [6.12,11.9],'Nbars':[3,16],
             'Flowrate (m3/s)': [5e-7,1e-2],'Angle':[25,80], 'NElements': [2,6]}
 
-Re_rules = (336, 500)
+Re_rules = (141, 400)
 
 captured_output = io.StringIO()
 

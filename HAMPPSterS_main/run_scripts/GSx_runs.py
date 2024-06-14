@@ -32,7 +32,7 @@ log.info('-' * 100)
 # read data from config file
 config = configparser.ConfigParser()
 package_dir = os.path.dirname(os.path.abspath(__file__)) # by tracing the file directory
-config.read(os.path.join(package_dir, 'config/nkovalc1_config.ini'))
+config.read(os.path.join(package_dir, 'config/jpv219_config.ini'))
 
 case = "sp_geom"
 AL_space = 'gsx'
@@ -41,10 +41,10 @@ log.info('-' * 100)
 log.info('Reading GSX runs from Pickle file')
 log.info('-' * 100)
 
-GSx_space = pd.read_pickle(os.path.join(package_dir,'GSx/gsx_df.pkl'))
+GSx_space = pd.read_pickle(os.path.join(package_dir,'GSx/rerun_gsx.pkl'))
 
 nruns = len(GSx_space)
-nruns_list = [str(i) for i in range(1, nruns + 1)]
+nruns_list = [str(i+60) for i in range(1, nruns + 1)]
 runname_list = ['run_AL_GSx_' + item for item in nruns_list]
 log.info(f'Case {case} studied with {nruns} runs')
 user = config['Run']['user']
